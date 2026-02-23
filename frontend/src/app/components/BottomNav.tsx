@@ -9,10 +9,10 @@ interface BottomNavProps {
 }
 
 const navItems = [
-  { id: 'home' as Page, label: 'Home', icon: Home },
-  { id: 'closet' as Page, label: 'Closet', icon: Shirt },
-  { id: 'style-chat' as Page, label: 'Chat', icon: MessageCircle },
-  { id: 'my' as Page, label: 'My', icon: User },
+  { id: 'home' as Page, label: '홈', icon: Home },
+  { id: 'closet' as Page, label: '옷장', icon: Shirt },
+  { id: 'style-chat' as Page, label: '채팅', icon: MessageCircle },
+  { id: 'my' as Page, label: '마이페이지', icon: User },
 ];
 
 export default function BottomNav({ currentPage, onNavigate }: BottomNavProps) {
