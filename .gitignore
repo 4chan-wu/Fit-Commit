@@ -1,6 +1,22 @@
-node_modules/
+# =========================
+# Backend
+# =========================
+backend/.env
+backend/.env.*
+backend/__pycache__/
+backend/*.pyc
+
+# =========================
+# Frontend
+# =========================
+frontend/node_modules/
+frontend/dist/
+frontend/build/
+
+# =========================
+# Global
+# =========================
+*.log
+.DS_Store
 .env
 .env.*
-dist/
-build/
-*.log

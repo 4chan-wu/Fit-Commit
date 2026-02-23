@@ -1,4 +1,4 @@
-import React from 'react';
+﻿import React from 'react';
 import { Home, MessageCircle, Shirt, User, Sparkles } from 'lucide-react';
 import { motion } from 'motion/react';
 
@@ -10,10 +10,10 @@ interface SideNavProps {
 }
 
 const navItems = [
-  { id: 'home' as Page, label: '홈', icon: Home },
-  { id: 'closet' as Page, label: '옷장', icon: Shirt },
-  { id: 'style-chat' as Page, label: '채팅', icon: MessageCircle },
-  { id: 'my' as Page, label: 'MY', icon: User },
+  { id: 'home' as Page, label: 'Home', icon: Home },
+  { id: 'closet' as Page, label: 'Closet', icon: Shirt },
+  { id: 'style-chat' as Page, label: 'Chat', icon: MessageCircle },
+  { id: 'my' as Page, label: 'My', icon: User },
 ];
 
 export default function SideNav({ currentPage, onNavigate }: SideNavProps) {
@@ -57,9 +57,9 @@ export default function SideNav({ currentPage, onNavigate }: SideNavProps) {
       {/* Footer */}
       <div className="p-4 border-t border-neutral-800">
         <div className="bg-neutral-900 rounded-xl p-4 space-y-2">
-          <p className="text-sm text-white">AI 스타일 진단</p>
+          <p className="text-sm text-white">AI ?ㅽ???吏꾨떒</p>
           <p className="text-xs text-neutral-400">
-            내 체형과 피부톤을 분석하고 맞춤 스타일을 추천받아보세요
+            ??泥댄삎怨??쇰??ㅼ쓣 遺꾩꽍?섍퀬 留욎땄 ?ㅽ??쇱쓣 異붿쿇諛쏆븘蹂댁꽭??
           </p>
         </div>
       </div>

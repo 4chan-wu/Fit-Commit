@@ -7,6 +7,7 @@ import StyleChatPage from './pages/StyleChatPage';
 import MyPage from './pages/MyPage';
 import AIDiagnosis from './components/AIDiagnosis';
 import SideNav from './components/SideNav';
+import BottomNav from './components/BottomNav';
 import { ClosetProvider } from './context/ClosetContext';
 
 type Page = 'main' | 'login' | 'home' | 'closet' | 'style-chat' | 'my' | 'ai-diagnosis';
@@ -28,7 +29,7 @@ function App() {
     setCurrentPage('home');
   };
 
-  const showSideNav = isLoggedIn && currentPage !== 'ai-diagnosis' && currentPage !== 'main' && currentPage !== 'login';
+  const showNav = isLoggedIn && currentPage !== 'ai-diagnosis' && currentPage !== 'main' && currentPage !== 'login';
 
   // Full page views (no nav)
   const isFullPageView = currentPage === 'main' || currentPage === 'login' || currentPage === 'ai-diagnosis';
@@ -46,16 +47,18 @@ function App() {
         ) : (
           // Desktop layout with sidebar
           <div className="flex min-h-screen">
-            {showSideNav && <SideNav currentPage={currentPage} onNavigate={setCurrentPage} />}
+            {showNav && <SideNav currentPage={currentPage} onNavigate={setCurrentPage} />}
             
-            <main className="flex-1 min-h-screen">
-              <div className="max-w-6xl mx-auto">
+            <main className="flex-1 min-h-screen pb-28 md:pb-0">
+              <div className="w-full max-w-6xl mx-auto px-4 md:px-6">
                 {currentPage === 'home' && <HomePage onStartDiagnosis={handleStartDiagnosis} />}
                 {currentPage === 'closet' && <ClosetPage />}
                 {currentPage === 'style-chat' && <StyleChatPage />}
                 {currentPage === 'my' && <MyPage />}
               </div>
             </main>
+
+            {showNav && <BottomNav currentPage={currentPage} onNavigate={setCurrentPage} />}
           </div>
         )}
       </div>
