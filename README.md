@@ -1,7 +1,8 @@
 
-  # AI 스타일 추천 시스템 (복사) (복사) (복사)
-
-  This is a code bundle for AI 스타일 추천 시스템 (복사) (복사) (복사). The original project is available at https://www.figma.com/design/T1ShAQ7lN9KV48e8jqJ3Ve/AI-%EC%8A%A4%ED%83%80%EC%9D%BC-%EC%B6%94%EC%B2%9C-%EC%8B%9C%EC%8A%A4%ED%85%9C--%EB%B3%B5%EC%82%AC---%EB%B3%B5%EC%82%AC---%EB%B3%B5%EC%82%AC-.
+  # AI 스타일 추천 시스템 
+  
+  핏커밋(FitCommit)은 사용자가 이미 가진 옷을 AI가 분석해 개인 취향을 학습하고, 새 옷을 사지 않아도 최적의 코디를 매칭해주는 지속가능한 AI 스타일링 서비스입니다.
+  FitCommit is an AI styling service that analyzes the clothes you already own, learns your personal taste, and generates optimized outfits — without requiring you to buy new clothes.
 
   ## Running the code
 
