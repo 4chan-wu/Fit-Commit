@@ -12,7 +12,7 @@ load_dotenv()
 app = FastAPI()
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
-# ✅ CORS: 프론트(React) 주소를 허용해야 브라우저에서 호출 가능
+#  CORS: 프론트(React) 주소를 허용해야 브라우저에서 호출 가능
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
@@ -40,7 +40,7 @@ class ChatResponse(BaseModel):
     reply: str
 
 
-# ✅ 항상 적용되는 “패트리(패션 코디네이터)” 전역 규칙
+#  항상 적용되는 “패트리(패션 코디네이터)” 전역 규칙
 SYSTEM_BASE = """
 너는 AI 스타일 어시스턴트 '패트리'야. 역할은 '패션 코디네이터'야.
 대화 주제는 반드시 '옷/스타일/코디/색상/핏/아이템/브랜드/상황별 착장'으로 제한해.
@@ -149,7 +149,7 @@ def chat(req: ChatRequest):
     intent = detect_intent(last_user)
     system_prompt = SYSTEM_PROMPTS[intent]
 
-    # ✅ 전역 규칙 + intent별 규칙을 함께 system으로 주입
+    #  전역 규칙 + intent별 규칙을 함께 system으로 주입
     input_messages = [
         {"role": "system", "content": SYSTEM_BASE},
         {"role": "system", "content": system_prompt},
