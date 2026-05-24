@@ -1,0 +1,50 @@
+version: "3.9"  # Docker Compose 버전
+
+services:
+  # =========================
+  # FastAPI 백엔드 서버
+  # =========================
+  backend:
+    build: .  # 현재 디렉토리의 Dockerfile로 이미지 빌드
+    container_name: fitcommit-backend  # 컨테이너 이름
+
+    ports:
+      - "8000:8000"  # 로컬 8000 → 컨테이너 8000 (FastAPI 접속용)
+
+    volumes:
+      - .:/app  # 로컬 코드와 컨테이너 동기화 (핫 리로드용)
+
+    env_file:
+      - .env  # 환경변수 파일 (.env) 로드
+
+    depends_on:
+      - db  # DB 컨테이너 먼저 실행 (준비 완료까지는 보장 X)
+
+
+  # =========================
+  # PostgreSQL 데이터베이스
+  # =========================
+  db:
+    image: postgres:15  # PostgreSQL 공식 이미지
+    container_name: fitcommit-db
+
+    restart: always  # 컨테이너 죽으면 자동 재시작
+
+    environment:
+      POSTGRES_DB: fitcommit      # 생성할 DB 이름
+      POSTGRES_USER: postgres     # DB 사용자
+      POSTGRES_PASSWORD: postgres # DB 비밀번호
+
+    ports:
+      - "5433:5432"  # 로컬 5433 → 컨테이너 5432 (충돌 방지용)
+
+    volumes:
+      - postgres_data:/var/lib/postgresql/data  
+      # DB 데이터 영구 저장 (컨테이너 삭제해도 데이터 유지)
+
+
+# =========================
+# 볼륨 정의 (데이터 저장소)
+# =========================
+volumes:
+  postgres_data:
