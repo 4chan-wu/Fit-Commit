@@ -136,8 +136,8 @@ public class MainActivity extends Activity {
         Button addButton = view.findViewById(R.id.addClothingButton);
         addButton.setOnClickListener(v -> startActivity(new Intent(this, AnalysisResultActivity.class)));
 
-        view.findViewById(R.id.spaceScanButton).setOnClickListener(v -> UiUtils.toast(this, "3D 공간 스캔은 추후 ARCore로 연결됩니다."));
-        view.findViewById(R.id.bodyMeasureButton).setOnClickListener(v -> UiUtils.toast(this, "신체 비율 측정은 추후 카메라 모듈과 연결됩니다."));
+        view.findViewById(R.id.spaceScanButton).setOnClickListener(v -> startActivity(new Intent(this, SpaceScanActivity.class)));
+        view.findViewById(R.id.bodyMeasureButton).setOnClickListener(v -> startActivity(new Intent(this, BodyMeasureActivity.class)));
 
         GridLayout grid = view.findViewById(R.id.closetGrid);
         new ClosetCardAdapter(this).bind(grid, sampleClosetItems());

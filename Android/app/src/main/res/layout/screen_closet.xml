@@ -12,7 +12,7 @@
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="공간과 신체 데이터를 기반으로"
+            android:text="AI 패트리와 함께"
             android:textColor="@color/fit_text_secondary"
             android:textSize="14sp"
             android:textStyle="bold" />
@@ -21,7 +21,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="8dp"
-            android:text="오늘의 핏을 더 정확하게 준비해요."
+            android:text="오늘의 핏을 준비해봐요."
             android:textColor="@color/fit_text"
             android:textSize="28sp"
             android:textStyle="bold" />

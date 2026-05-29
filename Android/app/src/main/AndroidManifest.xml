@@ -17,6 +17,14 @@
             android:name=".activities.AnalysisResultActivity"
             android:exported="false" />
         <activity
+            android:name=".activities.BodyMeasureActivity"
+            android:exported="false"
+            android:screenOrientation="portrait" />
+        <activity
+            android:name=".activities.SpaceScanActivity"
+            android:exported="false"
+            android:screenOrientation="portrait" />
+        <activity
             android:name=".activities.AIChatActivity"
             android:exported="false" />
         <activity
