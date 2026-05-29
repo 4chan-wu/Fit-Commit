@@ -1,0 +1,36 @@
+# 가상환경 폴더 제외
+.venv/
+venv/
+env/
+
+# 파이썬 캐시 파일 제외
+__pycache__/
+*.pyc
+
+# 주피터 노트북 체크포인트
+.ipynb_checkpoints/
+
+# 학습 데이터 폴더 제외
+data/
+
+# 학습 결과물 및 가중치 파일 제외
+models/weights/
+*.pt
+*.pth
+*.onnx
+
+# 학습 로그 및 시각화 툴 (YOLO 학습 시 자동 생성되는 폴더들)
+runs/
+wandb/
+
+# 개발 환경 설정 및 IDE
+.vscode/
+.idea/
+
+# OS 생성 파일
+.DS_Store
+Thumbs.db
+
+# 구글 드라이브 및 코랩 임시 파일 방지
+.ipynb_checkpoints/
+Icon?

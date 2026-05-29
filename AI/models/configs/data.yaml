@@ -1,0 +1,7 @@
+# dataset.yaml 예시
+path: ../data/dataset  # 데이터셋 루트 경로
+train: train/images
+val: val/images
+
+names:
+  0: blouse
