@@ -1,0 +1,17 @@
+# Android module-specific ignore rules
+
+# Gradle build files
+.gradle/
+**/build/
+
+# Android Studio / NDK build artifacts
+captures/
+.externalNativeBuild/
+.cxx/
+
+# Native debug output
+*.hprof
+
+# Temporary files
+*.tmp
+*~
