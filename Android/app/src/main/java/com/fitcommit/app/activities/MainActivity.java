@@ -20,8 +20,10 @@ import android.widget.TextView;
 import com.fitcommit.app.R;
 import com.fitcommit.app.adapters.ClosetCardAdapter;
 import com.fitcommit.app.models.ClosetItem;
+import com.fitcommit.app.services.ClothingStorage;
 import com.fitcommit.app.utils.UiUtils;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
@@ -44,6 +46,7 @@ public class MainActivity extends Activity {
     private TextView tabCloset;
     private TextView tabAi;
     private TextView tabProfile;
+    private String currentScreen = "";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -67,6 +70,14 @@ public class MainActivity extends Activity {
         tabProfile.setOnClickListener(v -> showProfile());
 
         showHome();
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        if ("closet".equals(currentScreen)) {
+            showCloset();
+        }
     }
 
     private void setSelectedTab(TextView selected) {
@@ -122,6 +133,7 @@ public class MainActivity extends Activity {
     }
 
     private void showHome() {
+        currentScreen = "home";
         setSelectedTab(tabHome);
         inflate(R.layout.screen_home);
     }
@@ -130,20 +142,27 @@ public class MainActivity extends Activity {
      * iOS ClosetView의 AR 기능 허브와 의류 그리드를 더미 데이터로 구성합니다.
      */
     private void showCloset() {
+        currentScreen = "closet";
         setSelectedTab(tabCloset);
         View view = inflate(R.layout.screen_closet);
 
         Button addButton = view.findViewById(R.id.addClothingButton);
-        addButton.setOnClickListener(v -> startActivity(new Intent(this, AnalysisResultActivity.class)));
+        addButton.setOnClickListener(v -> startActivity(new Intent(this, AddClothingActivity.class)));
 
         view.findViewById(R.id.spaceScanButton).setOnClickListener(v -> startActivity(new Intent(this, SpaceScanActivity.class)));
         view.findViewById(R.id.bodyMeasureButton).setOnClickListener(v -> startActivity(new Intent(this, BodyMeasureActivity.class)));
 
         GridLayout grid = view.findViewById(R.id.closetGrid);
-        new ClosetCardAdapter(this).bind(grid, sampleClosetItems());
+        List<ClosetItem> items = new ArrayList<>();
+        items.addAll(ClothingStorage.load(this));
+        items.addAll(sampleClosetItems());
+        TextView countText = view.findViewById(R.id.closetCountText);
+        countText.setText(items.size() + "개");
+        new ClosetCardAdapter(this).bind(grid, items);
     }
 
     private void showAiLanding() {
+        currentScreen = "ai";
         setSelectedTab(tabAi);
         View view = inflate(R.layout.screen_ai_landing);
         view.findViewById(R.id.startChatButton).setOnClickListener(v -> startActivity(new Intent(this, AIChatActivity.class)));
@@ -151,6 +170,7 @@ public class MainActivity extends Activity {
     }
 
     private void showProfile() {
+        currentScreen = "profile";
         setSelectedTab(tabProfile);
         View view = inflate(R.layout.screen_profile);
         view.findViewById(R.id.scanHistoryButton).setOnClickListener(v -> UiUtils.toast(this, "스캔 히스토리는 로컬 저장소 연결 후 표시됩니다."));

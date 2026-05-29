@@ -17,6 +17,12 @@
             android:name=".activities.AnalysisResultActivity"
             android:exported="false" />
         <activity
+            android:name=".activities.ClothingSaveActivity"
+            android:exported="false" />
+        <activity
+            android:name=".activities.AddClothingActivity"
+            android:exported="false" />
+        <activity
             android:name=".activities.BodyMeasureActivity"
             android:exported="false"
             android:screenOrientation="portrait" />

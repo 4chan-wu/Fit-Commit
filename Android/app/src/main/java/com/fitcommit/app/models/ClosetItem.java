@@ -9,11 +9,19 @@ public class ClosetItem {
     public final String category;
     public final String color;
     public final String season;
+    public final String note;
+    public final String imagePath;
 
     public ClosetItem(String name, String category, String color, String season) {
+        this(name, category, color, season, "", "");
+    }
+
+    public ClosetItem(String name, String category, String color, String season, String note, String imagePath) {
         this.name = name;
         this.category = category;
         this.color = color;
         this.season = season;
+        this.note = note;
+        this.imagePath = imagePath;
     }
 }

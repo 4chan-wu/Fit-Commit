@@ -1,9 +1,12 @@
 package com.fitcommit.app.adapters;
 
 import android.content.Context;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.graphics.Color;
 import android.view.ViewGroup;
 import android.widget.GridLayout;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
@@ -11,6 +14,7 @@ import com.fitcommit.app.R;
 import com.fitcommit.app.models.ClosetItem;
 import com.fitcommit.app.utils.UiUtils;
 
+import java.io.File;
 import java.util.List;
 
 /**
@@ -44,10 +48,18 @@ public class ClosetCardAdapter {
         params.setMargins(UiUtils.dp(context, 5), UiUtils.dp(context, 5), UiUtils.dp(context, 5), UiUtils.dp(context, 5));
         card.setLayoutParams(params);
 
-        TextView swatch = new TextView(context);
-        swatch.setText(" ");
-        swatch.setBackgroundColor(UiUtils.parseColorOrDefault(item.color, Color.LTGRAY));
-        card.addView(swatch, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, UiUtils.dp(context, 70)));
+        if (item.imagePath != null && !item.imagePath.isEmpty() && new File(item.imagePath).exists()) {
+            ImageView image = new ImageView(context);
+            Bitmap bitmap = BitmapFactory.decodeFile(item.imagePath);
+            image.setImageBitmap(bitmap);
+            image.setScaleType(ImageView.ScaleType.CENTER_CROP);
+            card.addView(image, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, UiUtils.dp(context, 70)));
+        } else {
+            TextView swatch = new TextView(context);
+            swatch.setText(" ");
+            swatch.setBackgroundColor(UiUtils.parseColorOrDefault(item.color, Color.LTGRAY));
+            card.addView(swatch, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, UiUtils.dp(context, 70)));
+        }
 
         TextView name = new TextView(context);
         name.setText(item.name);
