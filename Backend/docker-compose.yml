@@ -1,0 +1,31 @@
+version: "3.9"
+
+services:
+  backend:
+    build: .
+    container_name: fitcommit-backend
+    ports:
+      - "8001:8000"
+    volumes:
+      - .:/app
+    env_file:
+      - .env
+    depends_on:
+      - db
+
+  db:
+    image: postgres:15
+    container_name: fitcommit-db
+    restart: always
+    environment:
+      POSTGRES_DB: fitcommit
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./app/db/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+
+volumes:
+  postgres_data:

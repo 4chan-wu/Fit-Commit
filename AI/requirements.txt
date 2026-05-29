@@ -1,4 +1,21 @@
-colorama==0.4.6
-numpy==2.4.3
-opencv-python==4.13.0.92
-tqdm==4.67.3
+# --- [Core Web Server] ---
+fastapi==0.111.0         # 고성능 비동기 웹 프레임워크
+uvicorn[standard]==0.30.1 # ASGI 서버 엔진
+python-multipart==0.0.9  # 앱에서 보낸 이미지(Multipart) 수신 필수
+pydantic[email]==2.7.1   # 데이터 검증 및 스키마 관리
+
+# --- [Deep Learning & Computer Vision] ---
+torch==2.3.0             # PyTorch 핵심 엔진
+torchvision==0.18.0      # MobileNet, EfficientNet 등 사전 학습 모델 및 변환 도구
+numpy==1.26.4            # 행렬 연산 및 이미지 데이터 수치화
+opencv-python-headless==4.9.0.80 # 이미지 처리 (서버용은 GUI 제외된 headless 권장)
+Pillow==10.3.0           # 기본 이미지 입출력 및 리사이징
+
+# --- [Machine Learning & Color Extraction] ---
+scikit-learn==1.4.2      # K-Means 알고리즘을 활용한 색상 추출용
+scipy==1.13.0            # K-Means 연산 보조
+
+# --- [Utilities & Env] ---
+python-dotenv==1.0.1     # .env 환경 변수 관리
+requests==2.31.0         # 외부 API 호출용 (필요 시)
+tqdm==4.66.4             # 학습/전처리 진행률 표시

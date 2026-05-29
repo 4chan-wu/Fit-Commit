@@ -1,12 +1,207 @@
+# Fitcommit
 
-  # AI 스타일 추천 시스템 
-  
-  핏커밋(FitCommit)은 사용자가 이미 가진 옷을 AI가 분석해 개인 취향을 학습하고, 새 옷을 사지 않아도 최적의 코디를 매칭해주는 지속가능한 AI 스타일링 서비스입니다.
-  FitCommit is an AI styling service that analyzes the clothes you already own, learns your personal taste, and generates optimized outfits — without requiring you to buy new clothes.
+Fitcommit은 의류 이미지 분석, 사용자 인증, 옷장/체형 데이터 관리, AI 스타일 채팅을 연결하는 패션 AI 서비스입니다. 현재 리포지토리는 iOS 앱, AI 추론/학습 영역, Backend API 서버, 향후 웹 서비스를 위한 Frontend 자리로 정리되어 있습니다.
 
-  ## Running the code
+## 전체 아키텍처
 
-  Run `npm i` to install the dependencies.
+```text
+Ios(MyCloset)
+  |-- 의류 이미지 업로드
+  v
+AI FastAPI Server
+  |-- /predict
+  |-- 카테고리 분류, 대표 색상 추출, 시즌 분류
 
-  Run `npm run dev` to start the development server.
-  
+Ios / Future Frontend
+  |-- 사용자, 채팅, 결제, DB 기반 기능 요청
+  v
+Backend FastAPI Server
+  |-- 사용자 인증/JWT
+  |-- PostgreSQL/Supabase 연동
+  |-- OpenAI 기반 스타일 채팅
+  |-- Toss Payments 연동
+  v
+PostgreSQL / Supabase
+```
+
+AI 서버와 Backend 서버는 분리되어 있습니다. AI 서버는 이미지 파일을 받아 분석 결과만 반환하는 추론 서버이고, Backend 서버는 사용자 계정, DB 저장, 채팅, 결제 등 서비스 상태를 관리합니다.
+
+## 폴더 구조
+
+```text
+.
+├── AI/
+│   ├── main.py
+│   ├── services/
+│   ├── training/
+│   ├── requirements.txt
+│   └── README.md
+├── Backend/
+│   ├── app/
+│   ├── Dockerfile
+│   ├── docker-compose.yml
+│   ├── requirements.txt
+│   ├── .env.example
+│   └── README.md
+├── Ios/
+│   ├── MyCloset.xcodeproj
+│   ├── MyCloset/
+│   ├── MyClosetTests/
+│   └── MyClosetUITests/
+├── Frontend/
+│   └── .gitkeep
+├── README.md
+└── .gitignore
+```
+
+## 서비스 역할
+
+| 영역 | 역할 | 주요 기술 |
+| --- | --- | --- |
+| `AI` | 의류 이미지 분석 서버와 학습/전처리 코드 | FastAPI, PyTorch, torchvision, OpenCV, Pillow, scikit-learn |
+| `Backend` | 사용자 인증, DB, 채팅, 결제 API | FastAPI, SQLAlchemy, PostgreSQL/Supabase, OpenAI API, Toss Payments |
+| `Ios` | SwiftUI 기반 MyCloset 앱 | SwiftUI, SwiftData, AVFoundation, LocalAuthentication |
+| `Frontend` | 향후 웹 서비스 자리 | 예정: Node.js/Vite/React 등 |
+
+## 실행 순서
+
+### 1. AI 서버
+
+```bash
+cd AI
+python -m venv .venv
+source .venv/bin/activate
+pip install --upgrade pip
+pip install -r requirements.txt
+uvicorn main:app --reload --host 0.0.0.0 --port 8000
+```
+
+확인:
+
+```bash
+curl http://localhost:8000/health
+```
+
+### 2. Backend 서버
+
+AI 서버가 `8000`을 사용하는 경우 Backend는 `8001`로 실행하는 것을 권장합니다.
+
+```bash
+cd Backend
+cp .env.example .env
+# .env 값을 로컬 Docker DB 또는 Supabase 환경에 맞게 수정
+python -m venv .venv
+source .venv/bin/activate
+pip install --upgrade pip
+pip install -r requirements.txt
+uvicorn app.main:app --reload --host 0.0.0.0 --port 8001
+```
+
+확인:
+
+```bash
+curl http://localhost:8001/health
+curl http://localhost:8001/db-check
+```
+
+Docker PostgreSQL을 함께 띄우려면:
+
+```bash
+cd Backend
+cp .env.example .env
+docker compose up --build
+```
+
+Docker Compose는 Backend를 로컬 `8001`, PostgreSQL을 로컬 `5433`에 노출합니다.
+
+### 3. iOS 앱
+
+1. Xcode 15 이상에서 `Ios/MyCloset.xcodeproj`를 엽니다.
+2. 실제 기기에서 카메라/네트워크 기능을 테스트합니다.
+3. `Ios/MyCloset/Services/AnalysisService.swift`의 AI 서버 주소를 현재 Mac의 LAN IP로 맞춥니다.
+4. 앱을 빌드하고 실행합니다.
+
+iOS 실제 기기는 `localhost`로 Mac의 서버에 접근할 수 없습니다.
+
+### 4. Frontend 예정
+
+`Frontend`는 현재 `.gitkeep`만 있는 빈 디렉토리입니다. 추후 웹 옷장, 결제 성공/실패 페이지, 관리자 화면, 웹 기반 AI 분석 업로드 UI를 추가할 예정입니다.
+
+## 개발 환경 요구사항
+
+| 영역 | 요구사항 |
+| --- | --- |
+| 공통 | Git, macOS 권장 |
+| AI | Python 3.10 이상, pip, 선택 사항 CUDA/GPU |
+| Backend | Python 3.10 이상, PostgreSQL 또는 Supabase, Docker 선택 |
+| iOS | macOS, Xcode 15 이상, Swift 5.10 이상 |
+| Frontend 예정 | Node.js LTS, npm 또는 pnpm |
+
+## 환경변수
+
+### AI
+
+| 변수 | 필수 | 설명 | 기본값 |
+| --- | --- | --- | --- |
+| `CLOTHING_MODEL_PATH` | 선택 | 의류 카테고리 모델 가중치 경로 | `AI/models/clothing_mobilenet_v3_small.pth` |
+| `SEASON_MODEL_PATH` | 선택 | 시즌 분류 모델 가중치 경로 | `AI/models/season_mobilenet_v3_small.pth` |
+
+### Backend
+
+| 변수 | 필수 | 설명 |
+| --- | --- | --- |
+| `DATABASE_URL` | 필수 | PostgreSQL/Supabase 연결 문자열 |
+| `SECRET_KEY` | 필수 | JWT 서명 키 |
+| `ALGORITHM` | 선택 | JWT 알고리즘. 기본값 `HS256` |
+| `ACCESS_TOKEN_EXPIRE_MINUTES` | 선택 | 액세스 토큰 만료 시간 |
+| `OPENAI_API_KEY` | 채팅 기능 사용 시 필수 | OpenAI API 키 |
+| `TOSS_CLIENT_KEY` | 결제 기능 사용 시 필수 | Toss Payments 클라이언트 키 |
+| `TOSS_SECRET_KEY` | 결제 기능 사용 시 필수 | Toss Payments 시크릿 키 |
+| `TOSS_SUCCESS_URL` | 선택 | 결제 성공 리다이렉트 URL |
+| `TOSS_FAIL_URL` | 선택 | 결제 실패 리다이렉트 URL |
+
+## 팀원 온보딩
+
+1. `git status`로 현재 작업 브랜치와 변경사항을 확인합니다.
+2. AI 작업자는 `AI/README.md`, Backend 작업자는 `Backend/README.md`를 먼저 읽습니다.
+3. `.env.example`은 복사해서 사용하고, `.env`는 커밋하지 않습니다.
+4. AI와 Backend를 동시에 띄울 때는 포트 충돌을 피합니다. 기본 권장값은 AI `8000`, Backend `8001`입니다.
+5. 실제 iPhone 테스트에서는 서버 URL을 Mac의 LAN IP로 설정합니다.
+6. 모델 가중치, API 키, DB 비밀번호, Xcode 사용자 상태 파일은 Git에 올리지 않습니다.
+
+## 주요 API
+
+### AI
+
+| Method | Path | 설명 |
+| --- | --- | --- |
+| `GET` | `/health` | AI 서버 상태 확인 |
+| `POST` | `/predict` | 이미지 파일 업로드 후 의류 분석 |
+
+### Backend
+
+| Method | Path | 설명 |
+| --- | --- | --- |
+| `GET` | `/health` | 서버 상태 확인 |
+| `GET` | `/db-check` | DB 연결 확인 |
+| `POST` | `/users/signup` | 회원가입 |
+| `POST` | `/users/login` | 로그인 |
+| `GET` | `/users/me` | 현재 사용자 확인 |
+| `GET` | `/billing/plans` | 결제 플랜 조회 |
+| `POST` | `/billing/payments/prepare` | 결제 준비 |
+| `POST` | `/billing/payments/confirm` | 결제 승인 |
+| `POST` | `/chat/rooms` | 채팅방 생성 |
+| `GET` | `/chat/rooms` | 채팅방 목록 |
+| `GET` | `/chat/rooms/{room_id}/messages` | 메시지 조회 |
+| `POST` | `/chat/rooms/{room_id}/messages` | 메시지 전송 |
+| `DELETE` | `/chat/rooms/{room_id}` | 채팅방 삭제 |
+
+## Git에 올리면 안 되는 항목
+
+- `.env`, 실제 API 키, DB 비밀번호, Supabase 연결 문자열
+- OpenAI/Toss 실제 키
+- Python 가상환경과 캐시
+- Xcode `xcuserdata`, `*.xcuserstate`, DerivedData
+- 빌드 결과물
+- 대용량 모델 가중치
+- 로컬 IDE 설정
