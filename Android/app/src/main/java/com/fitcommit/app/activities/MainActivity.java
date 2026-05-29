@@ -1,13 +1,20 @@
 package com.fitcommit.app.activities;
 
+import android.animation.LayoutTransition;
 import android.app.Activity;
 import android.content.Intent;
+import android.graphics.drawable.Drawable;
 import android.os.Bundle;
+import android.view.Gravity;
+import android.text.SpannableString;
+import android.text.Spanned;
+import android.text.style.ImageSpan;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.widget.Button;
 import android.widget.FrameLayout;
 import android.widget.GridLayout;
+import android.widget.LinearLayout;
 import android.widget.TextView;
 
 import com.fitcommit.app.R;
@@ -23,7 +30,16 @@ import java.util.List;
  * 하단 캡슐형 탭 바를 유지하고, 선택된 탭의 XML 화면을 contentFrame에 교체합니다.
  */
 public class MainActivity extends Activity {
+    private static final int TAB_ANIMATION_DURATION_MS = 180;
+    private final String[] tabLabels = {"\uD648", "\uB0B4 \uC637\uC7A5", "AI \uCF54\uB514", "\uB9C8\uC774"};
+    private final int[] tabIconResIds = {
+            R.drawable.ic_tab_home,
+            R.drawable.ic_tab_closet,
+            R.drawable.ic_tab_sparkles,
+            R.drawable.ic_tab_user
+    };
     private FrameLayout contentFrame;
+    private LinearLayout bottomTabBar;
     private TextView tabHome;
     private TextView tabCloset;
     private TextView tabAi;
@@ -35,10 +51,15 @@ public class MainActivity extends Activity {
         setContentView(R.layout.activity_main);
 
         contentFrame = findViewById(R.id.contentFrame);
+        bottomTabBar = findViewById(R.id.bottomTabBar);
         tabHome = findViewById(R.id.tabHome);
         tabCloset = findViewById(R.id.tabCloset);
         tabAi = findViewById(R.id.tabAi);
         tabProfile = findViewById(R.id.tabProfile);
+
+        LayoutTransition tabTransition = new LayoutTransition();
+        tabTransition.setDuration(TAB_ANIMATION_DURATION_MS);
+        bottomTabBar.setLayoutTransition(tabTransition);
 
         tabHome.setOnClickListener(v -> showHome());
         tabCloset.setOnClickListener(v -> showCloset());
@@ -50,10 +71,47 @@ public class MainActivity extends Activity {
 
     private void setSelectedTab(TextView selected) {
         List<TextView> tabs = Arrays.asList(tabHome, tabCloset, tabAi, tabProfile);
-        for (TextView tab : tabs) {
-            tab.setBackgroundResource(tab == selected ? R.drawable.bg_tab_selected : 0);
-            tab.setTextColor(getColor(tab == selected ? R.color.fit_text : R.color.fit_text_secondary));
+        for (int i = 0; i < tabs.size(); i++) {
+            TextView tab = tabs.get(i);
+            boolean isSelected = tab == selected;
+            int tabColor = getColor(isSelected ? R.color.fit_text : R.color.fit_text_secondary);
+            tab.setBackgroundResource(isSelected ? R.drawable.bg_tab_selected : 0);
+            tab.setTextColor(tabColor);
+            tab.setText(createTabText(tabIconResIds[i], isSelected ? tabLabels[i] : "", tabColor));
+            tab.setCompoundDrawables(null, null, null, null);
+            tab.setContentDescription(tabLabels[i]);
+            tab.setGravity(Gravity.CENTER);
+            tab.setIncludeFontPadding(false);
+            tab.setTextSize(12);
+            tab.setAlpha(isSelected ? 1f : 0.72f);
+            LinearLayout.LayoutParams params = (LinearLayout.LayoutParams) tab.getLayoutParams();
+            params.weight = isSelected ? 1.35f : 0.88f;
+            tab.setLayoutParams(params);
+            tab.animate()
+                    .scaleX(isSelected ? 1f : 0.94f)
+                    .scaleY(isSelected ? 1f : 0.94f)
+                    .setDuration(TAB_ANIMATION_DURATION_MS)
+                    .start();
         }
+    }
+
+    private SpannableString createTabText(int iconResId, String label, int tintColor) {
+        String value = label.isEmpty() ? " " : "  " + label;
+        SpannableString text = new SpannableString(value);
+        Drawable icon = getDrawable(iconResId);
+        if (icon == null) {
+            return text;
+        }
+        icon = icon.mutate();
+        icon.setTint(tintColor);
+        int iconSize = dpToPx(16);
+        icon.setBounds(0, 0, iconSize, iconSize);
+        text.setSpan(new ImageSpan(icon, ImageSpan.ALIGN_CENTER), 0, 1, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+        return text;
+    }
+
+    private int dpToPx(int dp) {
+        return Math.round(dp * getResources().getDisplayMetrics().density);
     }
 
     private View inflate(int layoutId) {
