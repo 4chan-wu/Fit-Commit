@@ -1,0 +1,96 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/bg_app_gradient"
+    android:orientation="vertical">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="64dp"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingHorizontal="16dp">
+
+        <TextView
+            android:id="@+id/backText"
+            android:layout_width="56dp"
+            android:layout_height="match_parent"
+            android:gravity="center_vertical"
+            android:text="‹ AI"
+            android:textColor="@color/fit_primary"
+            android:textSize="17sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:gravity="center"
+            android:text="AI 패트리"
+            android:textColor="@color/fit_text"
+            android:textSize="18sp"
+            android:textStyle="bold" />
+
+        <Space
+            android:layout_width="56dp"
+            android:layout_height="match_parent" />
+    </LinearLayout>
+
+    <ScrollView
+        android:id="@+id/chatScroll"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:paddingHorizontal="20dp"
+        android:paddingTop="18dp">
+
+        <LinearLayout
+            android:id="@+id/messageContainer"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical" />
+    </ScrollView>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="76dp"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingHorizontal="16dp"
+        android:paddingBottom="8dp">
+
+        <Button
+            android:id="@+id/attachButton"
+            android:layout_width="46dp"
+            android:layout_height="46dp"
+            android:background="@drawable/bg_soft_button"
+            android:text="+"
+            android:textAllCaps="false"
+            android:textColor="@color/fit_text"
+            android:textSize="20sp" />
+
+        <EditText
+            android:id="@+id/messageEditText"
+            android:layout_width="0dp"
+            android:layout_height="46dp"
+            android:layout_marginStart="10dp"
+            android:layout_weight="1"
+            android:background="@drawable/bg_input"
+            android:hint="메시지"
+            android:paddingHorizontal="14dp"
+            android:singleLine="true" />
+
+        <Button
+            android:id="@+id/sendButton"
+            android:layout_width="56dp"
+            android:layout_height="46dp"
+            android:layout_marginStart="10dp"
+            android:background="@drawable/bg_primary_button"
+            android:text="전송"
+            android:textAllCaps="false"
+            android:textColor="#FFFFFF"
+            android:textSize="13sp"
+            android:textStyle="bold" />
+    </LinearLayout>
+</LinearLayout>

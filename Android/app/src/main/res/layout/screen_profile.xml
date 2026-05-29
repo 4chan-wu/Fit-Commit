@@ -1,0 +1,126 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="20dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="@drawable/bg_card"
+            android:gravity="center_horizontal"
+            android:orientation="vertical">
+
+            <TextView
+                android:layout_width="80dp"
+                android:layout_height="80dp"
+                android:background="@drawable/bg_soft_button"
+                android:gravity="center"
+                android:text="👤"
+                android:textSize="36sp" />
+
+            <TextView
+                android:id="@+id/profileNameText"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="14dp"
+                android:gravity="center"
+                android:text="닉네임을 설정해주세요"
+                android:textColor="@color/fit_primary"
+                android:textSize="20sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:gravity="center"
+                android:text="프로필 수정"
+                android:textColor="@color/fit_text_secondary"
+                android:textStyle="bold" />
+        </LinearLayout>
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="28dp"
+            android:text="내 활동"
+            android:textColor="@color/fit_text_secondary"
+            android:textStyle="bold" />
+
+        <Button
+            android:id="@+id/scanHistoryButton"
+            android:layout_width="match_parent"
+            android:layout_height="54dp"
+            android:layout_marginTop="12dp"
+            android:background="@drawable/bg_card"
+            android:text="스캔 히스토리  ›"
+            android:textAllCaps="false"
+            android:textColor="@color/fit_text" />
+
+        <Button
+            android:id="@+id/profileChatHistoryButton"
+            android:layout_width="match_parent"
+            android:layout_height="54dp"
+            android:layout_marginTop="7dp"
+            android:background="@drawable/bg_card"
+            android:text="채팅 기록  ›"
+            android:textAllCaps="false"
+            android:textColor="@color/fit_text" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="24dp"
+            android:text="앱 설정"
+            android:textColor="@color/fit_text_secondary"
+            android:textStyle="bold" />
+
+        <Switch
+            android:id="@+id/faceIdSwitch"
+            android:layout_width="match_parent"
+            android:layout_height="56dp"
+            android:layout_marginTop="12dp"
+            android:background="@drawable/bg_card"
+            android:paddingHorizontal="18dp"
+            android:text="측정 기록 접근 시 생체 인증 사용"
+            android:textColor="@color/fit_text" />
+
+        <Switch
+            android:id="@+id/autoLoginSwitch"
+            android:layout_width="match_parent"
+            android:layout_height="56dp"
+            android:layout_marginTop="7dp"
+            android:background="@drawable/bg_card"
+            android:checked="true"
+            android:paddingHorizontal="18dp"
+            android:text="자동 로그인"
+            android:textColor="@color/fit_text" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="54dp"
+            android:layout_marginTop="7dp"
+            android:background="@drawable/bg_card"
+            android:gravity="center_vertical"
+            android:paddingHorizontal="18dp"
+            android:text="앱 버전 정보    1.0"
+            android:textColor="@color/fit_text" />
+
+        <Button
+            android:id="@+id/logoutButton"
+            android:layout_width="match_parent"
+            android:layout_height="54dp"
+            android:layout_marginTop="32dp"
+            android:background="@drawable/bg_card"
+            android:text="로그아웃"
+            android:textAllCaps="false"
+            android:textColor="@color/fit_danger"
+            android:textStyle="bold" />
+    </LinearLayout>
+</ScrollView>

@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/bg_app_gradient">
+
+    <FrameLayout
+        android:id="@+id/contentFrame"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:paddingBottom="86dp" />
+
+    <LinearLayout
+        android:id="@+id/bottomTabBar"
+        android:layout_width="match_parent"
+        android:layout_height="64dp"
+        android:layout_gravity="bottom"
+        android:layout_marginStart="18dp"
+        android:layout_marginEnd="18dp"
+        android:layout_marginBottom="10dp"
+        android:background="@drawable/bg_tab_bar"
+        android:elevation="8dp"
+        android:gravity="center"
+        android:orientation="horizontal"
+        android:padding="6dp">
+
+        <TextView
+            android:id="@+id/tabHome"
+            style="@style/FitTabText"
+            android:text="홈" />
+
+        <TextView
+            android:id="@+id/tabCloset"
+            style="@style/FitTabText"
+            android:text="내 옷장" />
+
+        <TextView
+            android:id="@+id/tabAi"
+            style="@style/FitTabText"
+            android:text="AI 코디" />
+
+        <TextView
+            android:id="@+id/tabProfile"
+            style="@style/FitTabText"
+            android:text="마이" />
+    </LinearLayout>
+</FrameLayout>

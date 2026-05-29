@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="fit_bg">#F8F9FD</color>
+    <color name="fit_surface">#FFFFFFFF</color>
+    <color name="fit_surface_soft">#F1F3F8</color>
+    <color name="fit_text">#151821</color>
+    <color name="fit_text_secondary">#6D7280</color>
+    <color name="fit_primary">#4F7BFF</color>
+    <color name="fit_primary_dark">#335BD6</color>
+    <color name="fit_pink">#F37BB5</color>
+    <color name="fit_green">#38B66A</color>
+    <color name="fit_border">#1A151821</color>
+    <color name="fit_danger">#E65353</color>
+</resources>

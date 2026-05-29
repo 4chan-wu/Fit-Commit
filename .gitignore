@@ -135,6 +135,9 @@ ios/.symlinks/
 android/.gradle/
 android/local.properties
 android/**/key.properties
+Android/.gradle/
+Android/local.properties
+Android/**/key.properties
 *.keystore
 *.jks
 

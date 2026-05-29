@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="AppTheme" parent="android:style/Theme.Material.Light.NoActionBar">
+        <item name="android:fontFamily">sans</item>
+        <item name="android:windowLightStatusBar">true</item>
+        <item name="android:statusBarColor">@color/fit_bg</item>
+        <item name="android:navigationBarColor">@color/fit_bg</item>
+        <item name="android:colorAccent">@color/fit_primary</item>
+    </style>
+
+    <style name="FitTabText">
+        <item name="android:layout_width">0dp</item>
+        <item name="android:layout_height">52dp</item>
+        <item name="android:layout_weight">1</item>
+        <item name="android:gravity">center</item>
+        <item name="android:textColor">@color/fit_text_secondary</item>
+        <item name="android:textSize">12sp</item>
+        <item name="android:textStyle">bold</item>
+    </style>
+</resources>

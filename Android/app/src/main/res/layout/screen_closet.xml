@@ -1,0 +1,102 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="20dp">
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="공간과 신체 데이터를 기반으로"
+            android:textColor="@color/fit_text_secondary"
+            android:textSize="14sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:text="오늘의 핏을 더 정확하게 준비해요."
+            android:textColor="@color/fit_text"
+            android:textSize="28sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="26dp"
+            android:text="나의 공간 &amp; 신체"
+            android:textColor="@color/fit_text"
+            android:textSize="18sp"
+            android:textStyle="bold" />
+
+        <Button
+            android:id="@+id/spaceScanButton"
+            android:layout_width="match_parent"
+            android:layout_height="72dp"
+            android:layout_marginTop="14dp"
+            android:background="@drawable/bg_card"
+            android:text="3D 공간 스캔 (Beta)\n방 구조를 스캔해 가상 피팅 공간을 준비합니다."
+            android:textAllCaps="false"
+            android:textColor="@color/fit_text" />
+
+        <Button
+            android:id="@+id/bodyMeasureButton"
+            android:layout_width="match_parent"
+            android:layout_height="72dp"
+            android:layout_marginTop="12dp"
+            android:background="@drawable/bg_card"
+            android:text="신체 비율 측정\n키와 어깨 비율을 측정해 코디 추천 정확도를 높입니다."
+            android:textAllCaps="false"
+            android:textColor="@color/fit_text" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="58dp"
+            android:layout_marginTop="24dp"
+            android:background="@drawable/bg_card"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="스캔된 옷"
+                android:textColor="@color/fit_text"
+                android:textSize="18sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/closetCountText"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="4개"
+                android:textColor="@color/fit_text_secondary"
+                android:textStyle="bold" />
+        </LinearLayout>
+
+        <Button
+            android:id="@+id/addClothingButton"
+            android:layout_width="match_parent"
+            android:layout_height="56dp"
+            android:layout_marginTop="12dp"
+            android:background="@drawable/bg_primary_button"
+            android:text="의류 추가하기"
+            android:textAllCaps="false"
+            android:textColor="#FFFFFF"
+            android:textStyle="bold" />
+
+        <GridLayout
+            android:id="@+id/closetGrid"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="14dp"
+            android:columnCount="2" />
+    </LinearLayout>
+</ScrollView>
