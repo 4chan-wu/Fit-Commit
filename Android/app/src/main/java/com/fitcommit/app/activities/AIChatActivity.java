@@ -7,9 +7,6 @@ import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
 
-import androidx.core.view.ViewCompat;
-import androidx.core.view.WindowInsetsCompat;
-
 import com.fitcommit.app.R;
 import com.fitcommit.app.adapters.ChatMessageAdapter;
 import com.fitcommit.app.models.ChatMessage;
@@ -30,7 +27,6 @@ public class AIChatActivity extends Activity {
     private LinearLayout messageContainer;
     private ScrollView chatScroll;
     private EditText messageEditText;
-    private LinearLayout chatInputContainer;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -41,9 +37,6 @@ public class AIChatActivity extends Activity {
         messageContainer = findViewById(R.id.messageContainer);
         chatScroll = findViewById(R.id.chatScroll);
         messageEditText = findViewById(R.id.messageEditText);
-        chatInputContainer = findViewById(R.id.chatInputContainer);
-
-        applyNavigationBarInsetPadding();
 
         findViewById(R.id.backText).setOnClickListener(v -> finish());
         findViewById(R.id.attachButton).setOnClickListener(v -> UiUtils.toast(this, "사진/파일 첨부는 추후 연결됩니다."));
@@ -73,25 +66,4 @@ public class AIChatActivity extends Activity {
         chatScroll.post(() -> chatScroll.fullScroll(View.FOCUS_DOWN));
     }
 
-    private void applyNavigationBarInsetPadding() {
-        final int baseBottomPadding = chatInputContainer.getPaddingBottom();
-        final int extraPadding = dpToPx(8);
-
-        ViewCompat.setOnApplyWindowInsetsListener(chatInputContainer, (view, insets) -> {
-            int bottomInset = insets.getInsets(WindowInsetsCompat.Type.navigationBars()).bottom;
-            view.setPadding(
-                    view.getPaddingLeft(),
-                    view.getPaddingTop(),
-                    view.getPaddingRight(),
-                    baseBottomPadding + bottomInset + extraPadding
-            );
-            return insets;
-        });
-
-        ViewCompat.requestApplyInsets(chatInputContainer);
-    }
-
-    private int dpToPx(int dp) {
-        return Math.round(dp * getResources().getDisplayMetrics().density);
-    }
 }
