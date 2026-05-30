@@ -12,7 +12,7 @@ AI FastAPI Server
   |-- /predict
   |-- 카테고리 분류, 대표 색상 추출, 시즌 분류
 
-Ios / Future Frontend
+Android / Ios / Future Frontend
   |-- 사용자, 채팅, 결제, DB 기반 기능 요청
   v
 Backend FastAPI Server
@@ -43,6 +43,11 @@ AI 서버와 Backend 서버는 분리되어 있습니다. AI 서버는 이미지
 │   ├── requirements.txt
 │   ├── .env.example
 │   └── README.md
+├── Android/
+│   ├── app/
+│   ├── gradle/
+│   ├── build.gradle
+│   └── README.md
 ├── Ios/
 │   ├── MyCloset.xcodeproj
 │   ├── MyCloset/
@@ -60,6 +65,7 @@ AI 서버와 Backend 서버는 분리되어 있습니다. AI 서버는 이미지
 | --- | --- | --- |
 | `AI` | 의류 이미지 분석 서버와 학습/전처리 코드 | FastAPI, PyTorch, torchvision, OpenCV, Pillow, scikit-learn |
 | `Backend` | 사용자 인증, DB, 채팅, 결제 API | FastAPI, SQLAlchemy, PostgreSQL/Supabase, OpenAI API, Toss Payments |
+| `Android` | Java/XML 기반 Android 앱, FastAPI 인증 API 연동 | Android SDK, Retrofit, Gson |
 | `Ios` | SwiftUI 기반 MyCloset 앱 | SwiftUI, SwiftData, AVFoundation, LocalAuthentication |
 | `Frontend` | 향후 웹 서비스 자리 | 예정: Node.js/Vite/React 등 |
 
@@ -114,7 +120,28 @@ docker compose up --build
 
 Docker Compose는 Backend를 로컬 `8001`, PostgreSQL을 로컬 `5433`에 노출합니다.
 
-### 3. iOS 앱
+### 3. Android 앱
+
+Android 앱은 Retrofit으로 Backend FastAPI 서버의 인증 API를 호출합니다.
+
+```text
+Android Emulator -> http://10.0.2.2:8001 -> Backend FastAPI -> Supabase PostgreSQL
+```
+
+1. Android Studio에서 `Android/` 디렉토리를 엽니다.
+2. Backend 서버를 `0.0.0.0:8001`로 실행해둡니다.
+3. 에뮬레이터 브라우저에서 `http://10.0.2.2:8001/health`가 열리는지 확인합니다.
+4. 앱에서 회원가입/로그인을 테스트합니다.
+
+Android API 기준 주소는 `Android/app/src/main/java/com/fitcommit/app/services/ApiClient.java`에 있습니다.
+
+```java
+public static final String BASE_URL = "http://10.0.2.2:8001";
+```
+
+에뮬레이터에서 PC의 `localhost`에 접근할 때는 `localhost` 대신 `10.0.2.2`를 사용해야 합니다. 실제 Android 기기에서는 PC의 LAN IP를 사용합니다.
+
+### 4. iOS 앱
 
 1. Xcode 15 이상에서 `Ios/MyCloset.xcodeproj`를 엽니다.
 2. 실제 기기에서 카메라/네트워크 기능을 테스트합니다.
@@ -123,7 +150,7 @@ Docker Compose는 Backend를 로컬 `8001`, PostgreSQL을 로컬 `5433`에 노�
 
 iOS 실제 기기는 `localhost`로 Mac의 서버에 접근할 수 없습니다.
 
-### 4. Frontend 예정
+### 5. Frontend 예정
 
 `Frontend`는 현재 `.gitkeep`만 있는 빈 디렉토리입니다. 추후 웹 옷장, 결제 성공/실패 페이지, 관리자 화면, 웹 기반 AI 분석 업로드 UI를 추가할 예정입니다.
 
@@ -160,6 +187,79 @@ iOS 실제 기기는 `localhost`로 Mac의 서버에 접근할 수 없습니다.
 | `TOSS_SUCCESS_URL` | 선택 | 결제 성공 리다이렉트 URL |
 | `TOSS_FAIL_URL` | 선택 | 결제 실패 리다이렉트 URL |
 
+Supabase를 사용할 때는 `Backend/.env`의 `DATABASE_URL`을 Supabase PostgreSQL connection string으로 설정합니다. REST Data API URL인 `https://...supabase.co/rest/v1/`가 아니라 `postgresql://...`로 시작하는 값을 사용해야 합니다.
+
+```env
+DATABASE_URL=postgresql://postgres.xxxxx:URL_ENCODED_PASSWORD@aws-1-ap-southeast-1.pooler.supabase.com:6543/postgres?sslmode=require
+```
+
+비밀번호에 `@`, `#`, `%`, `/`, `:`, `?`, `&`, `+` 같은 문자가 들어가면 URL 인코딩이 필요합니다. 예를 들어 `@`는 `%40`으로 바꿉니다.
+
+## Supabase 초기 설정 및 연결 검증
+
+1. Supabase 프로젝트를 생성합니다.
+2. Supabase Dashboard의 `SQL Editor`에서 `Backend/app/db/supabase_schema.sql` 내용을 전체 복사해 실행합니다. 파일 경로를 입력하는 것이 아니라 SQL 내용을 붙여넣어야 합니다.
+3. `users.nickname` 중복 방지를 위해 아래 SQL을 추가 실행합니다.
+
+```sql
+CREATE UNIQUE INDEX IF NOT EXISTS idx_users_nickname_unique
+ON users(nickname);
+
+CREATE INDEX IF NOT EXISTS idx_users_email
+ON users(email);
+```
+
+4. Supabase의 `Connect` 또는 `Database > Connect` 화면에서 `Direct` 또는 connection string의 `URI`를 복사합니다.
+5. `Backend/.env`에 `DATABASE_URL`을 설정합니다.
+6. Backend 서버를 실행합니다.
+
+```powershell
+cd Backend
+.\.venv\Scripts\Activate.ps1
+python -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8001
+```
+
+7. 새 터미널에서 연결을 확인합니다.
+
+```powershell
+Invoke-RestMethod http://localhost:8001/health
+Invoke-RestMethod http://localhost:8001/db-check
+Invoke-RestMethod http://localhost:8001/db-info
+```
+
+정상 결과는 `status`가 `ok`, `database`가 `postgres`, `schema`가 `public`입니다.
+
+회원가입 저장 테스트:
+
+```powershell
+$body = @'
+{
+  "email": "fitcommit_test@example.com",
+  "name": "\uD64D\uAE38\uB3D9",
+  "nickname": "fitcommit_test",
+  "phone_number": "01012345678",
+  "password": "Password1!",
+  "password_confirm": "Password1!"
+}
+'@
+
+Invoke-RestMethod `
+  -Uri http://localhost:8001/users/signup `
+  -Method Post `
+  -ContentType "application/json; charset=utf-8" `
+  -Body $body
+```
+
+Supabase SQL Editor에서 저장 여부를 확인합니다.
+
+```sql
+SELECT id, email, name, nickname, phone_number, password, created_at
+FROM users
+WHERE email = 'fitcommit_test@example.com';
+```
+
+`password`가 `Password1!` 평문이 아니라 `$2b$...` 형태의 해시이면 정상입니다.
+
 ## 팀원 온보딩
 
 1. `git status`로 현재 작업 브랜치와 변경사항을 확인합니다.
@@ -184,6 +284,7 @@ iOS 실제 기기는 `localhost`로 Mac의 서버에 접근할 수 없습니다.
 | --- | --- | --- |
 | `GET` | `/health` | 서버 상태 확인 |
 | `GET` | `/db-check` | DB 연결 확인 |
+| `GET` | `/db-info` | DB 서버 주소, 포트, 스키마 확인 |
 | `POST` | `/users/signup` | 회원가입 |
 | `POST` | `/users/login` | 로그인 |
 | `GET` | `/users/me` | 현재 사용자 확인 |

@@ -12,6 +12,9 @@ Icon?
 # Environment / secrets
 .env
 .env.*
+Backend/.env
+AI/.env
+Frontend/.env
 !.env.example
 !.env.sample
 *.pem
