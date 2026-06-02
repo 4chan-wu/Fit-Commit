@@ -7,6 +7,7 @@ pydantic[email]==2.7.1   # 데이터 검증 및 스키마 관리
 # --- [Deep Learning & Computer Vision] ---
 torch==2.3.0             # PyTorch 핵심 엔진
 torchvision==0.18.0      # MobileNet, EfficientNet 등 사전 학습 모델 및 변환 도구
+transformers==4.41.2     # CLIP/FashionCLIP 이미지-텍스트 유사도 추론
 numpy==1.26.4            # 행렬 연산 및 이미지 데이터 수치화
 opencv-python-headless==4.9.0.80 # 이미지 처리 (서버용은 GUI 제외된 headless 권장)
 Pillow==10.3.0           # 기본 이미지 입출력 및 리사이징

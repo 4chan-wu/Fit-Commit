@@ -26,7 +26,7 @@ AI/
 `main.py`와 `services/`는 iOS 앱에서 호출하는 fashion-ai-engine 서버입니다.
 
 - `GET /health`: 서버 상태 확인
-- `POST /predict`: 이미지 파일을 받아 의류 카테고리, 대표 색상, 시즌 결과 반환
+- `POST /predict`: `multipart/form-data`로 이미지 파일과 `category_hint`를 받아 CLIP/FashionCLIP 이미지-텍스트 유사도로 세부 카테고리, 대표 색상, 시즌 결과 반환
 
 응답 예시:
 
@@ -34,14 +34,23 @@ AI/
 {
   "status": "success",
   "analysis": {
-    "category": "T-shirt",
-    "confidence_cat": 0.92,
-    "color": "#1A237E",
-    "season": "Spring/Summer",
-    "confidence_sea": 0.78,
-    "method_sea": "heuristic"
+    "main_category": "top",
+    "subcategory": "hoodie",
+    "main_color": "gray",
+    "season": ["fall", "winter"],
+    "style_tags": ["casual", "street"],
+    "confidence": 0.82,
+    "method": "clip"
   }
 }
+```
+
+테스트:
+
+```bash
+curl -X POST http://localhost:8000/predict \
+  -F "file=@/path/to/clothing.jpg" \
+  -F "category_hint=top"
 ```
 
 ## 실행
@@ -67,8 +76,9 @@ curl http://localhost:8000/health
 | --- | --- | --- | --- |
 | `CLOTHING_MODEL_PATH` | 선택 | 의류 카테고리 모델 가중치 경로 | `AI/models/clothing_mobilenet_v3_small.pth` |
 | `SEASON_MODEL_PATH` | 선택 | 시즌 분류 모델 가중치 경로 | `AI/models/season_mobilenet_v3_small.pth` |
+| `FASHION_CLIP_MODEL_ID` | 선택 | Hugging Face CLIP/FashionCLIP 모델 ID | `openai/clip-vit-base-patch32` |
 
-모델 가중치가 없으면 서버는 가능한 범위에서 fallback 동작을 합니다. 시즌 분류는 모델이 없을 때 이미지 밝기/채도 기반 휴리스틱을 사용합니다.
+CLIP/FashionCLIP 모델 로딩에 실패하면 기존 MobileNetV3 기반 fallback으로 동작하며, 이때 응답의 `method`는 `fallback`입니다. 시즌 분류는 모델이 없을 때 이미지 밝기/채도 기반 휴리스틱을 사용합니다.
 
 ## 학습/전처리
 

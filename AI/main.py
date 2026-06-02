@@ -11,6 +11,7 @@ from pydantic import BaseModel, Field
 from services.classification_service import load_model as load_category_model
 from services.color_service import extract_color
 from services.fashion_clip_service import CategoryHint
+from services.fashion_clip_service import load_model as load_fashion_clip_model
 from services.fashion_clip_service import predict_fashion_category
 from services.season_service import load_model as load_season_model
 from services.season_service import predict_season
@@ -19,6 +20,7 @@ from services.season_service import predict_season
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     await asyncio.gather(
+        asyncio.to_thread(load_fashion_clip_model),
         asyncio.to_thread(load_category_model),
         asyncio.to_thread(load_season_model),
     )
