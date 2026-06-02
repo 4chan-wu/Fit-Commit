@@ -10,164 +10,59 @@ struct AnalysisResultView: View {
 
     @State private var clothingName = ""
     @State private var selectedCategory = ""
+    @State private var subcategory = ""
     @State private var selectedColor = ""
     @State private var selectedSeason = ""
+    @State private var styleTagsText = ""
     @State private var saveErrorMessage: String?
-    @State private var hasInitializedFields = false
 
-    private let categoryOptions = [
-        "T-shirt",
-        "Shirt",
-        "Hoodie",
-        "Sweater",
-        "Pants",
-        "Skirt",
-        "Dress",
-        "Outerwear",
-    ]
-
-    private let seasonOptions = [
-        "Spring/Summer",
-        "Fall/Winter",
-        "All-Season",
-    ]
+    private let categoryOptions = ClosetItemEditOptions.categories
+    private let seasonOptions = ["Spring/Summer", "Fall/Winter", "All-Season"]
 
     init(result: AnalysisResult, imageData: Data) {
         self.result = result
         self.imageData = imageData
-        _clothingName = State(initialValue: Self.defaultName(for: result.category))
-        _selectedCategory = State(initialValue: result.category)
-        _selectedColor = State(initialValue: result.color)
+        _clothingName = State(initialValue: Self.defaultName(for: result.mainCategory))
+        _selectedCategory = State(initialValue: result.mainCategory)
+        _subcategory = State(initialValue: result.subcategory)
+        _selectedColor = State(initialValue: result.mainColor)
         _selectedSeason = State(initialValue: result.season)
+        _styleTagsText = State(initialValue: result.styleTags.joined(separator: ", "))
     }
 
     var body: some View {
-        Group {
-            if result.category.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                placeholderView
-            } else {
-                resultForm
-            }
-        }
-        .onAppear {
-            initializeEditableFieldsIfNeeded()
-        }
-        .onChange(of: result) { _, newResult in
-            clothingName = Self.defaultName(for: newResult.category)
-            selectedCategory = newResult.category
-            selectedColor = newResult.color
-            selectedSeason = newResult.season
-            hasInitializedFields = true
-        }
-    }
-
-    private var resultForm: some View {
         VStack(alignment: .leading, spacing: 18) {
             headerSection
-
-            VStack(alignment: .leading, spacing: 12) {
-                TextField(namePlaceholder, text: $clothingName)
-                    .textInputAutocapitalization(.words)
-                    .autocorrectionDisabled()
-                    .font(.headline)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 11)
-                    .background(Color(uiColor: .tertiarySystemBackground), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
-
-                Picker("Category", selection: $selectedCategory) {
-                    ForEach(effectiveCategoryOptions, id: \.self) { category in
-                        Text(category).tag(category)
-                    }
-                }
-                .pickerStyle(.menu)
-
-                HStack(spacing: 12) {
-                    Circle()
-                        .fill(Color(hexString: selectedColor) ?? result.swiftUIColor)
-                        .frame(width: 34, height: 34)
-                        .overlay {
-                            Circle()
-                                .stroke(Color.primary.opacity(0.12), lineWidth: 1)
-                        }
-                        .shadow(
-                            color: (Color(hexString: selectedColor) ?? result.swiftUIColor).opacity(0.28),
-                            radius: 6,
-                            x: 0,
-                            y: 3
-                        )
-
-                    TextField("HEX color", text: $selectedColor)
-                        .textInputAutocapitalization(.characters)
-                        .autocorrectionDisabled()
-                        .font(.subheadline.weight(.semibold))
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 10)
-                        .background(Color(uiColor: .tertiarySystemBackground), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
-                }
-
-                Picker("Season", selection: $selectedSeason) {
-                    ForEach(effectiveSeasonOptions, id: \.self) { season in
-                        Label(season, systemImage: iconName(forSeason: season)).tag(season)
-                    }
-                }
-                .pickerStyle(.segmented)
-            }
-
-            Divider()
-
-            HStack(spacing: 12) {
-                Circle()
-                    .fill(Color(hexString: selectedColor) ?? result.swiftUIColor)
-                    .frame(width: 34, height: 34)
-                    .overlay {
-                        Circle()
-                            .stroke(Color.primary.opacity(0.12), lineWidth: 1)
-                    }
-
-                VStack(alignment: .leading, spacing: 3) {
-                    Text("Color")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-
-                    Text(selectedColor.isEmpty ? result.color : selectedColor)
-                        .font(.subheadline.weight(.semibold))
-                        .foregroundStyle(.primary)
-                }
-
-                Spacer(minLength: 0)
-            }
-
-            HStack {
-                Label(selectedSeason.isEmpty ? result.season : selectedSeason, systemImage: seasonIconName)
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(seasonTint)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 8)
-                    .background(seasonTint.opacity(0.12), in: Capsule())
-
-                Spacer(minLength: 0)
-
-                Text("\(seasonConfidence)%")
-                    .font(.caption.weight(.medium))
-                    .foregroundStyle(.secondary)
-            }
+            editableFields
+            confidenceSection
 
             if let saveErrorMessage {
                 Text(saveErrorMessage)
                     .font(.caption)
                     .foregroundStyle(.red)
-                    .multilineTextAlignment(.leading)
             }
 
-            Button {
-                saveItem()
-            } label: {
-                Label("저장", systemImage: "checkmark")
-                    .font(.headline)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 12)
+            HStack(spacing: 12) {
+                Button {
+                    resetFields()
+                } label: {
+                    Label("수정하기", systemImage: "pencil")
+                        .font(.headline)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 12)
+                }
+                .buttonStyle(.bordered)
+
+                Button {
+                    saveItem()
+                } label: {
+                    Label("저장하기", systemImage: "checkmark")
+                        .font(.headline)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 12)
+                }
+                .buttonStyle(.borderedProminent)
             }
-            .buttonStyle(.borderedProminent)
         }
         .padding(18)
         .background(
@@ -182,158 +77,166 @@ struct AnalysisResultView: View {
     }
 
     private var headerSection: some View {
-        VStack(alignment: .leading, spacing: 18) {
-            HStack(spacing: 12) {
-                Image(systemName: categoryIconName)
-                    .font(.system(size: 24, weight: .semibold))
-                    .foregroundStyle(.white)
-                    .frame(width: 48, height: 48)
-                    .background(Color.accentColor, in: Circle())
+        HStack(spacing: 12) {
+            Image(systemName: categoryIconName)
+                .font(.system(size: 24, weight: .semibold))
+                .foregroundStyle(.white)
+                .frame(width: 48, height: 48)
+                .background(Color.accentColor, in: Circle())
 
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(selectedCategory.isEmpty ? result.category : selectedCategory)
-                        .font(.headline)
-                        .foregroundStyle(.primary)
-
-                    Text("\(categoryConfidence)% confidence")
-                        .font(.caption.weight(.medium))
-                        .foregroundStyle(.secondary)
-                }
-
-                Spacer(minLength: 0)
+            VStack(alignment: .leading, spacing: 4) {
+                Text("AI 분석 결과 확인")
+                    .font(.headline)
+                Text("저장 전 최종 값을 확인하고 수정해주세요.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
 
-            Divider()
+            Spacer(minLength: 0)
         }
     }
 
-    private var placeholderView: some View {
-        VStack(spacing: 14) {
-            Image(systemName: "exclamationmark.triangle")
-                .font(.system(size: 32, weight: .semibold))
-                .foregroundStyle(.orange)
+    private var editableFields: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            TextField("의류 이름", text: $clothingName)
+                .textInputAutocapitalization(.words)
+                .autocorrectionDisabled()
+                .modifier(ResultInputStyle())
 
-            Text("분석 결과를 표시할 수 없습니다")
-                .font(.headline)
-                .foregroundStyle(.primary)
+            Picker("종류", selection: $selectedCategory) {
+                ForEach(effectiveCategoryOptions, id: \.self) { category in
+                    Text(categoryLabel(for: category)).tag(category)
+                }
+            }
+            .pickerStyle(.menu)
+            .modifier(ResultInputStyle())
 
-            Text("서버 응답 데이터가 비어 있습니다. 다시 분석을 시도해주세요.")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
+            TextField("세부 종류", text: $subcategory)
+                .textInputAutocapitalization(.words)
+                .autocorrectionDisabled()
+                .modifier(ResultInputStyle())
+
+            HStack(spacing: 12) {
+                Circle()
+                    .fill(Color(hexString: selectedColor) ?? result.swiftUIColor)
+                    .frame(width: 34, height: 34)
+                    .overlay {
+                        Circle().stroke(Color.primary.opacity(0.12), lineWidth: 1)
+                    }
+
+                TextField("대표 색상 HEX", text: $selectedColor)
+                    .textInputAutocapitalization(.characters)
+                    .autocorrectionDisabled()
+                    .modifier(ResultInputStyle())
+            }
+
+            Picker("계절", selection: $selectedSeason) {
+                ForEach(effectiveSeasonOptions, id: \.self) { season in
+                    Text(season).tag(season)
+                }
+            }
+            .pickerStyle(.segmented)
+
+            TextField("스타일 태그, 쉼표로 구분", text: $styleTagsText)
+                .textInputAutocapitalization(.words)
+                .autocorrectionDisabled()
+                .modifier(ResultInputStyle())
         }
-        .frame(maxWidth: .infinity)
-        .padding(18)
-        .background(Color(uiColor: .secondarySystemBackground), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .stroke(Color.primary.opacity(0.08), lineWidth: 1)
+    }
+
+    private var confidenceSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Divider()
+
+            HStack {
+                Text("신뢰도")
+                    .font(.subheadline.weight(.semibold))
+                Spacer()
+                Text("\(confidencePercent)%")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(.secondary)
+            }
+
+            if let imageURL = result.imageURL, imageURL.isEmpty == false {
+                Text("이미지 참조: \(imageURL)")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(2)
+            }
         }
     }
 
     private var effectiveCategoryOptions: [String] {
-        optionList(categoryOptions, including: selectedCategory.isEmpty ? result.category : selectedCategory)
+        optionList(categoryOptions, including: selectedCategory.isEmpty ? result.mainCategory : selectedCategory)
     }
 
     private var effectiveSeasonOptions: [String] {
         optionList(seasonOptions, including: selectedSeason.isEmpty ? result.season : selectedSeason)
     }
 
-    private var namePlaceholder: String {
-        Self.defaultName(for: selectedCategory.isEmpty ? result.category : selectedCategory)
-    }
-
-    private func optionList(_ options: [String], including value: String) -> [String] {
-        let trimmedValue = value.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard trimmedValue.isEmpty == false,
-              options.contains(trimmedValue) == false else {
-            return options
-        }
-
-        return [trimmedValue] + options
+    private var confidencePercent: Int {
+        Int((result.confidence * 100).rounded())
     }
 
     private var categoryIconName: String {
-        switch (selectedCategory.isEmpty ? result.category : selectedCategory).lowercased() {
-        case "t-shirt", "shirt":
+        switch selectedCategory.lowercased() {
+        case "top":
             return "tshirt.fill"
-        case "hoodie", "sweater":
-            return "jacket.fill"
-        case "pants":
+        case "bottom":
             return "pants.fill"
-        case "skirt", "dress":
-            return "figure.dress.line.vertical.figure"
-        case "outerwear":
+        case "outer":
             return "coat.fill"
+        case "shoes":
+            return "shoeprints.fill"
+        case "hat":
+            return "graduationcap.fill"
+        case "bag":
+            return "handbag.fill"
+        case "dress":
+            return "figure.dress.line.vertical.figure"
         default:
             return "tag.fill"
         }
     }
 
-    private var seasonIconName: String {
-        iconName(forSeason: selectedSeason.isEmpty ? result.season : selectedSeason)
-    }
-
-    private var seasonTint: Color {
-        switch selectedSeason.isEmpty ? result.season : selectedSeason {
-        case "Spring/Summer":
-            return .orange
-        case "Fall/Winter":
-            return .blue
-        default:
-            return .green
-        }
-    }
-
-    private var categoryConfidence: Int {
-        Int((result.confidenceCat * 100).rounded())
-    }
-
-    private var seasonConfidence: Int {
-        Int((result.confidenceSea * 100).rounded())
-    }
-
-    private func iconName(forSeason season: String) -> String {
-        switch season {
-        case "Spring/Summer":
-            return "sun.max.fill"
-        case "Fall/Winter":
-            return "snowflake"
-        default:
-            return "circle.lefthalf.filled"
-        }
-    }
-
-    private func initializeEditableFieldsIfNeeded() {
-        guard hasInitializedFields == false else { return }
-        clothingName = clothingName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-            ? Self.defaultName(for: result.category)
-            : clothingName
-        selectedCategory = result.category
-        selectedColor = result.color
+    private func resetFields() {
+        clothingName = Self.defaultName(for: result.mainCategory)
+        selectedCategory = result.mainCategory
+        subcategory = result.subcategory
+        selectedColor = result.mainColor
         selectedSeason = result.season
-        hasInitializedFields = true
+        styleTagsText = result.styleTags.joined(separator: ", ")
+        saveErrorMessage = nil
     }
 
     private func saveItem() {
         let name = clothingName.trimmingCharacters(in: .whitespacesAndNewlines)
         let category = selectedCategory.trimmingCharacters(in: .whitespacesAndNewlines)
+        let finalSubcategory = subcategory.trimmingCharacters(in: .whitespacesAndNewlines)
         let color = selectedColor.trimmingCharacters(in: .whitespacesAndNewlines)
         let season = selectedSeason.trimmingCharacters(in: .whitespacesAndNewlines)
+        let finalStyleTags = styleTagsText
+            .split(separator: ",")
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { $0.isEmpty == false }
 
         guard name.isEmpty == false,
               category.isEmpty == false,
               color.isEmpty == false,
               season.isEmpty == false else {
-            saveErrorMessage = "옷 이름, 카테고리, 색상, 계절을 모두 입력해주세요."
+            saveErrorMessage = "의류 이름, 종류, 대표 색상, 계절을 모두 입력해주세요."
             return
         }
 
         let item = ClosetItem(
             name: name,
             category: category,
+            subcategory: finalSubcategory,
             color: color,
             season: season,
+            styleTags: finalStyleTags,
+            confidence: result.confidence,
+            imageURL: result.imageURL,
             imageData: imageData
         )
 
@@ -347,31 +250,78 @@ struct AnalysisResultView: View {
         }
     }
 
+    private func optionList(_ options: [String], including value: String) -> [String] {
+        let trimmedValue = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard trimmedValue.isEmpty == false,
+              options.contains(trimmedValue) == false else {
+            return options
+        }
+        return [trimmedValue] + options
+    }
+
+    private func categoryLabel(for value: String) -> String {
+        switch value {
+        case "top":
+            return "상의 (top)"
+        case "bottom":
+            return "하의 (bottom)"
+        case "outer":
+            return "아우터 (outer)"
+        case "shoes":
+            return "신발 (shoes)"
+        case "hat":
+            return "모자 (hat)"
+        case "bag":
+            return "가방 (bag)"
+        case "dress":
+            return "원피스 (dress)"
+        default:
+            return value
+        }
+    }
+
     private static func defaultName(for category: String) -> String {
         switch category.lowercased() {
-        case "t-shirt", "shirt", "hoodie", "sweater":
+        case "top":
             return "새로운 상의"
-        case "pants", "skirt":
+        case "bottom":
             return "새로운 하의"
+        case "outer":
+            return "새로운 아우터"
+        case "shoes":
+            return "새로운 신발"
+        case "hat":
+            return "새로운 모자"
+        case "bag":
+            return "새로운 가방"
         case "dress":
             return "새로운 원피스"
-        case "outerwear":
-            return "새로운 아우터"
         default:
             return "새로운 옷"
         }
     }
 }
 
+private struct ResultInputStyle: ViewModifier {
+    func body(content: Content) -> some View {
+        content
+            .font(.subheadline)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 11)
+            .background(Color(uiColor: .tertiarySystemBackground), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+    }
+}
+
 #Preview {
     AnalysisResultView(
         result: AnalysisResult(
-            category: "T-shirt",
-            confidenceCat: 0.85,
-            color: "#1A237E",
+            mainCategory: "top",
+            subcategory: "T-shirt",
+            mainColor: "#1A237E",
             season: "Spring/Summer",
-            confidenceSea: 0.72,
-            methodSea: "heuristic"
+            styleTags: ["casual", "daily"],
+            confidence: 0.85,
+            imageURL: nil
         ),
         imageData: Data()
     )

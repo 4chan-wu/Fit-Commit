@@ -1,33 +1,36 @@
 package com.fitcommit.app.models;
 
 /**
- * AI 서버 /predict 응답의 analysis 필드와 동일한 형태의 화면 모델입니다.
+ * CLIP/FashionCLIP 기반 /predict 응답의 analysis 필드와 동일한 형태의 화면 모델입니다.
  */
 public class AnalysisResult {
-    public final String category;
-    public final double categoryConfidence;
-    public final String color;
+    public final String mainCategory;
+    public final String subcategory;
+    public final String mainColor;
     public final String season;
-    public final double seasonConfidence;
-    public final String seasonMethod;
+    public final String[] styleTags;
+    public final double confidence;
+    public final String imageUrl;
 
     public AnalysisResult(
-            String category,
-            double categoryConfidence,
-            String color,
+            String mainCategory,
+            String subcategory,
+            String mainColor,
             String season,
-            double seasonConfidence,
-            String seasonMethod
+            String[] styleTags,
+            double confidence,
+            String imageUrl
     ) {
-        this.category = category;
-        this.categoryConfidence = categoryConfidence;
-        this.color = color;
+        this.mainCategory = mainCategory;
+        this.subcategory = subcategory;
+        this.mainColor = mainColor;
         this.season = season;
-        this.seasonConfidence = seasonConfidence;
-        this.seasonMethod = seasonMethod;
+        this.styleTags = styleTags;
+        this.confidence = confidence;
+        this.imageUrl = imageUrl;
     }
 
-    public static AnalysisResult sample() {
-        return new AnalysisResult("T-shirt", 0.92, "#1A237E", "Spring/Summer", 0.78, "mock");
+    public static AnalysisResult fallback(String categoryHint) {
+        return new AnalysisResult(categoryHint, "", "#CCCCCC", "All-Season", new String[0], 0, "");
     }
 }

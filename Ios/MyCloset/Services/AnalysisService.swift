@@ -2,30 +2,78 @@ import Foundation
 import SwiftUI
 import UIKit
 
-struct AnalysisResponse: Codable, Equatable, Sendable {
+struct AnalysisResponse: Decodable, Equatable, Sendable {
     let status: String
     let analysis: AnalysisResult
 }
 
-struct AnalysisResult: Codable, Equatable, Sendable {
-    let category: String
-    let confidenceCat: Double
-    let color: String
+struct AnalysisResult: Decodable, Equatable, Sendable {
+    let mainCategory: String
+    let subcategory: String
+    let mainColor: String
     let season: String
-    let confidenceSea: Double
-    let methodSea: String
+    let styleTags: [String]
+    let confidence: Double
+    let imageURL: String?
+
+    var category: String { mainCategory }
+    var color: String { mainColor }
 
     var swiftUIColor: Color {
-        Color(hexString: color) ?? Color(uiColor: .secondarySystemBackground)
+        Color(hexString: mainColor) ?? Color(uiColor: .secondarySystemBackground)
     }
 
     private enum CodingKeys: String, CodingKey {
-        case category
-        case confidenceCat = "confidence_cat"
-        case color
+        case mainCategory = "main_category"
+        case subcategory
+        case mainColor = "main_color"
         case season
-        case confidenceSea = "confidence_sea"
-        case methodSea = "method_sea"
+        case styleTags = "style_tags"
+        case confidence
+        case imageURL = "image_url"
+
+        case legacyCategory = "category"
+        case legacyColor = "color"
+        case legacyCategoryConfidence = "confidence_cat"
+        case legacySeasonConfidence = "confidence_sea"
+        case legacyImageRef = "image_ref"
+    }
+
+    init(
+        mainCategory: String,
+        subcategory: String,
+        mainColor: String,
+        season: String,
+        styleTags: [String],
+        confidence: Double,
+        imageURL: String? = nil
+    ) {
+        self.mainCategory = mainCategory
+        self.subcategory = subcategory
+        self.mainColor = mainColor
+        self.season = season
+        self.styleTags = styleTags
+        self.confidence = confidence
+        self.imageURL = imageURL
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        mainCategory = try container.decodeIfPresent(String.self, forKey: .mainCategory)
+            ?? container.decodeIfPresent(String.self, forKey: .legacyCategory)
+            ?? ""
+        subcategory = try container.decodeIfPresent(String.self, forKey: .subcategory) ?? ""
+        mainColor = try container.decodeIfPresent(String.self, forKey: .mainColor)
+            ?? container.decodeIfPresent(String.self, forKey: .legacyColor)
+            ?? ""
+        season = try container.decodeIfPresent(String.self, forKey: .season) ?? ""
+        styleTags = try container.decodeIfPresent([String].self, forKey: .styleTags) ?? []
+        confidence = try container.decodeIfPresent(Double.self, forKey: .confidence)
+            ?? container.decodeIfPresent(Double.self, forKey: .legacyCategoryConfidence)
+            ?? container.decodeIfPresent(Double.self, forKey: .legacySeasonConfidence)
+            ?? 0
+        imageURL = try container.decodeIfPresent(String.self, forKey: .imageURL)
+            ?? container.decodeIfPresent(String.self, forKey: .legacyImageRef)
     }
 }
 
@@ -111,7 +159,7 @@ final class AnalysisService {
         }
     }
 
-    func uploadImage(_ image: UIImage) async throws -> AnalysisResponse {
+    func uploadImage(_ image: UIImage, categoryHint: String) async throws -> AnalysisResponse {
         print("[DEBUG][AnalysisService] uploadImage entered")
         print("[DEBUG][AnalysisService] Endpoint: \(endpointURL.absoluteString)")
 
@@ -132,7 +180,8 @@ final class AnalysisService {
             boundary: boundary,
             fieldName: "file",
             fileName: fileName,
-            mimeType: mimeType
+            mimeType: mimeType,
+            categoryHint: categoryHint
         )
         print("[DEBUG][AnalysisService] Multipart body ready: \(body.count) bytes, boundary=\(boundary)")
 
@@ -176,7 +225,7 @@ final class AnalysisService {
                 print("[DEBUG][AnalysisService] Server returned non-success status: \(analysis.status)")
                 throw AnalysisServiceError.analysisFailed(analysis.status)
             }
-            print("[DEBUG][AnalysisService] Decode success: \(analysis.analysis.category), \(analysis.analysis.color), \(analysis.analysis.season)")
+            print("[DEBUG][AnalysisService] Decode success: \(analysis.analysis.mainCategory), \(analysis.analysis.mainColor), \(analysis.analysis.season)")
             return analysis
         } catch let error as AnalysisServiceError {
             print("[DEBUG][AnalysisService] AnalysisServiceError: \(error.localizedDescription)")
@@ -250,9 +299,14 @@ final class AnalysisService {
         boundary: String,
         fieldName: String,
         fileName: String,
-        mimeType: String
+        mimeType: String,
+        categoryHint: String
     ) -> Data {
         var body = Data()
+        body.appendString("--\(boundary)\r\n")
+        body.appendString("Content-Disposition: form-data; name=\"category_hint\"\r\n\r\n")
+        body.appendString(categoryHint)
+        body.appendString("\r\n")
         body.appendString("--\(boundary)\r\n")
         body.appendString("Content-Disposition: form-data; name=\"\(fieldName)\"; filename=\"\(fileName)\"\r\n")
         body.appendString("Content-Type: \(mimeType)\r\n\r\n")

@@ -21,6 +21,24 @@
             android:textSize="17sp"
             android:textStyle="bold" />
 
+        <ImageView
+            android:id="@+id/resultPreviewImage"
+            android:layout_width="match_parent"
+            android:layout_height="240dp"
+            android:layout_marginTop="12dp"
+            android:background="@drawable/bg_card"
+            android:padding="14dp"
+            android:scaleType="fitCenter" />
+
+        <TextView
+            android:id="@+id/analysisStatusText"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:text="AI가 아이템 단독 사진을 분석 중입니다..."
+            android:textColor="@color/fit_text_secondary"
+            android:textSize="13sp" />
+
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -28,57 +46,50 @@
             android:background="@drawable/bg_card"
             android:orientation="vertical">
 
-            <LinearLayout
+            <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:gravity="center_vertical"
-                android:orientation="horizontal">
+                android:text="AI 분석 결과 확인"
+                android:textColor="@color/fit_text"
+                android:textSize="20sp"
+                android:textStyle="bold" />
 
-                <TextView
-                    android:layout_width="48dp"
-                    android:layout_height="48dp"
-                    android:background="@drawable/bg_primary_button"
-                    android:gravity="center"
-                    android:text="👕"
-                    android:textSize="22sp" />
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:text="저장 전 최종 값을 확인하고 수정해주세요."
+                android:textColor="@color/fit_text_secondary"
+                android:textSize="13sp" />
 
-                <LinearLayout
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_marginStart="12dp"
-                    android:layout_weight="1"
-                    android:orientation="vertical">
+            <TextView
+                android:id="@+id/resultCategoryText"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="18dp"
+                android:text="top"
+                android:textColor="@color/fit_text"
+                android:textSize="18sp"
+                android:textStyle="bold" />
 
-                    <TextView
-                        android:id="@+id/resultCategoryText"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:text="T-shirt"
-                        android:textColor="@color/fit_text"
-                        android:textSize="18sp"
-                        android:textStyle="bold" />
-
-                    <TextView
-                        android:id="@+id/resultConfidenceText"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="4dp"
-                        android:text="92% confidence"
-                        android:textColor="@color/fit_text_secondary"
-                        android:textSize="12sp" />
-                </LinearLayout>
-            </LinearLayout>
+            <TextView
+                android:id="@+id/resultConfidenceText"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:text="0% confidence"
+                android:textColor="@color/fit_text_secondary"
+                android:textSize="12sp" />
 
             <EditText
                 android:id="@+id/clothingNameEditText"
                 android:layout_width="match_parent"
                 android:layout_height="52dp"
-                android:layout_marginTop="20dp"
+                android:layout_marginTop="18dp"
                 android:background="@drawable/bg_input"
                 android:hint="의류 이름"
                 android:paddingHorizontal="14dp"
-                android:singleLine="true"
-                android:text="T-shirt" />
+                android:singleLine="true" />
 
             <Spinner
                 android:id="@+id/categorySpinner"
@@ -89,57 +100,100 @@
                 android:paddingHorizontal="14dp" />
 
             <EditText
+                android:id="@+id/subcategoryEditText"
+                android:layout_width="match_parent"
+                android:layout_height="52dp"
+                android:layout_marginTop="12dp"
+                android:background="@drawable/bg_input"
+                android:hint="세부 종류"
+                android:paddingHorizontal="14dp"
+                android:singleLine="true" />
+
+            <EditText
                 android:id="@+id/colorEditText"
                 android:layout_width="match_parent"
                 android:layout_height="52dp"
                 android:layout_marginTop="12dp"
                 android:background="@drawable/bg_input"
-                android:hint="HEX color"
+                android:hint="대표 색상 HEX"
                 android:paddingHorizontal="14dp"
-                android:singleLine="true"
-                android:text="#1A237E" />
+                android:singleLine="true" />
 
             <RadioGroup
                 android:id="@+id/seasonGroup"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="14dp"
-                android:orientation="horizontal">
+                android:orientation="vertical">
 
                 <RadioButton
                     android:id="@+id/seasonSpring"
-                    android:layout_width="0dp"
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_weight="1"
                     android:text="Spring/Summer" />
 
                 <RadioButton
                     android:id="@+id/seasonFall"
-                    android:layout_width="0dp"
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_weight="1"
                     android:text="Fall/Winter" />
+
+                <RadioButton
+                    android:id="@+id/seasonAll"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="All-Season" />
             </RadioGroup>
+
+            <EditText
+                android:id="@+id/styleTagsEditText"
+                android:layout_width="match_parent"
+                android:layout_height="52dp"
+                android:layout_marginTop="12dp"
+                android:background="@drawable/bg_input"
+                android:hint="스타일 태그, 쉼표로 구분"
+                android:paddingHorizontal="14dp"
+                android:singleLine="true" />
 
             <TextView
                 android:id="@+id/colorSummaryText"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="18dp"
-                android:text="Color  #1A237E"
+                android:text="대표 색상  #CCCCCC"
                 android:textColor="@color/fit_text"
                 android:textStyle="bold" />
 
-            <Button
-                android:id="@+id/saveResultButton"
+            <LinearLayout
                 android:layout_width="match_parent"
-                android:layout_height="54dp"
+                android:layout_height="wrap_content"
                 android:layout_marginTop="18dp"
-                android:background="@drawable/bg_primary_button"
-                android:text="저장"
-                android:textAllCaps="false"
-                android:textColor="#FFFFFF"
-                android:textStyle="bold" />
+                android:orientation="horizontal">
+
+                <Button
+                    android:id="@+id/editResultButton"
+                    android:layout_width="0dp"
+                    android:layout_height="54dp"
+                    android:layout_marginEnd="8dp"
+                    android:layout_weight="1"
+                    android:background="@drawable/bg_soft_button"
+                    android:text="수정하기"
+                    android:textAllCaps="false"
+                    android:textColor="@color/fit_primary"
+                    android:textStyle="bold" />
+
+                <Button
+                    android:id="@+id/saveResultButton"
+                    android:layout_width="0dp"
+                    android:layout_height="54dp"
+                    android:layout_marginStart="8dp"
+                    android:layout_weight="1"
+                    android:background="@drawable/bg_primary_button"
+                    android:text="저장하기"
+                    android:textAllCaps="false"
+                    android:textColor="#FFFFFF"
+                    android:textStyle="bold" />
+            </LinearLayout>
         </LinearLayout>
     </LinearLayout>
 </ScrollView>

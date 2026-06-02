@@ -394,16 +394,15 @@ private struct UploadImage {
     let image: UIImage
 }
 
-private enum ClosetItemEditOptions {
+enum ClosetItemEditOptions {
     static let categories = [
-        "T-shirt",
-        "Shirt",
-        "Hoodie",
-        "Sweater",
-        "Pants",
-        "Skirt",
-        "Dress",
-        "Outerwear",
+        "top",
+        "bottom",
+        "outer",
+        "shoes",
+        "hat",
+        "bag",
+        "dress",
     ]
 
     static let seasons = [
@@ -646,15 +645,15 @@ private struct ClothesUploadView: View {
     @State private var analysisState: AnalysisRequestState = .idle
     @State private var isShowingAnalysisError = false
     @State private var alertMessage = ""
-    @State private var didStartAutoAnalysis = false
     @State private var loadingProgress = 0.08
     @State private var loadingPulse = false
     @State private var processedImage: UIImage?
-    @State private var backgroundRemovalMessage: String?
     @State private var imageDataForSaving: Data
+    @State private var selectedCategoryHint = "top"
 
     let image: UIImage
     private let analysisService = AnalysisService()
+    private let categoryOptions = ClosetItemEditOptions.categories
 
     init(image: UIImage) {
         self.image = image
@@ -704,9 +703,6 @@ private struct ClothesUploadView: View {
             } message: {
                 Text(alertMessage)
             }
-            .task {
-                await startAutoAnalysisIfNeeded()
-            }
         }
     }
 
@@ -726,11 +722,31 @@ private struct ClothesUploadView: View {
     }
 
     private var uploadForm: some View {
-        VStack(spacing: 16) {
-            Text("선택한 이미지를 AI 서버로 분석할 준비가 됐어요.")
+        VStack(alignment: .leading, spacing: 16) {
+            Text("아이템 종류")
+                .font(.headline)
+
+            Picker("아이템 종류", selection: $selectedCategoryHint) {
+                ForEach(categoryOptions, id: \.self) { category in
+                    Text(categoryLabel(for: category)).tag(category)
+                }
+            }
+            .pickerStyle(.menu)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 11)
+            .background(Color(uiColor: .tertiarySystemBackground), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+
+            VStack(alignment: .leading, spacing: 8) {
+                Label("옷 한 벌만 화면 중앙에 놓고 촬영해주세요.", systemImage: "viewfinder")
+                Label("배경은 단순할수록 분석 정확도가 높아집니다.", systemImage: "sparkles")
+            }
+            .font(.subheadline)
+            .foregroundStyle(.secondary)
+
+            Text("선택한 카테고리는 AI 서버에 category_hint로 함께 전달됩니다.")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
 
             Button {
                 Task {
@@ -745,6 +761,8 @@ private struct ClothesUploadView: View {
             .buttonStyle(.borderedProminent)
             .controlSize(.large)
         }
+        .padding(18)
+        .fitcommitCardStyle(borderOpacity: 0.07)
     }
 
     private var loadingView: some View {
@@ -769,13 +787,6 @@ private struct ClothesUploadView: View {
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
-
-            if let backgroundRemovalMessage {
-                Text(backgroundRemovalMessage)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.center)
-            }
 
             ProgressView(value: loadingProgress)
                 .tint(Color.accentColor)
@@ -838,17 +849,9 @@ private struct ClothesUploadView: View {
     }
 
     @MainActor
-    private func startAutoAnalysisIfNeeded() async {
-        guard didStartAutoAnalysis == false else { return }
-        didStartAutoAnalysis = true
-        await analyzeImage()
-    }
-
-    @MainActor
     private func analyzeImage() async {
         print("[DEBUG][ClothesUploadView] analyzeImage started")
         loadingProgress = 0.08
-        backgroundRemovalMessage = "배경을 분리하는 중입니다."
         analysisState = .loading
 
         do {
@@ -857,11 +860,10 @@ private struct ClothesUploadView: View {
             print("[DEBUG][ClothesUploadView] Image prepared")
             processedImage = imageForAnalysis
             imageDataForSaving = await imageForAnalysis.imageDataForClosetStorageInBackground(compressionQuality: 0.82) ?? Data()
-            backgroundRemovalMessage = "배경 분리 완료. 서버 분석 중입니다."
             loadingProgress = max(loadingProgress, 0.34)
 
             print("[DEBUG][ClothesUploadView] Calling AnalysisService.uploadImage")
-            let response = try await analysisService.uploadImage(imageForAnalysis)
+            let response = try await analysisService.uploadImage(imageForAnalysis, categoryHint: selectedCategoryHint)
             print("[DEBUG][ClothesUploadView] AnalysisService returned success")
             analysisState = .success(response)
         } catch {
@@ -887,16 +889,27 @@ private struct ClothesUploadView: View {
 
     @MainActor
     private func prepareImageForAnalysis() async -> UIImage {
-        guard #available(iOS 17.0, *) else {
-            backgroundRemovalMessage = "이 iOS 버전에서는 자동 배경 분리를 지원하지 않아 원본으로 분석합니다."
-            return image
-        }
+        image
+    }
 
-        do {
-            return try await VisionImageService.shared.removeBackground(from: image)
-        } catch {
-            backgroundRemovalMessage = "배경 분리에 실패해 원본 이미지로 분석합니다."
-            return image
+    private func categoryLabel(for value: String) -> String {
+        switch value {
+        case "top":
+            return "상의 (top)"
+        case "bottom":
+            return "하의 (bottom)"
+        case "outer":
+            return "아우터 (outer)"
+        case "shoes":
+            return "신발 (shoes)"
+        case "hat":
+            return "모자 (hat)"
+        case "bag":
+            return "가방 (bag)"
+        case "dress":
+            return "원피스 (dress)"
+        default:
+            return value
         }
     }
 }
@@ -1002,7 +1015,7 @@ private struct ClothingDetailView: View {
 
     private func saveAndDismiss() {
         item.name = normalizedValue(item.name, fallback: "새로운 옷")
-        item.category = normalizedValue(item.category, fallback: "T-shirt")
+        item.category = normalizedValue(item.category, fallback: "top")
         item.color = normalizedValue(item.color, fallback: "#CCCCCC")
         item.season = normalizedValue(item.season, fallback: "All-Season")
         try? modelContext.save()

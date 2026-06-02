@@ -17,16 +17,39 @@ public class AddClothingActivity extends Activity {
     private static final int REQUEST_CAMERA_PERMISSION = 5101;
     private static final int REQUEST_TAKE_PHOTO = 5102;
     private static final int REQUEST_PICK_IMAGE = 5103;
+    private static final String[] CATEGORY_VALUES = {"top", "bottom", "outer", "shoes", "hat", "bag", "dress"};
+    private static final String[] CATEGORY_LABELS = {
+            "상의 (top)",
+            "하의 (bottom)",
+            "아우터 (outer)",
+            "신발 (shoes)",
+            "모자 (hat)",
+            "가방 (bag)",
+            "원피스 (dress)"
+    };
+
+    private String selectedCategoryHint = CATEGORY_VALUES[0];
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        showSourceDialog();
+        showCategoryDialog();
+    }
+
+    private void showCategoryDialog() {
+        new AlertDialog.Builder(this)
+                .setTitle("아이템 종류 선택")
+                .setSingleChoiceItems(CATEGORY_LABELS, 0, (dialog, which) -> selectedCategoryHint = CATEGORY_VALUES[which])
+                .setPositiveButton("다음", (dialog, which) -> showSourceDialog())
+                .setNegativeButton("취소", (dialog, which) -> finish())
+                .setOnCancelListener(dialog -> finish())
+                .show();
     }
 
     private void showSourceDialog() {
         new AlertDialog.Builder(this)
                 .setTitle("의류 이미지 추가")
+                .setMessage("옷 한 벌만 화면 중앙에 놓고 촬영해주세요.\n배경은 단순할수록 분석 정확도가 높아집니다.")
                 .setItems(new String[]{"사진 찍기", "갤러리에서 선택"}, (dialog, which) -> {
                     if (which == 0) {
                         openCameraWithPermission();
@@ -90,19 +113,18 @@ public class AddClothingActivity extends Activity {
                 if (imageUri == null) {
                     throw new IllegalStateException("이미지를 선택하지 못했습니다.");
                 }
-                processedPath = BackgroundRemover.processUri(this, imageUri);
+                processedPath = BackgroundRemover.saveOriginalUri(this, imageUri);
             } else if (requestCode == REQUEST_TAKE_PHOTO) {
                 Bitmap bitmap = (Bitmap) data.getExtras().get("data");
-                processedPath = BackgroundRemover.processBitmap(this, bitmap);
+                processedPath = BackgroundRemover.saveOriginalBitmap(this, bitmap);
             } else {
                 finish();
                 return;
             }
 
-            // TODO: AI 분석 기능 연동 예정
-            // analyzeClothingWithAI(removedBackgroundImage);
-            Intent intent = new Intent(this, ClothingSaveActivity.class);
-            intent.putExtra(ClothingSaveActivity.EXTRA_IMAGE_PATH, processedPath);
+            Intent intent = new Intent(this, AnalysisResultActivity.class);
+            intent.putExtra(AnalysisResultActivity.EXTRA_IMAGE_PATH, processedPath);
+            intent.putExtra(AnalysisResultActivity.EXTRA_CATEGORY_HINT, selectedCategoryHint);
             startActivity(intent);
         } catch (Exception e) {
             UiUtils.toast(this, "이미지를 처리할 수 없습니다.");

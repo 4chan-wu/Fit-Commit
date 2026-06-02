@@ -21,6 +21,31 @@ public final class BackgroundRemover {
         }
     }
 
+    public static String saveOriginalUri(Context context, Uri imageUri) throws Exception {
+        try (InputStream inputStream = context.getContentResolver().openInputStream(imageUri)) {
+            Bitmap bitmap = BitmapFactory.decodeStream(inputStream);
+            return saveOriginalBitmap(context, bitmap);
+        }
+    }
+
+    public static String saveOriginalBitmap(Context context, Bitmap source) throws Exception {
+        if (source == null) {
+            throw new IllegalArgumentException("이미지를 읽을 수 없습니다.");
+        }
+
+        Bitmap output = scaleDown(source, 1200);
+        File dir = new File(context.getFilesDir(), "closet_images");
+        if (!dir.exists() && !dir.mkdirs()) {
+            throw new IllegalStateException("이미지 저장 폴더를 만들 수 없습니다.");
+        }
+
+        File file = new File(dir, "clothing_" + System.currentTimeMillis() + ".jpg");
+        try (FileOutputStream outputStream = new FileOutputStream(file)) {
+            output.compress(Bitmap.CompressFormat.JPEG, 88, outputStream);
+        }
+        return file.getAbsolutePath();
+    }
+
     public static String processBitmap(Context context, Bitmap source) throws Exception {
         if (source == null) {
             throw new IllegalArgumentException("이미지를 읽을 수 없습니다.");
