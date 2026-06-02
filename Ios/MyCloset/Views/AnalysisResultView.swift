@@ -15,6 +15,7 @@ struct AnalysisResultView: View {
     @State private var selectedSeason = ""
     @State private var styleTagsText = ""
     @State private var saveErrorMessage: String?
+    @State private var isSaving = false
 
     private let categoryOptions = ClosetItemEditOptions.categories
     private let seasonOptions = ["Spring/Summer", "Fall/Winter", "All-Season"]
@@ -54,7 +55,9 @@ struct AnalysisResultView: View {
                 .buttonStyle(.bordered)
 
                 Button {
-                    saveItem()
+                    Task {
+                        await saveItem()
+                    }
                 } label: {
                     Label("저장하기", systemImage: "checkmark")
                         .font(.headline)
@@ -62,6 +65,7 @@ struct AnalysisResultView: View {
                         .padding(.vertical, 12)
                 }
                 .buttonStyle(.borderedProminent)
+                .disabled(isSaving)
             }
         }
         .padding(18)
@@ -209,7 +213,12 @@ struct AnalysisResultView: View {
         saveErrorMessage = nil
     }
 
-    private func saveItem() {
+    @MainActor
+    private func saveItem() async {
+        guard isSaving == false else { return }
+        isSaving = true
+        defer { isSaving = false }
+
         let name = clothingName.trimmingCharacters(in: .whitespacesAndNewlines)
         let category = selectedCategory.trimmingCharacters(in: .whitespacesAndNewlines)
         let finalSubcategory = subcategory.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -226,6 +235,32 @@ struct AnalysisResultView: View {
               season.isEmpty == false else {
             saveErrorMessage = "의류 이름, 종류, 대표 색상, 계절을 모두 입력해주세요."
             return
+        }
+
+        if BackendClothesService.isConfigured,
+           let userID = BackendClothesService.configuredUserID {
+            do {
+                try await BackendClothesService.save(
+                    BackendClothesPayload(
+                        userID: userID,
+                        mainCategory: category,
+                        subcategory: finalSubcategory.isEmpty ? nil : finalSubcategory,
+                        mainColor: color,
+                        season: seasonValues(from: season),
+                        styleTags: finalStyleTags,
+                        imageURL: result.imageURL,
+                        imagePath: nil,
+                        confidence: result.confidence,
+                        analysisMethod: result.method,
+                        memo: ""
+                    )
+                )
+                dismiss()
+                return
+            } catch {
+                print("[AnalysisResultView] Backend save failed, falling back to SwiftData: \(error.localizedDescription)")
+                saveErrorMessage = "서버 저장에 실패해 기기에 임시 저장합니다."
+            }
         }
 
         let item = ClosetItem(
@@ -280,6 +315,22 @@ struct AnalysisResultView: View {
         }
     }
 
+    private func seasonValues(from season: String) -> [String] {
+        switch season {
+        case "Spring/Summer":
+            return ["spring", "summer"]
+        case "Fall/Winter":
+            return ["fall", "winter"]
+        case "All-Season":
+            return ["spring", "summer", "fall", "winter"]
+        default:
+            return season
+                .split(separator: "/")
+                .map { $0.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() }
+                .filter { $0.isEmpty == false }
+        }
+    }
+
     private static func defaultName(for category: String) -> String {
         switch category.lowercased() {
         case "top":
@@ -321,6 +372,7 @@ private struct ResultInputStyle: ViewModifier {
             season: "Spring/Summer",
             styleTags: ["casual", "daily"],
             confidence: 0.85,
+            method: "clip",
             imageURL: nil
         ),
         imageData: Data()

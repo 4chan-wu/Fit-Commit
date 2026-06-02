@@ -112,11 +112,41 @@ public class FashionAiService {
                 mainCategory,
                 analysis.optString("subcategory"),
                 mainColor,
-                firstNonEmpty(analysis.optString("season"), "All-Season"),
+                parseSeason(analysis),
                 parseStyleTags(analysis.optJSONArray("style_tags")),
                 confidence,
+                firstNonEmpty(analysis.optString("method"), "clip"),
                 firstNonEmpty(analysis.optString("image_url"), analysis.optString("image_ref"))
         );
+    }
+
+    private String parseSeason(JSONObject analysis) {
+        JSONArray seasons = analysis.optJSONArray("season");
+        if (seasons != null) {
+            boolean spring = contains(seasons, "spring");
+            boolean summer = contains(seasons, "summer");
+            boolean fall = contains(seasons, "fall");
+            boolean winter = contains(seasons, "winter");
+            if (fall && winter) {
+                return "Fall/Winter";
+            }
+            if (spring && summer) {
+                return "Spring/Summer";
+            }
+            if (seasons.length() >= 4) {
+                return "All-Season";
+            }
+        }
+        return firstNonEmpty(analysis.optString("season"), "All-Season");
+    }
+
+    private boolean contains(JSONArray array, String value) {
+        for (int i = 0; i < array.length(); i++) {
+            if (value.equals(array.optString(i))) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private String[] parseStyleTags(JSONArray array) {

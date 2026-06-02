@@ -33,6 +33,7 @@ Backend/
 - 사용자 회원가입/로그인/JWT 발급
 - PostgreSQL 또는 Supabase 연결
 - 채팅방 및 채팅 메시지 저장
+- Supabase `public.clothes` 의류 저장/조회
 - OpenAI API 기반 스타일 채팅 응답
 - Toss Payments 결제 준비/승인
 - 서버/DB 상태 확인 API
@@ -52,6 +53,10 @@ cp .env.example .env
 | `ALGORITHM` | 선택 | JWT 알고리즘. 기본값 `HS256` |
 | `ACCESS_TOKEN_EXPIRE_MINUTES` | 선택 | 액세스 토큰 만료 시간 |
 | `OPENAI_API_KEY` | 채팅 기능 사용 시 필수 | OpenAI API 키 |
+| `SUPABASE_URL` | 의류 API 사용 시 필수 | Supabase 프로젝트 URL |
+| `SUPABASE_SERVICE_ROLE_KEY` | 의류 API 사용 시 필수 | Backend 전용 service role key. iOS/Android에 넣지 않습니다 |
+| `SUPABASE_ANON_KEY` | 선택 | Supabase anon key |
+| `SUPABASE_CLOTHING_BUCKET` | 선택 | 의류 이미지 버킷. 기본값 `clothing-images` |
 | `TOSS_CLIENT_KEY` | 결제 기능 사용 시 필수 | Toss Payments 클라이언트 키 |
 | `TOSS_SECRET_KEY` | 결제 기능 사용 시 필수 | Toss Payments 시크릿 키 |
 | `TOSS_SUCCESS_URL` | 선택 | 결제 성공 리다이렉트 URL |
@@ -91,6 +96,34 @@ Docker Compose는 Backend를 로컬 `8001`, PostgreSQL을 로컬 `5433`에 노�
 
 Supabase를 사용할 때는 `.env`의 `DATABASE_URL`을 Supabase PostgreSQL 연결 문자열로 교체하고, `app/db/supabase_schema.sql`을 Supabase SQL Editor에서 실행합니다.
 
+의류 저장 API는 Supabase REST API를 사용합니다. `SUPABASE_SERVICE_ROLE_KEY`는 RLS를 우회할 수 있는 민감한 키이므로 Backend `.env`에만 저장하고 앱 코드에는 절대 넣지 않습니다.
+
+의류 저장 테스트:
+
+```bash
+curl -X POST http://localhost:8001/clothes \
+  -H "Content-Type: application/json" \
+  -d '{
+    "user_id": "00000000-0000-0000-0000-000000000000",
+    "main_category": "top",
+    "subcategory": "hoodie",
+    "main_color": "gray",
+    "season": ["fall", "winter"],
+    "style_tags": ["casual", "street"],
+    "image_url": "https://example.com/file.jpg",
+    "image_path": "00000000-0000-0000-0000-000000000000/file.jpg",
+    "confidence": 0.82,
+    "analysis_method": "clip",
+    "memo": ""
+  }'
+```
+
+의류 목록 조회:
+
+```bash
+curl "http://localhost:8001/clothes?user_id=00000000-0000-0000-0000-000000000000"
+```
+
 ## 주요 API
 
 | Method | Path | 설명 |
@@ -102,6 +135,11 @@ Supabase를 사용할 때는 `.env`의 `DATABASE_URL`을 Supabase PostgreSQL 연
 | `POST` | `/users/signup` | 회원가입 |
 | `POST` | `/users/login` | 로그인 |
 | `GET` | `/users/me` | 현재 사용자 확인 |
+| `POST` | `/clothes` | 의류 저장 |
+| `GET` | `/clothes?user_id={uuid}` | 특정 사용자 의류 목록 최신순 조회 |
+| `GET` | `/clothes/{clothing_id}` | 의류 상세 조회 |
+| `PUT` | `/clothes/{clothing_id}` | 의류 정보 수정 |
+| `DELETE` | `/clothes/{clothing_id}` | 의류 삭제 |
 | `GET` | `/billing/plans` | 결제 플랜 조회 |
 | `POST` | `/billing/payments/prepare` | 결제 준비 |
 | `POST` | `/billing/payments/confirm` | 결제 승인 |

@@ -5,6 +5,7 @@ import retrofit2.converter.gson.GsonConverterFactory;
 
 public final class ApiClient {
     public static final String BASE_URL = "http://10.0.2.2:8001";
+    public static final String BACKEND_CLOTHES_USER_ID = "";
 
     private static Retrofit retrofit;
 

@@ -14,6 +14,7 @@ struct AnalysisResult: Decodable, Equatable, Sendable {
     let season: String
     let styleTags: [String]
     let confidence: Double
+    let method: String
     let imageURL: String?
 
     var category: String { mainCategory }
@@ -30,6 +31,7 @@ struct AnalysisResult: Decodable, Equatable, Sendable {
         case season
         case styleTags = "style_tags"
         case confidence
+        case method
         case imageURL = "image_url"
 
         case legacyCategory = "category"
@@ -46,6 +48,7 @@ struct AnalysisResult: Decodable, Equatable, Sendable {
         season: String,
         styleTags: [String],
         confidence: Double,
+        method: String = "clip",
         imageURL: String? = nil
     ) {
         self.mainCategory = mainCategory
@@ -54,6 +57,7 @@ struct AnalysisResult: Decodable, Equatable, Sendable {
         self.season = season
         self.styleTags = styleTags
         self.confidence = confidence
+        self.method = method
         self.imageURL = imageURL
     }
 
@@ -66,14 +70,31 @@ struct AnalysisResult: Decodable, Equatable, Sendable {
         mainColor = try container.decodeIfPresent(String.self, forKey: .mainColor)
             ?? container.decodeIfPresent(String.self, forKey: .legacyColor)
             ?? ""
-        season = try container.decodeIfPresent(String.self, forKey: .season) ?? ""
+        season = try Self.decodeSeason(from: container)
         styleTags = try container.decodeIfPresent([String].self, forKey: .styleTags) ?? []
         confidence = try container.decodeIfPresent(Double.self, forKey: .confidence)
             ?? container.decodeIfPresent(Double.self, forKey: .legacyCategoryConfidence)
             ?? container.decodeIfPresent(Double.self, forKey: .legacySeasonConfidence)
             ?? 0
+        method = try container.decodeIfPresent(String.self, forKey: .method) ?? "clip"
         imageURL = try container.decodeIfPresent(String.self, forKey: .imageURL)
             ?? container.decodeIfPresent(String.self, forKey: .legacyImageRef)
+    }
+
+    private static func decodeSeason(from container: KeyedDecodingContainer<CodingKeys>) throws -> String {
+        if let seasons = try container.decodeIfPresent([String].self, forKey: .season) {
+            if seasons.contains("fall") && seasons.contains("winter") {
+                return "Fall/Winter"
+            }
+            if seasons.contains("spring") && seasons.contains("summer") {
+                return "Spring/Summer"
+            }
+            if seasons.count >= 4 {
+                return "All-Season"
+            }
+            return seasons.joined(separator: "/")
+        }
+        return try container.decodeIfPresent(String.self, forKey: .season) ?? ""
     }
 }
 

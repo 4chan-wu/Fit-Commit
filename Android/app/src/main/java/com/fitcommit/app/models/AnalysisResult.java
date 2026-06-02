@@ -10,6 +10,7 @@ public class AnalysisResult {
     public final String season;
     public final String[] styleTags;
     public final double confidence;
+    public final String method;
     public final String imageUrl;
 
     public AnalysisResult(
@@ -19,6 +20,7 @@ public class AnalysisResult {
             String season,
             String[] styleTags,
             double confidence,
+            String method,
             String imageUrl
     ) {
         this.mainCategory = mainCategory;
@@ -27,10 +29,11 @@ public class AnalysisResult {
         this.season = season;
         this.styleTags = styleTags;
         this.confidence = confidence;
+        this.method = method;
         this.imageUrl = imageUrl;
     }
 
     public static AnalysisResult fallback(String categoryHint) {
-        return new AnalysisResult(categoryHint, "", "#CCCCCC", "All-Season", new String[0], 0, "");
+        return new AnalysisResult(categoryHint, "", "#CCCCCC", "All-Season", new String[0], 0, "fallback", "");
     }
 }

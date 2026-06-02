@@ -14,6 +14,7 @@ import android.widget.TextView;
 import com.fitcommit.app.R;
 import com.fitcommit.app.models.AnalysisResult;
 import com.fitcommit.app.models.ClosetItem;
+import com.fitcommit.app.services.ClothesBackendService;
 import com.fitcommit.app.services.ClothingStorage;
 import com.fitcommit.app.services.FashionAiService;
 import com.fitcommit.app.utils.UiUtils;
@@ -30,6 +31,7 @@ public class AnalysisResultActivity extends Activity {
 
     private static final String[] CATEGORIES = {"top", "bottom", "outer", "shoes", "hat", "bag", "dress"};
     private final FashionAiService fashionAiService = new FashionAiService();
+    private final ClothesBackendService clothesBackendService = new ClothesBackendService();
 
     private String imagePath;
     private String categoryHint;
@@ -127,9 +129,39 @@ public class AnalysisResultActivity extends Activity {
         String styleTags = ((EditText) findViewById(R.id.styleTagsEditText)).getText().toString().trim();
         String season = selectedSeason();
 
+        if (clothesBackendService.isConfigured()) {
+            setLoading(true, "서버에 의류 정보를 저장 중입니다...");
+            new Thread(() -> {
+                try {
+                    clothesBackendService.save(name, category, subcategory, color, season, styleTags, imagePath, result);
+                    runOnUiThread(() -> {
+                        UiUtils.toast(this, "서버에 의류가 저장되었습니다.");
+                        finish();
+                    });
+                } catch (Exception error) {
+                    runOnUiThread(() -> {
+                        System.out.println("[AnalysisResultActivity] Backend save failed, falling back local: " + error.getMessage());
+                        saveLocally(name, category, subcategory, color, season, styleTags);
+                    });
+                }
+            }).start();
+            return;
+        }
+
+        saveLocally(name, category, subcategory, color, season, styleTags);
+    }
+
+    private void saveLocally(
+            String name,
+            String category,
+            String subcategory,
+            String color,
+            String season,
+            String styleTags
+    ) {
         String note = "subcategory=" + subcategory + "; style_tags=" + styleTags;
         ClothingStorage.save(this, new ClosetItem(name, category, color, season, note, imagePath));
-        UiUtils.toast(this, "확정한 의류 정보가 저장되었습니다.");
+        UiUtils.toast(this, "확정한 의류 정보가 기기에 저장되었습니다.");
         finish();
     }
 
