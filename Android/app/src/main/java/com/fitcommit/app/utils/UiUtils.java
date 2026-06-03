@@ -28,6 +28,37 @@ public final class UiUtils {
     }
 
     public static int parseColorOrDefault(String hex, int fallback) {
+        if (hex != null) {
+            switch (hex.trim().toLowerCase()) {
+                case "black":
+                    return Color.BLACK;
+                case "white":
+                    return Color.WHITE;
+                case "gray":
+                case "grey":
+                    return Color.GRAY;
+                case "red":
+                    return Color.rgb(220, 40, 40);
+                case "orange":
+                    return Color.rgb(235, 130, 40);
+                case "yellow":
+                    return Color.rgb(230, 210, 50);
+                case "green":
+                    return Color.rgb(50, 150, 80);
+                case "blue":
+                    return Color.rgb(50, 100, 210);
+                case "navy":
+                    return Color.rgb(20, 35, 90);
+                case "purple":
+                    return Color.rgb(130, 80, 180);
+                case "pink":
+                    return Color.rgb(230, 130, 170);
+                case "brown":
+                    return Color.rgb(120, 80, 50);
+                case "beige":
+                    return Color.rgb(210, 190, 150);
+            }
+        }
         try {
             return Color.parseColor(hex);
         } catch (Exception ignored) {

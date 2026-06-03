@@ -269,6 +269,34 @@ WHERE email = 'fitcommit_test@example.com';
 5. 실제 iPhone 테스트에서는 서버 URL을 Mac의 LAN IP로 설정합니다.
 6. 모델 가중치, API 키, DB 비밀번호, Xcode 사용자 상태 파일은 Git에 올리지 않습니다.
 
+## 의류 저장 End-to-End 테스트
+
+현재 개발 기본값:
+
+- 테스트 Supabase Auth `user_id`: `45482f0f-42d0-401e-a18a-77abeb0492cc`
+- iOS 시뮬레이터 Backend URL: `http://127.0.0.1:8000`
+- Android 에뮬레이터 Backend URL: `http://10.0.2.2:8000`
+
+테스트 순서:
+
+1. Backend를 실행합니다.
+
+   ```bash
+   cd Backend
+   uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+   ```
+
+2. iOS 시뮬레이터에서 옷을 저장합니다. 기본 개발값이 설정되어 있어 `/clothes` 저장을 먼저 시도하고, 실패하면 SwiftData 로컬 저장으로 fallback합니다.
+3. Supabase Dashboard의 `public.clothes` 테이블에서 row 생성 여부를 확인합니다.
+4. 앱을 재실행한 뒤 옷장 화면이 `GET /clothes?user_id=45482f0f-42d0-401e-a18a-77abeb0492cc` 결과를 먼저 표시하는지 확인합니다. 조회 실패 시 기존 로컬 저장소를 사용합니다.
+5. Android 에뮬레이터 테스트 시 Backend URL은 `http://10.0.2.2:8000`을 사용합니다. 실제 Android 기기에서는 `Android/app/src/main/java/com/fitcommit/app/services/ApiClient.java`의 `BASE_URL`을 Mac의 LAN IP, 예: `http://192.168.0.10:8000`으로 변경합니다.
+
+이미지 업로드 참고:
+
+- Supabase Storage `clothing-images` bucket 업로드는 아직 구현되어 있지 않습니다.
+- 현재 앱은 Supabase row에 `image_path`로 임시 참조값 또는 로컬 파일 경로를 저장합니다.
+- 추후 Storage 업로드를 붙일 때는 `image_path = user_id/file.jpg`, `image_url = public or signed URL` 구조를 유지하면 됩니다.
+
 ## 주요 API
 
 ### AI
@@ -288,6 +316,11 @@ WHERE email = 'fitcommit_test@example.com';
 | `POST` | `/users/signup` | 회원가입 |
 | `POST` | `/users/login` | 로그인 |
 | `GET` | `/users/me` | 현재 사용자 확인 |
+| `POST` | `/clothes` | 의류 저장 |
+| `GET` | `/clothes?user_id={uuid}` | 의류 목록 최신순 조회 |
+| `GET` | `/clothes/{clothing_id}` | 의류 상세 조회 |
+| `PUT` | `/clothes/{clothing_id}` | 의류 수정 |
+| `DELETE` | `/clothes/{clothing_id}` | 의류 삭제 |
 | `GET` | `/billing/plans` | 결제 플랜 조회 |
 | `POST` | `/billing/payments/prepare` | 결제 준비 |
 | `POST` | `/billing/payments/confirm` | 결제 승인 |

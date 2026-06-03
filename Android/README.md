@@ -45,6 +45,15 @@ Android/
 3. `app` 실행 구성을 선택합니다.
 4. 에뮬레이터 또는 실제 Android 기기에서 실행합니다.
 
+## Backend/Supabase 의류 저장 테스트
+
+- Android 에뮬레이터에서는 Mac의 localhost가 `10.0.2.2`로 보입니다. 개발 기본값은 `http://10.0.2.2:8000`입니다.
+- 실제 Android 기기에서는 Mac과 같은 Wi-Fi에 연결한 뒤 `app/src/main/java/com/fitcommit/app/services/ApiClient.java`의 `BASE_URL`을 Mac의 LAN IP로 바꿉니다. 예: `http://192.168.0.10:8000`
+- 테스트용 Supabase Auth `user_id`는 `ApiClient.BACKEND_CLOTHES_USER_ID`에 설정되어 있습니다.
+- 저장은 Backend `/clothes`를 먼저 시도하고 실패하면 기존 로컬 `ClothingStorage`에 임시 저장합니다.
+- 조회는 Backend `GET /clothes?user_id=...`를 먼저 사용하고 실패하면 기존 로컬 저장소와 샘플 데이터를 표시합니다.
+- Supabase Storage `clothing-images` 업로드는 아직 미구현입니다. 현재는 `image_path`에 로컬 파일 경로 또는 임시 참조값을 저장합니다.
+
 ## 현재 구현 범위
 
 - 로그인/회원가입 입력 검증
@@ -59,6 +68,7 @@ Android/
 
 - `services/AuthService.java`: Backend `/users/signup`, `/users/login`
 - `services/FashionAiService.java`: AI 서버 `/predict`
+- `services/ClothesBackendService.java`: Backend `/clothes`
 - `services/ChatService.java`: Backend `/chat` API
 
 각 서비스에는 TODO 주석으로 추후 연결 지점을 남겨두었습니다.

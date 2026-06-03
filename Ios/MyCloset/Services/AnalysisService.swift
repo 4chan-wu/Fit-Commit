@@ -393,6 +393,50 @@ extension Color {
             .trimmingCharacters(in: .whitespacesAndNewlines)
             .replacingOccurrences(of: "#", with: "")
 
+        switch trimmedHex.lowercased() {
+        case "black":
+            self = .black
+            return
+        case "white":
+            self = .white
+            return
+        case "gray", "grey":
+            self = .gray
+            return
+        case "red":
+            self = .red
+            return
+        case "orange":
+            self = .orange
+            return
+        case "yellow":
+            self = .yellow
+            return
+        case "green":
+            self = .green
+            return
+        case "blue":
+            self = .blue
+            return
+        case "navy":
+            self = Color(red: 20 / 255, green: 35 / 255, blue: 90 / 255)
+            return
+        case "purple":
+            self = .purple
+            return
+        case "pink":
+            self = .pink
+            return
+        case "brown":
+            self = .brown
+            return
+        case "beige":
+            self = Color(red: 210 / 255, green: 190 / 255, blue: 150 / 255)
+            return
+        default:
+            break
+        }
+
         guard trimmedHex.count == 6,
               let value = UInt64(trimmedHex, radix: 16) else {
             return nil

@@ -18,6 +18,8 @@ struct ClosetView: View {
     @State private var cameraErrorMessage: String?
     @State private var itemPendingDeletion: ClosetItem?
     @State private var navigationPath: [ClosetDestination] = []
+    @State private var backendItems: [ClosetItem] = []
+    @State private var isUsingBackendItems = false
     private let initialFilter: ClosetInitialFilter
 
     init(initialFilter: ClosetInitialFilter = .all) {
@@ -149,12 +151,22 @@ struct ClosetView: View {
             }
             .onAppear {
                 setTabBarVisible(true)
+                Task {
+                    await refreshBackendClothes()
+                }
             }
             .onChange(of: isTabBarVisible) { _, isVisible in
                 rootTabBarVisible.wrappedValue = isVisible
             }
             .onChange(of: selectedPhotoItem) { _, item in
                 loadPhotoPickerItem(item)
+            }
+            .onChange(of: activeSheet?.id) { _, sheetID in
+                if sheetID == nil {
+                    Task {
+                        await refreshBackendClothes()
+                    }
+                }
             }
         }
     }
@@ -288,12 +300,13 @@ struct ClosetView: View {
     }
 
     private var displayedItems: [ClosetItem] {
+        let sourceItems = isUsingBackendItems ? backendItems : items
         switch initialFilter {
         case .all:
-            return items
+            return sourceItems
         case .unworn:
             let cutoffDate = Calendar.current.date(byAdding: .month, value: -3, to: Date()) ?? Date()
-            return items.filter { $0.timestamp < cutoffDate }
+            return sourceItems.filter { $0.timestamp < cutoffDate }
         }
     }
 
@@ -363,6 +376,19 @@ struct ClosetView: View {
         modelContext.delete(itemPendingDeletion)
         try? modelContext.save()
         self.itemPendingDeletion = nil
+    }
+
+    @MainActor
+    private func refreshBackendClothes() async {
+        do {
+            let fetchedItems = try await BackendClothesService.fetchClothes()
+            backendItems = fetchedItems
+            isUsingBackendItems = true
+        } catch {
+            print("[ClosetView] Backend clothes fetch failed, using local SwiftData: \(error.localizedDescription)")
+            backendItems = []
+            isUsingBackendItems = false
+        }
     }
 
 }

@@ -20,6 +20,7 @@ import android.widget.TextView;
 import com.fitcommit.app.R;
 import com.fitcommit.app.adapters.ClosetCardAdapter;
 import com.fitcommit.app.models.ClosetItem;
+import com.fitcommit.app.services.ClothesBackendService;
 import com.fitcommit.app.services.ClothingStorage;
 import com.fitcommit.app.utils.UiUtils;
 
@@ -47,6 +48,7 @@ public class MainActivity extends Activity {
     private TextView tabAi;
     private TextView tabProfile;
     private String currentScreen = "";
+    private final ClothesBackendService clothesBackendService = new ClothesBackendService();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -153,10 +155,31 @@ public class MainActivity extends Activity {
         view.findViewById(R.id.bodyMeasureButton).setOnClickListener(v -> startActivity(new Intent(this, BodyMeasureActivity.class)));
 
         GridLayout grid = view.findViewById(R.id.closetGrid);
+        TextView countText = view.findViewById(R.id.closetCountText);
+        countText.setText("불러오는 중");
+
+        if (clothesBackendService.isConfigured()) {
+            new Thread(() -> {
+                try {
+                    List<ClosetItem> backendItems = clothesBackendService.fetchClothes();
+                    runOnUiThread(() -> {
+                        countText.setText(backendItems.size() + "개");
+                        new ClosetCardAdapter(this).bind(grid, backendItems);
+                    });
+                } catch (Exception error) {
+                    System.out.println("[MainActivity] Backend clothes fetch failed, using local fallback: " + error.getMessage());
+                    runOnUiThread(() -> bindLocalCloset(grid, countText));
+                }
+            }).start();
+        } else {
+            bindLocalCloset(grid, countText);
+        }
+    }
+
+    private void bindLocalCloset(GridLayout grid, TextView countText) {
         List<ClosetItem> items = new ArrayList<>();
         items.addAll(ClothingStorage.load(this));
         items.addAll(sampleClosetItems());
-        TextView countText = view.findViewById(R.id.closetCountText);
         countText.setText(items.size() + "개");
         new ClosetCardAdapter(this).bind(grid, items);
     }

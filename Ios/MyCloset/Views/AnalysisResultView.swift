@@ -218,6 +218,7 @@ struct AnalysisResultView: View {
         guard isSaving == false else { return }
         isSaving = true
         defer { isSaving = false }
+        var didFallbackFromBackend = false
 
         let name = clothingName.trimmingCharacters(in: .whitespacesAndNewlines)
         let category = selectedCategory.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -249,7 +250,7 @@ struct AnalysisResultView: View {
                         season: seasonValues(from: season),
                         styleTags: finalStyleTags,
                         imageURL: result.imageURL,
-                        imagePath: nil,
+                        imagePath: backendImagePath(for: userID),
                         confidence: result.confidence,
                         analysisMethod: result.method,
                         memo: ""
@@ -259,7 +260,7 @@ struct AnalysisResultView: View {
                 return
             } catch {
                 print("[AnalysisResultView] Backend save failed, falling back to SwiftData: \(error.localizedDescription)")
-                saveErrorMessage = "서버 저장에 실패해 기기에 임시 저장합니다."
+                didFallbackFromBackend = true
             }
         }
 
@@ -279,7 +280,11 @@ struct AnalysisResultView: View {
 
         do {
             try modelContext.save()
-            dismiss()
+            if didFallbackFromBackend {
+                saveErrorMessage = "서버 저장 실패, 임시로 기기에 저장했습니다."
+            } else {
+                dismiss()
+            }
         } catch {
             saveErrorMessage = "저장하지 못했습니다: \(error.localizedDescription)"
         }
@@ -329,6 +334,10 @@ struct AnalysisResultView: View {
                 .map { $0.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() }
                 .filter { $0.isEmpty == false }
         }
+    }
+
+    private func backendImagePath(for userID: String) -> String {
+        "\(userID)/ios-local-\(UUID().uuidString).jpg"
     }
 
     private static func defaultName(for category: String) -> String {

@@ -64,7 +64,7 @@ cp .env.example .env
 
 ## 로컬 실행
 
-AI 서버가 `8000`을 쓰는 경우가 많으므로 Backend는 `8001` 사용을 권장합니다.
+AI 서버가 `8000`을 쓰는 경우가 많으면 Backend는 `8001`을 사용할 수 있습니다. 현재 모바일 Supabase 의류 저장 E2E 개발 기본값은 Backend `8000` 기준입니다.
 
 ```bash
 cd Backend
@@ -72,14 +72,14 @@ python -m venv .venv
 source .venv/bin/activate
 pip install --upgrade pip
 pip install -r requirements.txt
-uvicorn app.main:app --reload --host 0.0.0.0 --port 8001
+uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
 확인:
 
 ```bash
-curl http://localhost:8001/health
-curl http://localhost:8001/db-check
+curl http://localhost:8000/health
+curl http://localhost:8000/db-check
 ```
 
 ## Docker 실행
@@ -101,7 +101,7 @@ Supabase를 사용할 때는 `.env`의 `DATABASE_URL`을 Supabase PostgreSQL 연
 의류 저장 테스트:
 
 ```bash
-curl -X POST http://localhost:8001/clothes \
+curl -X POST http://localhost:8000/clothes \
   -H "Content-Type: application/json" \
   -d '{
     "user_id": "00000000-0000-0000-0000-000000000000",
@@ -121,7 +121,7 @@ curl -X POST http://localhost:8001/clothes \
 의류 목록 조회:
 
 ```bash
-curl "http://localhost:8001/clothes?user_id=00000000-0000-0000-0000-000000000000"
+curl "http://localhost:8000/clothes?user_id=00000000-0000-0000-0000-000000000000"
 ```
 
 ## 주요 API
