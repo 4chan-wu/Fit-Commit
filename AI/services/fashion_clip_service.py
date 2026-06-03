@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from io import BytesIO
 import os
+from threading import Lock
 from typing import Literal
 
 import torch
@@ -19,10 +20,22 @@ except ImportError:
 
 CategoryHint = Literal["top", "bottom", "outer", "shoes", "hat", "bag", "dress"]
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-MODEL_ID = os.getenv("FASHION_CLIP_MODEL_ID", "openai/clip-vit-base-patch32")
 MODEL = None
 PROCESSOR = None
 MODEL_LOAD_ERROR: str | None = None
+MODEL_LOAD_LOCK = Lock()
+
+
+@dataclass(frozen=True)
+class ClipModelConfig:
+    model_id: str
+    device: torch.device
+
+
+CLIP_CONFIG = ClipModelConfig(
+    model_id=os.getenv("FASHION_CLIP_MODEL_ID", "openai/clip-vit-base-patch32"),
+    device=DEVICE,
+)
 
 ALLOWED_CATEGORY_HINTS: tuple[str, ...] = (
     "top",
@@ -119,27 +132,31 @@ def load_model() -> bool:
     if MODEL is not None and PROCESSOR is not None:
         return True
 
-    if MODEL_LOAD_ERROR is not None:
-        return False
+    with MODEL_LOAD_LOCK:
+        if MODEL is not None and PROCESSOR is not None:
+            return True
 
-    if CLIPModel is None or CLIPProcessor is None:
-        MODEL_LOAD_ERROR = "transformers is not installed"
-        print(f"[FashionCLIP] {MODEL_LOAD_ERROR}. Using MobileNet fallback.")
-        return False
+        if MODEL_LOAD_ERROR is not None:
+            return False
 
-    try:
-        print(f"[FashionCLIP] Loading model: {MODEL_ID} on {DEVICE}")
-        PROCESSOR = CLIPProcessor.from_pretrained(MODEL_ID)
-        MODEL = CLIPModel.from_pretrained(MODEL_ID).to(DEVICE)
-        MODEL.eval()
-        print("[FashionCLIP] Model loaded.")
-        return True
-    except Exception as error:
-        MODEL = None
-        PROCESSOR = None
-        MODEL_LOAD_ERROR = str(error)
-        print(f"[FashionCLIP] Model load failed: {error}. Using MobileNet fallback.")
-        return False
+        if CLIPModel is None or CLIPProcessor is None:
+            MODEL_LOAD_ERROR = "transformers is not installed"
+            print(f"[FashionCLIP] {MODEL_LOAD_ERROR}. Using MobileNet fallback.")
+            return False
+
+        try:
+            print(f"[FashionCLIP] Loading model: {CLIP_CONFIG.model_id} on {CLIP_CONFIG.device}")
+            PROCESSOR = CLIPProcessor.from_pretrained(CLIP_CONFIG.model_id)
+            MODEL = CLIPModel.from_pretrained(CLIP_CONFIG.model_id).to(CLIP_CONFIG.device)
+            MODEL.eval()
+            print("[FashionCLIP] Model loaded.")
+            return True
+        except Exception as error:
+            MODEL = None
+            PROCESSOR = None
+            MODEL_LOAD_ERROR = str(error)
+            print(f"[FashionCLIP] Model load failed: {error}. Using MobileNet fallback.")
+            return False
 
 
 def _predict_with_clip(
@@ -159,7 +176,7 @@ def _predict_with_clip(
         return_tensors="pt",
         padding=True,
     )
-    inputs = {key: value.to(DEVICE) for key, value in inputs.items()}
+    inputs = {key: value.to(CLIP_CONFIG.device) for key, value in inputs.items()}
 
     with torch.inference_mode():
         outputs = MODEL(**inputs)

@@ -1,30 +1,38 @@
 # Fitcommit
 
-Fitcommit은 의류 이미지 분석, 사용자 인증, 옷장/체형 데이터 관리, AI 스타일 채팅을 연결하는 패션 AI 서비스입니다. 현재 리포지토리는 iOS 앱, AI 추론/학습 영역, Backend API 서버, 향후 웹 서비스를 위한 Frontend 자리로 정리되어 있습니다.
+Fitcommit은 사용자가 가진 옷을 등록하고, AI가 옷 정보를 분석한 뒤, 사용자의 옷장 데이터를 기반으로 코디 추천을 제공하는 앱임.
 
-## 전체 아키텍처
+1차 프로토타입에서는 전신 사진 분석과 YOLO 기반 상하의 자동 분리를 제외함. 현재 구조는 사용자가 상의, 하의, 아우터, 신발, 모자, 가방, 원피스 같은 큰 카테고리를 먼저 고르고, 아이템별 사진을 따로 촬영하거나 업로드하는 방식으로 구성됨.
+
+## 현재 아키텍처
 
 ```text
-Ios(MyCloset)
-  |-- 의류 이미지 업로드
-  v
-AI FastAPI Server
-  |-- /predict
-  |-- 카테고리 분류, 대표 색상 추출, 시즌 분류
+iOS 앱 / Android 앱
+  ├─ 카테고리 선택
+  ├─ 아이템 단독 사진 촬영 또는 업로드
+  ├─ AI 서버 POST /predict 호출
+  │    └─ multipart/form-data: file + category_hint
+  ├─ 분석 결과 확인 및 수정
+  └─ Backend POST /clothes 호출
+       └─ 사용자가 최종 확정한 값 저장
 
-Android / Ios / Future Frontend
-  |-- 사용자, 채팅, 결제, DB 기반 기능 요청
-  v
-Backend FastAPI Server
-  |-- 사용자 인증/JWT
-  |-- PostgreSQL/Supabase 연동
-  |-- OpenAI 기반 스타일 채팅
-  |-- Toss Payments 연동
-  v
-PostgreSQL / Supabase
+Python FastAPI AI 서버
+  └─ /predict
+       ├─ CLIP 이미지-텍스트 similarity 기반 세부 카테고리 추론
+       ├─ MobileNetV3 fallback
+       ├─ 대표 색상 추출
+       └─ 시즌/스타일 태그 반환
+
+Python FastAPI Backend 서버
+  └─ /clothes CRUD
+       └─ Supabase public.clothes 저장/조회/수정/삭제
+
+Supabase
+  ├─ PostgreSQL public.clothes
+  └─ Storage clothing-images bucket
 ```
 
-AI 서버와 Backend 서버는 분리되어 있습니다. AI 서버는 이미지 파일을 받아 분석 결과만 반환하는 추론 서버이고, Backend 서버는 사용자 계정, DB 저장, 채팅, 결제 등 서비스 상태를 관리합니다.
+AI 서버와 Backend 서버는 분리되어 있음. AI 서버는 이미지 분석 결과만 반환하고, Backend 서버는 사용자가 확정한 옷장 데이터를 Supabase에 저장함.
 
 ## 폴더 구조
 
@@ -52,290 +60,282 @@ AI 서버와 Backend 서버는 분리되어 있습니다. AI 서버는 이미지
 │   ├── MyCloset.xcodeproj
 │   ├── MyCloset/
 │   ├── MyClosetTests/
-│   └── MyClosetUITests/
+│   ├── MyClosetUITests/
+│   └── README.md
 ├── Frontend/
 │   └── .gitkeep
-├── README.md
-└── .gitignore
+└── README.md
 ```
 
-## 서비스 역할
+`Frontend/`는 현재 자리만 있는 상태임. 웹 서비스는 아직 구현되지 않음.
 
-| 영역 | 역할 | 주요 기술 |
-| --- | --- | --- |
-| `AI` | 의류 이미지 분석 서버와 학습/전처리 코드 | FastAPI, PyTorch, torchvision, OpenCV, Pillow, scikit-learn |
-| `Backend` | 사용자 인증, DB, 채팅, 결제 API | FastAPI, SQLAlchemy, PostgreSQL/Supabase, OpenAI API, Toss Payments |
-| `Android` | Java/XML 기반 Android 앱, FastAPI 인증 API 연동 | Android SDK, Retrofit, Gson |
-| `Ios` | SwiftUI 기반 MyCloset 앱 | SwiftUI, SwiftData, AVFoundation, LocalAuthentication |
-| `Frontend` | 향후 웹 서비스 자리 | 예정: Node.js/Vite/React 등 |
+## 현재 주요 기능
 
-## 실행 순서
+- 사용자가 업로드 전에 큰 카테고리를 선택함
+- 허용 카테고리는 `top`, `bottom`, `outer`, `shoes`, `hat`, `bag`, `dress` 사용함
+- 촬영/업로드 화면은 전신 사진이 아니라 옷 한 벌만 중앙에 두고 찍도록 안내함
+- 앱에서 AI 서버 `/predict`로 `file`과 `category_hint`를 multipart로 전송함
+- 앱에서 AI 분석 결과를 바로 저장하지 않고 확인/수정 화면을 보여줌
+- 사용자가 확정한 종류, 세부 종류, 대표 색상, 계절, 스타일 태그, 신뢰도를 Backend `/clothes`로 저장함
+- Backend는 Supabase `public.clothes` 테이블에 데이터를 저장함
+- Backend 저장 실패 시 iOS는 SwiftData, Android는 `ClothingStorage` 로컬 저장소를 fallback으로 사용함
+- Supabase Storage 이미지 업로드는 아직 연결되지 않았고, 현재는 `image_url` 또는 `image_path`에 임시 이미지 참조값을 저장함
 
-### 1. AI 서버
+## 현재 AI 구조
+
+`AI/services/fashion_clip_service.py`가 의류 세부 카테고리 분석의 중심 서비스임.
+
+- 현재 코드 기준으로 transformers 기반 CLIP 추론이 연결되어 있음
+- 기본 모델은 `openai/clip-vit-base-patch32` 사용함
+- `FASHION_CLIP_MODEL_ID` 환경변수로 Hugging Face FashionCLIP 계열 모델로 교체할 수 있게 구성됨
+- 모델은 매 요청마다 로딩하지 않고 lazy singleton 구조로 1회 로딩함
+- GPU가 있으면 `cuda`, 없으면 `cpu`로 동작함
+- CLIP 모델 로딩 또는 추론 실패 시 기존 MobileNetV3 기반 fallback을 사용함
+- 실제 CLIP 사용 시 `method`는 `"clip"`으로 반환함
+- fallback 사용 시 `method`는 `"fallback"`으로 반환함
+
+`/predict`는 아래 `category_hint` 값만 허용함.
+
+```text
+top
+bottom
+outer
+shoes
+hat
+bag
+dress
+```
+
+## Supabase 설정
+
+Fitcommit은 Supabase의 `public.clothes` 테이블을 옷장 저장소로 사용함.
+
+- `user_id`는 `auth.users(id)`를 참조하는 `uuid` 타입임
+- RLS 정책은 로그인한 사용자가 자기 옷만 접근할 수 있도록 설정함
+- Backend는 서버 내부에서만 `SUPABASE_SERVICE_ROLE_KEY`를 사용함
+- service role key나 secret key는 iOS/Android 코드에 절대 넣으면 안 됨
+- Storage bucket 이름은 `clothing-images` 사용함
+- Storage 업로드는 아직 미구현 상태임
+- 향후 Storage 경로는 `{user_id}/{main_category}/{filename}` 형태로 만들 예정임
+
+Supabase Dashboard 주소와 API URL은 다름.
+
+```text
+Dashboard 주소 예시: https://supabase.com/dashboard/project/{project_ref}
+Backend .env URL 예시: https://{project_ref}.supabase.co
+```
+
+Backend `.env`의 `SUPABASE_URL`에는 Dashboard 주소가 아니라 `https://{project_ref}.supabase.co` 형태의 API URL을 넣어야 함.
+
+## Backend 실행 방법
+
+Python 3.11 사용을 권장함.
+
+```bash
+cd Backend
+python3 -m venv .venv
+source .venv/bin/activate
+pip install --upgrade pip
+pip install -r requirements.txt
+cp .env.example .env
+uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+```
+
+Backend 상태 확인은 아래처럼 함.
+
+```bash
+curl http://127.0.0.1:8000/health
+```
+
+Backend `.env` 예시는 아래처럼 작성함. 실제 키 값은 README에 적지 않아야 함.
+
+```env
+SUPABASE_URL=https://{project_ref}.supabase.co
+SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
+SUPABASE_ANON_KEY=your-anon-key
+SUPABASE_CLOTHING_BUCKET=clothing-images
+```
+
+`SUPABASE_SERVICE_ROLE_KEY`는 Backend 전용 키임. iOS/Android 앱, GitHub, 공개 문서에 넣으면 안 됨.
+
+`POST /clothes` curl 테스트는 아래처럼 함.
+
+```bash
+curl -X POST http://127.0.0.1:8000/clothes \
+  -H "Content-Type: application/json" \
+  -d '{
+    "user_id": "45482f0f-42d0-401e-a18a-77abeb0492cc",
+    "main_category": "top",
+    "subcategory": "hoodie",
+    "main_color": "gray",
+    "season": ["fall", "winter"],
+    "style_tags": ["casual", "street"],
+    "image_url": "https://example.com/clothing.jpg",
+    "image_path": "45482f0f-42d0-401e-a18a-77abeb0492cc/top/sample.jpg",
+    "confidence": 0.82,
+    "analysis_method": "clip",
+    "memo": ""
+  }'
+```
+
+## AI 서버 실행 방법
+
+Python 3.11 사용을 권장함. 첫 CLIP 실행 시 Hugging Face 모델 다운로드가 필요할 수 있음.
 
 ```bash
 cd AI
-python -m venv .venv
+python3 -m venv .venv
 source .venv/bin/activate
 pip install --upgrade pip
 pip install -r requirements.txt
-uvicorn main:app --reload --host 0.0.0.0 --port 8000
+uvicorn main:app --reload --host 0.0.0.0 --port 8001
 ```
 
-확인:
+AI 서버 상태 확인은 아래처럼 함.
 
 ```bash
-curl http://localhost:8000/health
+curl http://127.0.0.1:8001/health
 ```
 
-### 2. Backend 서버
-
-AI 서버가 `8000`을 사용하는 경우 Backend는 `8001`로 실행하는 것을 권장합니다.
+`/predict` multipart 테스트는 아래처럼 함.
 
 ```bash
-cd Backend
-cp .env.example .env
-# .env 값을 로컬 Docker DB 또는 Supabase 환경에 맞게 수정
-python -m venv .venv
-source .venv/bin/activate
-pip install --upgrade pip
-pip install -r requirements.txt
-uvicorn app.main:app --reload --host 0.0.0.0 --port 8001
+curl -X POST http://127.0.0.1:8001/predict \
+  -F "file=@/path/to/clothing.jpg" \
+  -F "category_hint=top"
 ```
 
-확인:
+응답의 `analysis.method`가 `"clip"`이면 CLIP similarity 추론이 실제 사용된 상태임. `"fallback"`이면 CLIP 로딩 또는 추론 실패로 MobileNetV3 fallback이 사용된 상태임.
 
-```bash
-curl http://localhost:8001/health
-curl http://localhost:8001/db-check
-```
+## iOS 실행 및 설정
 
-Docker PostgreSQL을 함께 띄우려면:
+iOS 앱은 Xcode에서 `Ios/MyCloset.xcodeproj`를 열어 실행함.
 
-```bash
-cd Backend
-cp .env.example .env
-docker compose up --build
-```
+- Backend 설정이 있으면 저장 시 Backend `/clothes`를 우선 호출함
+- Backend 저장 실패 시 SwiftData 로컬 저장 fallback을 사용함
+- 개발용 설정 키는 `FITCOMMIT_BACKEND_BASE_URL`, `FITCOMMIT_SUPABASE_USER_ID` 사용함
+- iOS 시뮬레이터는 Mac의 localhost에 `http://127.0.0.1:8000`으로 접근 가능함
+- 실제 iPhone 테스트 시에는 `http://{Mac의_로컬_IP}:8000` 형태를 사용해야 함
 
-Docker Compose는 Backend를 로컬 `8001`, PostgreSQL을 로컬 `5433`에 노출합니다.
-
-### 3. Android 앱
-
-Android 앱은 Retrofit으로 Backend FastAPI 서버의 인증 API를 호출합니다.
+현재 iOS 코드에는 개발 기본값이 들어 있음.
 
 ```text
-Android Emulator -> http://10.0.2.2:8001 -> Backend FastAPI -> Supabase PostgreSQL
+FITCOMMIT_BACKEND_BASE_URL=http://127.0.0.1:8000
+FITCOMMIT_SUPABASE_USER_ID=45482f0f-42d0-401e-a18a-77abeb0492cc
 ```
 
-1. Android Studio에서 `Android/` 디렉토리를 엽니다.
-2. Backend 서버를 `0.0.0.0:8001`로 실행해둡니다.
-3. 에뮬레이터 브라우저에서 `http://10.0.2.2:8001/health`가 열리는지 확인합니다.
-4. 앱에서 회원가입/로그인을 테스트합니다.
+실제 운영 단계에서는 임시 `user_id`가 아니라 Supabase Auth access token 기반 인증으로 바꿔야 함.
 
-Android API 기준 주소는 `Android/app/src/main/java/com/fitcommit/app/services/ApiClient.java`에 있습니다.
+## Android 실행 및 설정
 
-```java
-public static final String BASE_URL = "http://10.0.2.2:8001";
+Android 앱은 Android Studio에서 `Android/` 폴더를 열어 실행함.
+
+- Backend 설정이 있으면 저장 시 Backend `/clothes`를 우선 호출함
+- Backend 저장 실패 시 `ClothingStorage` 로컬 저장 fallback을 사용함
+- Android 에뮬레이터에서 Mac localhost에 접근할 때는 `http://10.0.2.2:8000`을 사용해야 함
+- 실제 Android 기기는 Mac과 같은 Wi-Fi에 연결한 뒤 `http://{Mac의_로컬_IP}:8000`을 사용해야 함
+- 현재 Codex 검증 환경에는 Java Runtime이 없어 Android Gradle 빌드는 확인하지 못함
+
+Android 개발 기본값은 `Android/app/src/main/java/com/fitcommit/app/services/ApiClient.java`에서 관리함.
+
+```text
+BASE_URL=http://10.0.2.2:8000
+BACKEND_CLOTHES_USER_ID=45482f0f-42d0-401e-a18a-77abeb0492cc
 ```
 
-에뮬레이터에서 PC의 `localhost`에 접근할 때는 `localhost` 대신 `10.0.2.2`를 사용해야 합니다. 실제 Android 기기에서는 PC의 LAN IP를 사용합니다.
+## API 명세
 
-### 4. iOS 앱
+### AI 서버
 
-1. Xcode 15 이상에서 `Ios/MyCloset.xcodeproj`를 엽니다.
-2. 실제 기기에서 카메라/네트워크 기능을 테스트합니다.
-3. `Ios/MyCloset/Services/AnalysisService.swift`의 AI 서버 주소를 현재 Mac의 LAN IP로 맞춥니다.
-4. 앱을 빌드하고 실행합니다.
+#### `POST /predict`
 
-iOS 실제 기기는 `localhost`로 Mac의 서버에 접근할 수 없습니다.
+요청은 `multipart/form-data` 사용함.
 
-### 5. Frontend 예정
-
-`Frontend`는 현재 `.gitkeep`만 있는 빈 디렉토리입니다. 추후 웹 옷장, 결제 성공/실패 페이지, 관리자 화면, 웹 기반 AI 분석 업로드 UI를 추가할 예정입니다.
-
-## 개발 환경 요구사항
-
-| 영역 | 요구사항 |
-| --- | --- |
-| 공통 | Git, macOS 권장 |
-| AI | Python 3.10 이상, pip, 선택 사항 CUDA/GPU |
-| Backend | Python 3.10 이상, PostgreSQL 또는 Supabase, Docker 선택 |
-| iOS | macOS, Xcode 15 이상, Swift 5.10 이상 |
-| Frontend 예정 | Node.js LTS, npm 또는 pnpm |
-
-## 환경변수
-
-### AI
-
-| 변수 | 필수 | 설명 | 기본값 |
-| --- | --- | --- | --- |
-| `CLOTHING_MODEL_PATH` | 선택 | 의류 카테고리 모델 가중치 경로 | `AI/models/clothing_mobilenet_v3_small.pth` |
-| `SEASON_MODEL_PATH` | 선택 | 시즌 분류 모델 가중치 경로 | `AI/models/season_mobilenet_v3_small.pth` |
-
-### Backend
-
-| 변수 | 필수 | 설명 |
-| --- | --- | --- |
-| `DATABASE_URL` | 필수 | PostgreSQL/Supabase 연결 문자열 |
-| `SECRET_KEY` | 필수 | JWT 서명 키 |
-| `ALGORITHM` | 선택 | JWT 알고리즘. 기본값 `HS256` |
-| `ACCESS_TOKEN_EXPIRE_MINUTES` | 선택 | 액세스 토큰 만료 시간 |
-| `OPENAI_API_KEY` | 채팅 기능 사용 시 필수 | OpenAI API 키 |
-| `TOSS_CLIENT_KEY` | 결제 기능 사용 시 필수 | Toss Payments 클라이언트 키 |
-| `TOSS_SECRET_KEY` | 결제 기능 사용 시 필수 | Toss Payments 시크릿 키 |
-| `TOSS_SUCCESS_URL` | 선택 | 결제 성공 리다이렉트 URL |
-| `TOSS_FAIL_URL` | 선택 | 결제 실패 리다이렉트 URL |
-
-Supabase를 사용할 때는 `Backend/.env`의 `DATABASE_URL`을 Supabase PostgreSQL connection string으로 설정합니다. REST Data API URL인 `https://...supabase.co/rest/v1/`가 아니라 `postgresql://...`로 시작하는 값을 사용해야 합니다.
-
-```env
-DATABASE_URL=postgresql://postgres.xxxxx:URL_ENCODED_PASSWORD@aws-1-ap-southeast-1.pooler.supabase.com:6543/postgres?sslmode=require
+```text
+file=@/path/to/clothing.jpg
+category_hint=top
 ```
 
-비밀번호에 `@`, `#`, `%`, `/`, `:`, `?`, `&`, `+` 같은 문자가 들어가면 URL 인코딩이 필요합니다. 예를 들어 `@`는 `%40`으로 바꿉니다.
+응답 예시는 아래와 같음.
 
-## Supabase 초기 설정 및 연결 검증
-
-1. Supabase 프로젝트를 생성합니다.
-2. Supabase Dashboard의 `SQL Editor`에서 `Backend/app/db/supabase_schema.sql` 내용을 전체 복사해 실행합니다. 파일 경로를 입력하는 것이 아니라 SQL 내용을 붙여넣어야 합니다.
-3. `users.nickname` 중복 방지를 위해 아래 SQL을 추가 실행합니다.
-
-```sql
-CREATE UNIQUE INDEX IF NOT EXISTS idx_users_nickname_unique
-ON users(nickname);
-
-CREATE INDEX IF NOT EXISTS idx_users_email
-ON users(email);
-```
-
-4. Supabase의 `Connect` 또는 `Database > Connect` 화면에서 `Direct` 또는 connection string의 `URI`를 복사합니다.
-5. `Backend/.env`에 `DATABASE_URL`을 설정합니다.
-6. Backend 서버를 실행합니다.
-
-```powershell
-cd Backend
-.\.venv\Scripts\Activate.ps1
-python -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8001
-```
-
-7. 새 터미널에서 연결을 확인합니다.
-
-```powershell
-Invoke-RestMethod http://localhost:8001/health
-Invoke-RestMethod http://localhost:8001/db-check
-Invoke-RestMethod http://localhost:8001/db-info
-```
-
-정상 결과는 `status`가 `ok`, `database`가 `postgres`, `schema`가 `public`입니다.
-
-회원가입 저장 테스트:
-
-```powershell
-$body = @'
+```json
 {
-  "email": "fitcommit_test@example.com",
-  "name": "\uD64D\uAE38\uB3D9",
-  "nickname": "fitcommit_test",
-  "phone_number": "01012345678",
-  "password": "Password1!",
-  "password_confirm": "Password1!"
+  "status": "success",
+  "analysis": {
+    "main_category": "top",
+    "subcategory": "hoodie",
+    "main_color": "gray",
+    "season": ["fall", "winter"],
+    "style_tags": ["casual", "street"],
+    "confidence": 0.82,
+    "method": "clip"
+  }
 }
-'@
-
-Invoke-RestMethod `
-  -Uri http://localhost:8001/users/signup `
-  -Method Post `
-  -ContentType "application/json; charset=utf-8" `
-  -Body $body
 ```
 
-Supabase SQL Editor에서 저장 여부를 확인합니다.
+### Backend 서버
 
-```sql
-SELECT id, email, name, nickname, phone_number, password, created_at
-FROM users
-WHERE email = 'fitcommit_test@example.com';
+#### `POST /clothes`
+
+사용자가 최종 확정한 옷 정보를 저장함.
+
+```json
+{
+  "user_id": "45482f0f-42d0-401e-a18a-77abeb0492cc",
+  "main_category": "top",
+  "subcategory": "hoodie",
+  "main_color": "gray",
+  "season": ["fall", "winter"],
+  "style_tags": ["casual", "street"],
+  "image_url": "https://example.com/clothing.jpg",
+  "image_path": "45482f0f-42d0-401e-a18a-77abeb0492cc/top/sample.jpg",
+  "confidence": 0.82,
+  "analysis_method": "clip",
+  "memo": ""
+}
 ```
 
-`password`가 `Password1!` 평문이 아니라 `$2b$...` 형태의 해시이면 정상입니다.
+#### `GET /clothes?user_id={uuid}`
 
-## 팀원 온보딩
+특정 사용자의 옷 목록을 최신순으로 조회함.
 
-1. `git status`로 현재 작업 브랜치와 변경사항을 확인합니다.
-2. AI 작업자는 `AI/README.md`, Backend 작업자는 `Backend/README.md`를 먼저 읽습니다.
-3. `.env.example`은 복사해서 사용하고, `.env`는 커밋하지 않습니다.
-4. AI와 Backend를 동시에 띄울 때는 포트 충돌을 피합니다. 기본 권장값은 AI `8000`, Backend `8001`입니다.
-5. 실제 iPhone 테스트에서는 서버 URL을 Mac의 LAN IP로 설정합니다.
-6. 모델 가중치, API 키, DB 비밀번호, Xcode 사용자 상태 파일은 Git에 올리지 않습니다.
+#### `GET /clothes/{clothing_id}`
 
-## 의류 저장 End-to-End 테스트
+옷 단건을 조회함. 필요하면 `user_id` 쿼리로 소유자 필터를 함께 사용함.
 
-현재 개발 기본값:
+#### `PUT /clothes/{clothing_id}`
 
-- 테스트 Supabase Auth `user_id`: `45482f0f-42d0-401e-a18a-77abeb0492cc`
-- iOS 시뮬레이터 Backend URL: `http://127.0.0.1:8000`
-- Android 에뮬레이터 Backend URL: `http://10.0.2.2:8000`
+옷 정보를 수정함. 앱에서 사용자가 수정한 최종 값을 보낼 때 사용함.
 
-테스트 순서:
+#### `DELETE /clothes/{clothing_id}`
 
-1. Backend를 실행합니다.
+옷 정보를 삭제함.
 
-   ```bash
-   cd Backend
-   uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
-   ```
+## 현재 테스트 완료 상태
 
-2. iOS 시뮬레이터에서 옷을 저장합니다. 기본 개발값이 설정되어 있어 `/clothes` 저장을 먼저 시도하고, 실패하면 SwiftData 로컬 저장으로 fallback합니다.
-3. Supabase Dashboard의 `public.clothes` 테이블에서 row 생성 여부를 확인합니다.
-4. 앱을 재실행한 뒤 옷장 화면이 `GET /clothes?user_id=45482f0f-42d0-401e-a18a-77abeb0492cc` 결과를 먼저 표시하는지 확인합니다. 조회 실패 시 기존 로컬 저장소를 사용합니다.
-5. Android 에뮬레이터 테스트 시 Backend URL은 `http://10.0.2.2:8000`을 사용합니다. 실제 Android 기기에서는 `Android/app/src/main/java/com/fitcommit/app/services/ApiClient.java`의 `BASE_URL`을 Mac의 LAN IP, 예: `http://192.168.0.10:8000`으로 변경합니다.
+- Backend ↔ Supabase `POST /clothes` curl 테스트 성공함
+- Supabase `public.clothes` row 저장 성공함
+- Backend Python 문법 검사 성공함
+- AI 서버 Python 문법 검사 성공함
+- AI `fashion_clip_service.py` import 확인 성공함
+- iOS Debug 빌드 성공함
+- Android Gradle 빌드는 현재 Codex 환경에 Java Runtime이 없어 검증하지 못함
 
-이미지 업로드 참고:
+## End-to-End 테스트 순서
 
-- Supabase Storage `clothing-images` bucket 업로드는 아직 구현되어 있지 않습니다.
-- 현재 앱은 Supabase row에 `image_path`로 임시 참조값 또는 로컬 파일 경로를 저장합니다.
-- 추후 Storage 업로드를 붙일 때는 `image_path = user_id/file.jpg`, `image_url = public or signed URL` 구조를 유지하면 됩니다.
+1. Backend를 `http://127.0.0.1:8000`으로 실행함
+2. AI 서버를 별도 포트로 실행하고 앱의 AI 서버 주소를 맞춤
+3. iOS 시뮬레이터에서 옷을 저장함
+4. Supabase `public.clothes` 테이블에 row가 생성됐는지 확인함
+5. 앱을 재실행한 뒤 Backend에서 옷 목록이 조회되는지 확인함
+6. Android 에뮬레이터 테스트 시 Backend 주소는 `http://10.0.2.2:8000`을 사용함
 
-## 주요 API
+## 앞으로 남은 작업
 
-### AI
-
-| Method | Path | 설명 |
-| --- | --- | --- |
-| `GET` | `/health` | AI 서버 상태 확인 |
-| `POST` | `/predict` | 이미지 파일 업로드 후 의류 분석 |
-
-### Backend
-
-| Method | Path | 설명 |
-| --- | --- | --- |
-| `GET` | `/health` | 서버 상태 확인 |
-| `GET` | `/db-check` | DB 연결 확인 |
-| `GET` | `/db-info` | DB 서버 주소, 포트, 스키마 확인 |
-| `POST` | `/users/signup` | 회원가입 |
-| `POST` | `/users/login` | 로그인 |
-| `GET` | `/users/me` | 현재 사용자 확인 |
-| `POST` | `/clothes` | 의류 저장 |
-| `GET` | `/clothes?user_id={uuid}` | 의류 목록 최신순 조회 |
-| `GET` | `/clothes/{clothing_id}` | 의류 상세 조회 |
-| `PUT` | `/clothes/{clothing_id}` | 의류 수정 |
-| `DELETE` | `/clothes/{clothing_id}` | 의류 삭제 |
-| `GET` | `/billing/plans` | 결제 플랜 조회 |
-| `POST` | `/billing/payments/prepare` | 결제 준비 |
-| `POST` | `/billing/payments/confirm` | 결제 승인 |
-| `POST` | `/chat/rooms` | 채팅방 생성 |
-| `GET` | `/chat/rooms` | 채팅방 목록 |
-| `GET` | `/chat/rooms/{room_id}/messages` | 메시지 조회 |
-| `POST` | `/chat/rooms/{room_id}/messages` | 메시지 전송 |
-| `DELETE` | `/chat/rooms/{room_id}` | 채팅방 삭제 |
-
-## Git에 올리면 안 되는 항목
-
-- `.env`, 실제 API 키, DB 비밀번호, Supabase 연결 문자열
-- OpenAI/Toss 실제 키
-- Python 가상환경과 캐시
-- Xcode `xcuserdata`, `*.xcuserstate`, DerivedData
-- 빌드 결과물
-- 대용량 모델 가중치
-- 로컬 IDE 설정
+- FashionCLIP 전용 모델을 실제 데이터에 맞춰 선택하고 성능 검증해야 함
+- Supabase Storage `clothing-images` 이미지 업로드를 연결해야 함
+- iOS/Android 앱에서 실제 저장/조회 end-to-end를 더 넓은 케이스로 검증해야 함
+- Android JDK 환경에서 Gradle 빌드를 검증해야 함
+- 임시 `user_id` 방식에서 Supabase Auth access token 기반 인증으로 개선해야 함
+- AWS 또는 배포 서버에 Backend/AI 서버를 배포해야 함
+- YOLO 기반 전신 사진 자동 분리는 1차 프로토타입 범위 밖이며, 필요하면 향후 고도화 기능으로 다시 검토함
