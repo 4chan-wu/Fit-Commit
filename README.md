@@ -32,7 +32,7 @@ Python FastAPI AI 서버
        └─ 시즌/스타일 태그 반환
 
 Python FastAPI Backend 서버
-  ├─ AWS EC2: http://13.125.252.131:8000
+  ├─ AWS EC2: http://54.180.79.90:8000
   └─ /clothes CRUD
        └─ Supabase public.clothes 저장/조회/수정/삭제
 
@@ -41,7 +41,7 @@ Supabase
   └─ Storage clothing-images bucket
 ```
 
-AI 서버와 Backend 서버는 분리되어 있음. Backend는 현재 AWS EC2에서 `http://13.125.252.131:8000` 주소로 실행 중임. 앱은 사진과 기본 카테고리를 로컬에 먼저 저장하고, EC2 Backend를 통해 Supabase에 메타데이터를 동기화함. AI 서버는 아직 배포하지 않았고, 현재 팀원 테스트는 AI 분석 비활성화 상태로 저장/조회만 확인함.
+AI 서버와 Backend 서버는 분리되어 있음. Backend는 현재 AWS EC2에서 `http://54.180.79.90:8000` 주소로 실행 중임. 앱은 사진과 기본 카테고리를 로컬에 먼저 저장하고, EC2 Backend를 통해 Supabase에 메타데이터를 동기화함. AI 서버는 아직 배포하지 않았고, 현재 팀원 테스트는 AI 분석 비활성화 상태로 저장/조회만 확인함.
 
 ## 폴더 구조
 
@@ -215,7 +215,7 @@ SECRET_KEY=change-this-secret-key
 현재 Backend는 AWS EC2에서 실행 중임.
 
 ```text
-http://13.125.252.131:8000
+http://54.180.79.90:8000
 ```
 
 외부 Mac 터미널에서 Supabase DB 연동 `GET /clothes`, `POST /clothes` 200 OK 확인 완료함. 자세한 절차는 `Backend/README.md`의 `AWS EC2 배포` 섹션을 기준으로 함.
@@ -227,37 +227,61 @@ http://13.125.252.131:8000
 5. `pip install -r requirements.txt`를 실행함
 6. `.env.example`을 복사해 `.env`를 작성함
 7. `python -m uvicorn app.main:app --host 0.0.0.0 --port 8000`으로 실행함
-8. `curl http://13.125.252.131:8000/health`로 상태를 확인함
-9. `curl "http://13.125.252.131:8000/clothes?user_id=45482f0f-42d0-401e-a18a-77abeb0492cc"`로 조회를 확인함
-10. 팀원 앱의 Backend URL은 `http://13.125.252.131:8000`을 사용함
+8. `curl http://54.180.79.90:8000/health`로 상태를 확인함
+9. `curl "http://54.180.79.90:8000/clothes?user_id=45482f0f-42d0-401e-a18a-77abeb0492cc"`로 조회를 확인함
+10. 팀원 앱의 Backend URL은 `http://54.180.79.90:8000`을 사용함
 
 EC2에서 터미널을 닫아도 실행되게 하려면 `Backend/deploy/fitcommit-backend.service.example` systemd 예시를 사용함.
 
 로컬 Mac에서 EC2로 Backend만 압축/전송할 때는 아래 스크립트를 사용함.
 
 ```bash
+chmod +x scripts/deploy_backend_to_ec2.sh
 ./scripts/deploy_backend_to_ec2.sh
 ```
 
 기본 키 파일 경로는 `~/Downloads/fitcommit-key.pem` 사용함. 키 위치가 다르면 아래처럼 바꿔 실행함.
 
 ```bash
-EC2_KEY_PATH=/path/to/your-key.pem ./scripts/deploy_backend_to_ec2.sh
+KEY_PATH=/path/to/your-key.pem ./scripts/deploy_backend_to_ec2.sh
 ```
 
-스크립트는 `Backend/.env`, `Backend/.venv`, `.git`, macOS `._*` 파일을 제외하고 `backend.tar.gz`를 만든 뒤 `ubuntu@13.125.252.131:~`로 전송함. 재시작용 `restart_backend.sh`도 `~`에 함께 전송함. EC2 안에서는 아래 명령으로 Backend를 교체하고 tmux 세션에서 재실행함.
+스크립트는 기존 `backend.tar.gz`를 삭제한 뒤 `Backend/.env`, `Backend/.venv`, `Backend/__pycache__`, `Backend/app/**/__pycache__`, `.git`, `.DS_Store`, macOS `._*` 파일을 제외하고 새 `backend.tar.gz`를 만듦. 이후 `ubuntu@54.180.79.90:/home/ubuntu`로 전송함. `.env`는 EC2에서 직접 관리하며 배포 스크립트로 업로드하지 않음.
+
+재시작용 `restart_backend.sh`도 `/home/ubuntu/restart_backend.sh`로 함께 전송함. EC2 안에서는 아래 명령으로 Backend를 교체하고 tmux 세션에서 재실행함.
 
 ```bash
-ssh -i ~/Downloads/fitcommit-key.pem ubuntu@13.125.252.131
-bash ~/restart_backend.sh
+ssh -i ~/Downloads/fitcommit-key.pem ubuntu@54.180.79.90
+bash /home/ubuntu/restart_backend.sh
 ```
+
+이미 새 Backend가 반영된 뒤에는 아래 경로의 스크립트도 사용할 수 있음.
+
+```bash
+bash /home/ubuntu/Backend/deploy/restart_backend.sh
+```
+
+전송 후 바로 재시작까지 실행하려면 아래 옵션을 사용함. 기본 동작은 안전하게 전송만 수행함.
+
+```bash
+./scripts/deploy_backend_to_ec2.sh --restart
+```
+
+tmux 상태 확인은 아래처럼 함.
+
+```bash
+tmux ls
+tmux attach -t fitcommit
+```
+
+서버가 켜져 있어야 팀원 앱에서 `http://54.180.79.90:8000`으로 접속 가능함. 테스트가 끝나면 AWS Console에서 EC2 Stop을 해야 비용이 줄어듦.
 
 팀원 테스트용 Backend URL 기준은 아래와 같음.
 
 ```text
 iOS 시뮬레이터: http://127.0.0.1:8000
 Android 에뮬레이터: http://10.0.2.2:8000
-팀원 실제 기기: http://13.125.252.131:8000
+팀원 실제 기기: http://54.180.79.90:8000
 ```
 
 AI 결과 없이 사진/카테고리만 먼저 저장하는 `POST /clothes` curl 테스트는 아래처럼 함.
@@ -279,7 +303,7 @@ curl -X POST http://127.0.0.1:8000/clothes \
 Storage 업로드 테스트는 아래처럼 함.
 
 ```bash
-curl -X POST http://13.125.252.131:8000/clothes/upload \
+curl -X POST http://54.180.79.90:8000/clothes/upload \
   -F "file=@./sample-clothing.jpg" \
   -F "user_id=45482f0f-42d0-401e-a18a-77abeb0492cc" \
   -F "main_category=top"
@@ -342,7 +366,7 @@ iOS 앱은 Xcode에서 `Ios/MyCloset.xcodeproj`를 열어 실행함.
 
 - 사진을 선택하면 SwiftData 로컬 옷장에 먼저 저장함
 - Backend 설정이 있으면 로컬 저장 후 Backend `/clothes` 동기화를 시도함
-- 팀원 테스트 기본값은 `http://13.125.252.131:8000` 사용함
+- 팀원 테스트 기본값은 `http://54.180.79.90:8000` 사용함
 - 개발 테스트 기본값은 `ENABLE_AI_ANALYSIS=false`라서 AI 서버가 꺼져 있어도 저장됨
 - AI 성공/실패 결과는 로컬 데이터에 먼저 반영하고, remote id가 있으면 같은 row에 PUT으로 업데이트함
 - Backend 저장 실패 시에도 SwiftData 로컬 데이터는 유지됨
@@ -353,7 +377,7 @@ iOS 앱은 Xcode에서 `Ios/MyCloset.xcodeproj`를 열어 실행함.
 현재 iOS 코드에는 팀원 테스트용 기본값이 들어 있음.
 
 ```text
-FITCOMMIT_BACKEND_BASE_URL=http://13.125.252.131:8000
+FITCOMMIT_BACKEND_BASE_URL=http://54.180.79.90:8000
 FITCOMMIT_SUPABASE_USER_ID=45482f0f-42d0-401e-a18a-77abeb0492cc
 ```
 
@@ -365,7 +389,7 @@ Android 앱은 Android Studio에서 `Android/` 폴더를 열어 실행함.
 
 - 사진을 선택하면 `ClothingStorage` 로컬 옷장에 먼저 저장함
 - Backend 설정이 있으면 로컬 저장 후 Backend `/clothes` 동기화를 시도함
-- 팀원 테스트 기본값은 `http://13.125.252.131:8000` 사용함
+- 팀원 테스트 기본값은 `http://54.180.79.90:8000` 사용함
 - 개발 테스트 기본값은 `ENABLE_AI_ANALYSIS=false`라서 AI 서버가 꺼져 있어도 저장됨
 - AI 성공/실패 결과는 로컬 데이터에 먼저 반영하고, remote id가 있으면 같은 row에 PUT으로 업데이트함
 - Backend 저장 실패 시에도 `ClothingStorage` 로컬 데이터는 유지됨
@@ -376,7 +400,7 @@ Android 앱은 Android Studio에서 `Android/` 폴더를 열어 실행함.
 Android 개발 기본값은 `Android/app/src/main/java/com/fitcommit/app/services/ApiClient.java`에서 관리함.
 
 ```text
-BASE_URL=http://13.125.252.131:8000
+BASE_URL=http://54.180.79.90:8000
 BACKEND_CLOTHES_USER_ID=45482f0f-42d0-401e-a18a-77abeb0492cc
 ```
 
@@ -433,7 +457,7 @@ category_hint=top
 옷 사진을 Supabase Storage `clothing-images` bucket에 업로드함. multipart/form-data로 `file`, `user_id`, `main_category`를 보냄. 성공하면 `image_path`, `image_url`, `bucket`을 반환함.
 
 ```bash
-curl -X POST http://13.125.252.131:8000/clothes/upload \
+curl -X POST http://54.180.79.90:8000/clothes/upload \
   -F "file=@./sample-clothing.jpg" \
   -F "user_id=45482f0f-42d0-401e-a18a-77abeb0492cc" \
   -F "main_category=top"
@@ -474,7 +498,7 @@ curl -X POST http://13.125.252.131:8000/clothes/upload \
 
 ## End-to-End 테스트 순서
 
-1. EC2 Backend `http://13.125.252.131:8000`을 사용함
+1. EC2 Backend `http://54.180.79.90:8000`을 사용함
 2. AI 서버는 실행하지 않아도 됨
 3. iOS 시뮬레이터에서 옷 추가를 진행함
 4. EC2 Backend에 `POST /clothes` 요청이 성공하는지 확인함

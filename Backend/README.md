@@ -229,6 +229,7 @@ Android 에뮬레이터: http://10.0.2.2:8000
 프로젝트 루트에서 아래 스크립트를 실행하면 Backend 폴더만 압축해서 EC2로 전송함.
 
 ```bash
+chmod +x scripts/deploy_backend_to_ec2.sh
 ./scripts/deploy_backend_to_ec2.sh
 ```
 
@@ -237,24 +238,36 @@ Android 에뮬레이터: http://10.0.2.2:8000
 ```text
 EC2_USER=ubuntu
 EC2_HOST=13.125.252.131
-EC2_KEY_PATH=~/Downloads/fitcommit-key.pem
-REMOTE_DIR=~
+KEY_PATH=~/Downloads/fitcommit-key.pem
+REMOTE_DIR=/home/ubuntu
 ARCHIVE_NAME=backend.tar.gz
 ```
 
 키 파일 위치가 다르면 아래처럼 실행함.
 
 ```bash
-EC2_KEY_PATH=/path/to/your-key.pem ./scripts/deploy_backend_to_ec2.sh
+KEY_PATH=/path/to/your-key.pem ./scripts/deploy_backend_to_ec2.sh
 ```
 
-압축 파일에는 `Backend/.env`, `Backend/.venv`, `.git`, macOS `._*` 파일이 포함되지 않음. 실제 Supabase secret key는 로컬 `.env`와 EC2 `.env`에만 있어야 함.
+스크립트는 기존 `backend.tar.gz`를 삭제한 뒤 새 압축 파일을 생성함. 압축 파일에는 `Backend/.env`, `Backend/.venv`, `Backend/__pycache__`, `Backend/app/**/__pycache__`, `.git`, `.DS_Store`, macOS `._*` 파일이 포함되지 않음. 실제 Supabase secret key는 로컬 `.env`와 EC2 `.env`에만 있어야 함.
 
-배포 스크립트는 `backend.tar.gz`와 함께 `restart_backend.sh`를 EC2 홈 디렉터리에 전송함. EC2에 접속한 뒤 아래 명령으로 새 Backend를 반영함.
+배포 스크립트는 `backend.tar.gz`와 함께 `restart_backend.sh`를 `/home/ubuntu`에 전송함. EC2에 접속한 뒤 아래 명령으로 새 Backend를 반영함.
 
 ```bash
 ssh -i ~/Downloads/fitcommit-key.pem ubuntu@13.125.252.131
-bash ~/restart_backend.sh
+bash /home/ubuntu/restart_backend.sh
+```
+
+이미 새 Backend가 반영된 뒤에는 아래 경로의 스크립트도 사용할 수 있음.
+
+```bash
+bash /home/ubuntu/Backend/deploy/restart_backend.sh
+```
+
+전송 후 재시작까지 한 번에 실행하려면 아래 옵션을 사용함. 기본 동작은 안전하게 전송만 수행함.
+
+```bash
+./scripts/deploy_backend_to_ec2.sh --restart
 ```
 
 `restart_backend.sh`는 아래 순서로 동작함.
@@ -271,6 +284,15 @@ bash ~/restart_backend.sh
 ```bash
 python -m uvicorn app.main:app --host 0.0.0.0 --port 8000
 ```
+
+tmux 상태 확인은 아래처럼 함.
+
+```bash
+tmux ls
+tmux attach -t fitcommit
+```
+
+서버가 켜져 있어야 팀원 앱에서 `http://13.125.252.131:8000`으로 접속 가능함. 테스트가 끝나면 AWS Console에서 EC2 Stop을 해야 비용이 줄어듦.
 
 ## systemd 서비스 예시
 
