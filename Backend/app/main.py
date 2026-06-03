@@ -42,7 +42,7 @@ def root():
 
 @app.get("/health")
 def health():
-    return {"status": "ok"}
+    return {"status": "ok", "service": "fitcommit-backend"}
 
 
 @app.get("/db-check")

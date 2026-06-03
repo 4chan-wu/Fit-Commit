@@ -1,6 +1,6 @@
 # Fitcommit Backend
 
-Fitcommit Backend는 앱에서 로컬에 먼저 저장한 옷장 메타데이터를 Supabase에 동기화하고 조회하는 FastAPI 서버임. 현재 Backend는 AWS EC2에서 `http://13.125.252.131:8000` 주소로 실행 중이며, 외부 Mac 터미널에서 Supabase `public.clothes` GET/POST 200 OK 확인이 완료됨.
+Fitcommit Backend는 앱에서 로컬에 먼저 저장한 옷장 메타데이터를 Supabase에 동기화하고 조회하는 FastAPI 서버임. 현재 Backend는 AWS EC2에서 `http://54.180.79.90:8000` 주소로 실행 중이며, 외부 Mac 터미널에서 Supabase `public.clothes` GET/POST 200 OK 확인이 완료됨.
 
 ## 역할
 
@@ -135,7 +135,7 @@ Ubuntu EC2 인스턴스를 기준으로 배포함.
 현재 배포 주소는 아래와 같음.
 
 ```text
-http://13.125.252.131:8000
+http://54.180.79.90:8000
 ```
 
 1. AWS EC2에서 Ubuntu 인스턴스를 생성함
@@ -149,7 +149,7 @@ ssh -i your-key.pem ubuntu@EC2_PUBLIC_IP
 현재 서버 접속 예시는 아래와 같음.
 
 ```bash
-ssh -i your-key.pem ubuntu@13.125.252.131
+ssh -i your-key.pem ubuntu@54.180.79.90
 ```
 
 4. 서버 패키지와 Python venv 도구를 설치함
@@ -175,14 +175,13 @@ pip install --upgrade pip
 pip install -r requirements.txt
 ```
 
-7. `.env`를 작성함
+7. EC2 systemd 환경 파일을 작성함
 
 ```bash
-cp .env.example .env
-nano .env
+sudo nano /home/ubuntu/fitcommit_backend.env
 ```
 
-`.env`에는 실제 값을 넣되 GitHub에는 올리지 않음. `SUPABASE_SERVICE_ROLE_KEY`는 Backend 전용 secret이므로 iOS/Android에 넣으면 안 됨.
+EC2 운영 환경에서는 `Backend/.env`가 아니라 `/home/ubuntu/fitcommit_backend.env`를 사용함. 실제 값을 넣되 GitHub에는 올리지 않음. `SUPABASE_SERVICE_ROLE_KEY`는 Backend 전용 secret이므로 iOS/Android에 넣으면 안 됨.
 
 ```env
 DATABASE_URL=postgresql://...
@@ -195,23 +194,20 @@ CORS_ALLOW_ORIGINS=*
 SECRET_KEY=change-this-secret-key
 ```
 
-8. 배포 명령으로 실행함
+8. systemd 서비스로 실행함
 
 ```bash
-python -m uvicorn app.main:app --host 0.0.0.0 --port 8000
-```
-
-또는 스크립트를 사용함.
-
-```bash
-./scripts/start_backend.sh
+sudo cp deploy/fitcommit-backend.service.example /etc/systemd/system/fitcommit-backend.service
+sudo systemctl daemon-reload
+sudo systemctl enable fitcommit-backend
+sudo systemctl start fitcommit-backend
 ```
 
 9. EC2 public IP로 상태와 의류 API를 테스트함
 
 ```bash
-curl http://13.125.252.131:8000/health
-curl "http://13.125.252.131:8000/clothes?user_id=45482f0f-42d0-401e-a18a-77abeb0492cc"
+curl http://54.180.79.90:8000/health
+curl "http://54.180.79.90:8000/clothes?user_id=45482f0f-42d0-401e-a18a-77abeb0492cc"
 ```
 
 10. iOS/Android 앱의 Backend base URL을 바꿈
@@ -219,7 +215,7 @@ curl "http://13.125.252.131:8000/clothes?user_id=45482f0f-42d0-401e-a18a-77abeb0
 ```text
 iOS 시뮬레이터: http://127.0.0.1:8000
 Android 에뮬레이터: http://10.0.2.2:8000
-팀원 실제 기기: http://13.125.252.131:8000
+팀원 실제 기기: http://54.180.79.90:8000
 ```
 
 운영에서는 `8000`을 직접 열어두기보다 Nginx reverse proxy와 HTTPS를 붙이는 방향으로 개선해야 함.
@@ -237,7 +233,7 @@ chmod +x scripts/deploy_backend_to_ec2.sh
 
 ```text
 EC2_USER=ubuntu
-EC2_HOST=13.125.252.131
+EC2_HOST=54.180.79.90
 KEY_PATH=~/Downloads/fitcommit-key.pem
 REMOTE_DIR=/home/ubuntu
 ARCHIVE_NAME=backend.tar.gz
@@ -254,7 +250,7 @@ KEY_PATH=/path/to/your-key.pem ./scripts/deploy_backend_to_ec2.sh
 배포 스크립트는 `backend.tar.gz`와 함께 `restart_backend.sh`를 `/home/ubuntu`에 전송함. EC2에 접속한 뒤 아래 명령으로 새 Backend를 반영함.
 
 ```bash
-ssh -i ~/Downloads/fitcommit-key.pem ubuntu@13.125.252.131
+ssh -i ~/Downloads/fitcommit-key.pem ubuntu@54.180.79.90
 bash /home/ubuntu/restart_backend.sh
 ```
 
@@ -277,26 +273,29 @@ bash /home/ubuntu/Backend/deploy/restart_backend.sh
 3. 백업 폴더의 `.env`를 새 `~/Backend/.env`로 복원함
 4. `.venv`가 없으면 생성함
 5. `pip install -r requirements.txt`를 실행함
-6. tmux `fitcommit` 세션을 재시작하고 uvicorn을 실행함
+6. systemd `fitcommit-backend` 서비스를 재시작함
 
-실행 명령은 아래와 같음.
+systemd 서비스 내부 실행 명령은 아래와 같음.
 
 ```bash
 python -m uvicorn app.main:app --host 0.0.0.0 --port 8000
 ```
 
-tmux 상태 확인은 아래처럼 함.
+systemd 서비스 관리는 아래 명령을 사용함.
 
 ```bash
-tmux ls
-tmux attach -t fitcommit
+sudo systemctl status fitcommit-backend --no-pager
+sudo systemctl start fitcommit-backend
+sudo systemctl stop fitcommit-backend
+sudo systemctl restart fitcommit-backend
+journalctl -u fitcommit-backend -f
 ```
 
-서버가 켜져 있어야 팀원 앱에서 `http://13.125.252.131:8000`으로 접속 가능함. 테스트가 끝나면 AWS Console에서 EC2 Stop을 해야 비용이 줄어듦.
+서버가 켜져 있어야 팀원 앱에서 `http://54.180.79.90:8000`으로 접속 가능함. 테스트가 끝나면 AWS Console에서 EC2 Stop을 해야 비용이 줄어듦.
 
-## systemd 서비스 예시
+## systemd 서비스
 
-터미널을 닫아도 Backend를 계속 실행하려면 `deploy/fitcommit-backend.service.example`을 참고함.
+현재 EC2 운영은 tmux가 아니라 systemd 서비스 `fitcommit-backend`를 사용함. 서비스 파일은 `/home/ubuntu/fitcommit_backend.env`를 환경변수 파일로 읽음.
 
 ```bash
 sudo cp deploy/fitcommit-backend.service.example /etc/systemd/system/fitcommit-backend.service
@@ -304,33 +303,53 @@ sudo nano /etc/systemd/system/fitcommit-backend.service
 sudo systemctl daemon-reload
 sudo systemctl enable fitcommit-backend
 sudo systemctl start fitcommit-backend
-sudo systemctl status fitcommit-backend
+sudo systemctl status fitcommit-backend --no-pager
 ```
 
-로그 확인은 아래처럼 함.
+서비스 제어 명령은 아래와 같음.
 
 ```bash
+sudo systemctl start fitcommit-backend
+sudo systemctl stop fitcommit-backend
+sudo systemctl restart fitcommit-backend
 journalctl -u fitcommit-backend -f
 ```
 
-`WorkingDirectory`, `EnvironmentFile`, `ExecStart` 경로는 EC2에 clone한 실제 경로에 맞춰 수정해야 함.
+`fitcommit_backend.env`는 EC2에서 직접 관리함. 배포 압축에는 `Backend/.env`가 포함되지 않으며, 실제 secret key를 README나 앱 코드에 넣으면 안 됨.
 
-tmux로 간단히 유지하려면 아래처럼 실행함.
+환경 파일 예시는 아래와 같음.
 
-```bash
-tmux new -s fitcommit-backend
-cd Fitcommit_Development/Backend
-source .venv/bin/activate
-python -m uvicorn app.main:app --host 0.0.0.0 --port 8000
+```env
+DATABASE_URL=postgresql://...
+SUPABASE_URL=https://{project_ref}.supabase.co
+SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
+SUPABASE_ANON_KEY=your-anon-key
+SUPABASE_CLOTHING_BUCKET=clothing-images
+ENABLE_AI_ANALYSIS=false
+CORS_ALLOW_ORIGINS=*
+SECRET_KEY=change-this-secret-key
 ```
 
-세션에서 빠져나올 때는 `Ctrl-b` 다음 `d`를 누름. 다시 접속할 때는 아래 명령을 사용함.
-
-```bash
-tmux attach -t fitcommit-backend
-```
+tmux는 더 이상 기본 운영 방식으로 사용하지 않음.
 
 ## `/clothes` API
+
+### `GET /health`
+
+Backend 상태를 확인함.
+
+```bash
+curl http://54.180.79.90:8000/health
+```
+
+응답 예시는 아래와 같음.
+
+```json
+{
+  "status": "ok",
+  "service": "fitcommit-backend"
+}
+```
 
 ### `POST /clothes`
 
@@ -355,7 +374,7 @@ curl -X POST http://127.0.0.1:8000/clothes \
 옷 사진을 Supabase Storage `clothing-images` bucket에 업로드함. Backend가 service role key로 업로드하므로 iOS/Android에는 Supabase secret key를 넣지 않음.
 
 ```bash
-curl -X POST http://13.125.252.131:8000/clothes/upload \
+curl -X POST http://54.180.79.90:8000/clothes/upload \
   -F "file=@./sample-clothing.jpg" \
   -F "user_id=45482f0f-42d0-401e-a18a-77abeb0492cc" \
   -F "main_category=top"
@@ -438,7 +457,7 @@ curl -X DELETE "http://127.0.0.1:8000/clothes/{clothing_id}?user_id=45482f0f-42d
 
 ## 앱 연동 기준
 
-- 팀원 실제 기기 테스트는 Backend 주소로 `http://13.125.252.131:8000` 사용함
+- 팀원 실제 기기 테스트는 Backend 주소로 `http://54.180.79.90:8000` 사용함
 - iOS 시뮬레이터 로컬 테스트는 Backend 주소로 `http://127.0.0.1:8000` 사용 가능함
 - Android 에뮬레이터 로컬 테스트는 Backend 주소로 `http://10.0.2.2:8000` 사용해야 함
 - 실제 iPhone/Android 로컬 Mac 테스트는 `http://{Mac의_로컬_IP}:8000` 사용해야 함
@@ -450,7 +469,7 @@ curl -X DELETE "http://127.0.0.1:8000/clothes/{clothing_id}?user_id=45482f0f-42d
 
 ## Supabase 저장 테스트 순서
 
-1. EC2 Backend `http://13.125.252.131:8000`을 사용함
+1. EC2 Backend `http://54.180.79.90:8000`을 사용함
 2. AI 서버는 실행하지 않아도 됨
 3. iOS 시뮬레이터 또는 Android 에뮬레이터에서 옷 추가를 진행함
 4. EC2 Backend에 `POST /clothes` 요청이 성공하는지 확인함
@@ -462,13 +481,13 @@ curl -X DELETE "http://127.0.0.1:8000/clothes/{clothing_id}?user_id=45482f0f-42d
 GET 테스트는 아래처럼 함.
 
 ```bash
-curl "http://13.125.252.131:8000/clothes?user_id=45482f0f-42d0-401e-a18a-77abeb0492cc"
+curl "http://54.180.79.90:8000/clothes?user_id=45482f0f-42d0-401e-a18a-77abeb0492cc"
 ```
 
 AI 없이 pending row를 생성하는 POST 테스트는 아래처럼 함. 응답에서 `sync_status=synced`, `analysis_status=pending`인지 확인함.
 
 ```bash
-curl -X POST http://13.125.252.131:8000/clothes \
+curl -X POST http://54.180.79.90:8000/clothes \
   -H "Content-Type: application/json" \
   -d '{
     "user_id": "45482f0f-42d0-401e-a18a-77abeb0492cc",
@@ -484,7 +503,7 @@ curl -X POST http://13.125.252.131:8000/clothes \
 Storage 업로드 테스트는 아래처럼 함. 응답에서 `image_path`가 `local://`가 아니라 `45482f0f-.../top/...jpg` 형태인지 확인함.
 
 ```bash
-curl -X POST http://13.125.252.131:8000/clothes/upload \
+curl -X POST http://54.180.79.90:8000/clothes/upload \
   -F "file=@./sample-clothing.jpg" \
   -F "user_id=45482f0f-42d0-401e-a18a-77abeb0492cc" \
   -F "main_category=top"
@@ -495,6 +514,7 @@ curl -X POST http://13.125.252.131:8000/clothes/upload \
 ## 검증 상태
 
 - EC2 Backend 배포 완료함
+- systemd 서비스 `fitcommit-backend` 실행 완료함
 - EC2 Backend ↔ Supabase `GET /clothes`, `POST /clothes` 외부 curl 테스트 성공함
 - Supabase `public.clothes` row 저장/조회 성공함
 - AI 없이 `analysis_status=pending`, `needs_analysis=true`, `sync_status=synced`로 저장하는 구조 완료함
@@ -509,8 +529,10 @@ curl -X POST http://13.125.252.131:8000/clothes/upload \
 ## 남은 작업
 
 - 실제 AI 서버를 배포해야 함
-- CLIP/FashionCLIP 분석을 운영 서버와 앱 후처리 흐름에 실제 연결하고 성능 검증해야 함
+- 실제 Storage 업로드 end-to-end를 앱에서 검증해야 함
+- MobileNetV3/CLIP/FashionCLIP 분석을 운영 서버와 앱 후처리 흐름에 실제 연결하고 성능 검증해야 함
 - `POST /clothes/{clothing_id}/analyze`에서 이미지 재전송과 AI 결과 업데이트를 완성해야 함
 - 업로드된 Storage 이미지를 기반으로 AI 재분석과 벡터화를 연결해야 함
 - 임시 `user_id` 쿼리/바디 방식에서 Supabase Auth access token 기반 인증으로 개선해야 함
+- Elastic IP 또는 도메인 연결을 적용해야 함
 - 운영 배포 환경에서는 service role key 관리와 CORS 정책을 다시 점검해야 함

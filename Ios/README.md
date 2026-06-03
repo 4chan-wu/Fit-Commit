@@ -66,7 +66,7 @@ ENABLE_AI_ANALYSIS
 팀원 테스트용 기본값은 아래와 같음.
 
 ```text
-FITCOMMIT_BACKEND_BASE_URL=http://13.125.252.131:8000
+FITCOMMIT_BACKEND_BASE_URL=http://54.180.79.90:8000
 FITCOMMIT_SUPABASE_USER_ID=45482f0f-42d0-401e-a18a-77abeb0492cc
 ENABLE_AI_ANALYSIS=false
 ```
@@ -92,7 +92,7 @@ http://127.0.0.1:8000
 현재 EC2 Backend 주소는 아래와 같음.
 
 ```text
-http://13.125.252.131:8000
+http://54.180.79.90:8000
 ```
 
 Mac의 로컬 IP는 아래 명령으로 확인할 수 있음.
@@ -173,7 +173,7 @@ AI 서버가 꺼져 있어도 로컬 옷장에는 pending/failed item이 남아�
 
 ## Supabase 저장 테스트 순서
 
-1. EC2 Backend `http://13.125.252.131:8000`을 사용함
+1. EC2 Backend `http://54.180.79.90:8000`을 사용함
 2. AI 서버는 실행하지 않아도 됨
 3. iOS 시뮬레이터에서 옷 추가를 진행함
 4. EC2 Backend에 `POST /clothes` 요청이 성공하는지 확인함
@@ -184,7 +184,7 @@ AI 서버가 꺼져 있어도 로컬 옷장에는 pending/failed item이 남아�
 
 - iOS Debug 빌드 성공 확인됨
 - SwiftData 로컬 우선, Backend 동기화 후처리 구조로 구성됨
-- 팀원 테스트 기본 URL은 `http://13.125.252.131:8000` 사용함
+- 팀원 테스트 기본 URL은 `http://54.180.79.90:8000` 사용함
 - iOS 시뮬레이터 로컬 테스트는 `http://127.0.0.1:8000` 사용 가능함
 - 실제 iPhone 로컬 Mac 테스트는 `http://{Mac의_로컬_IP}:8000` 사용해야 함
 

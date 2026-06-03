@@ -91,7 +91,7 @@ struct BackendClothesUploadResponse: Decodable {
 }
 
 enum BackendClothesService {
-    private static let defaultBackendBaseURL = "http://13.125.252.131:8000"
+    private static let defaultBackendBaseURL = "http://54.180.79.90:8000"
     private static let defaultSupabaseUserID = "45482f0f-42d0-401e-a18a-77abeb0492cc"
 
     private static var baseURL: URL? {

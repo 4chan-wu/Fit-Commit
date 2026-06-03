@@ -62,7 +62,7 @@ Android 앱의 Backend base URL은 `app/src/main/java/com/fitcommit/app/services
 팀원 실제 기기 테스트용 기본값은 아래와 같음.
 
 ```text
-BASE_URL=http://13.125.252.131:8000
+BASE_URL=http://54.180.79.90:8000
 BACKEND_CLOTHES_USER_ID=45482f0f-42d0-401e-a18a-77abeb0492cc
 ENABLE_AI_ANALYSIS=false
 ```
@@ -85,7 +85,7 @@ Android Emulator -> http://10.0.2.2:8000 -> Backend FastAPI
 현재 EC2 Backend 주소는 아래와 같음.
 
 ```text
-http://13.125.252.131:8000
+http://54.180.79.90:8000
 ```
 
 Mac의 로컬 IP는 아래 명령으로 확인할 수 있음.
@@ -153,7 +153,7 @@ category_hint=top
 
 ## Supabase 저장 테스트 순서
 
-1. EC2 Backend `http://13.125.252.131:8000`을 사용함
+1. EC2 Backend `http://54.180.79.90:8000`을 사용함
 2. AI 서버는 실행하지 않아도 됨
 3. Android 앱에서 옷 추가를 진행함
 4. EC2 Backend에 `POST /clothes` 요청이 성공하는지 확인함
@@ -177,7 +177,7 @@ POST /clothes/{clothing_id}/analyze
 ## 검증 상태
 
 - Android 저장/조회 코드는 `ClothingStorage` 로컬 우선, Backend 동기화 후처리 구조로 구성됨
-- 팀원 테스트 기본 URL은 `http://13.125.252.131:8000` 사용함
+- 팀원 테스트 기본 URL은 `http://54.180.79.90:8000` 사용함
 - Android 에뮬레이터 로컬 테스트는 `http://10.0.2.2:8000` 사용함
 - 실제 Android 기기 로컬 Mac 테스트는 `http://{Mac의_로컬_IP}:8000` 사용해야 함
 - AI 분석 전에 로컬 item을 만들고, 서버 가능 시 pending row를 만든 뒤 성공/실패를 같은 row에 업데이트하도록 구성됨

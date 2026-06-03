@@ -231,7 +231,7 @@ http://54.180.79.90:8000
 9. `curl "http://54.180.79.90:8000/clothes?user_id=45482f0f-42d0-401e-a18a-77abeb0492cc"`로 조회를 확인함
 10. 팀원 앱의 Backend URL은 `http://54.180.79.90:8000`을 사용함
 
-EC2에서 터미널을 닫아도 실행되게 하려면 `Backend/deploy/fitcommit-backend.service.example` systemd 예시를 사용함.
+EC2 운영은 tmux가 아니라 systemd 서비스 `fitcommit-backend`를 사용함. systemd 서비스는 `/home/ubuntu/fitcommit_backend.env`를 환경변수 파일로 읽도록 구성함.
 
 로컬 Mac에서 EC2로 Backend만 압축/전송할 때는 아래 스크립트를 사용함.
 
@@ -248,7 +248,7 @@ KEY_PATH=/path/to/your-key.pem ./scripts/deploy_backend_to_ec2.sh
 
 스크립트는 기존 `backend.tar.gz`를 삭제한 뒤 `Backend/.env`, `Backend/.venv`, `Backend/__pycache__`, `Backend/app/**/__pycache__`, `.git`, `.DS_Store`, macOS `._*` 파일을 제외하고 새 `backend.tar.gz`를 만듦. 이후 `ubuntu@54.180.79.90:/home/ubuntu`로 전송함. `.env`는 EC2에서 직접 관리하며 배포 스크립트로 업로드하지 않음.
 
-재시작용 `restart_backend.sh`도 `/home/ubuntu/restart_backend.sh`로 함께 전송함. EC2 안에서는 아래 명령으로 Backend를 교체하고 tmux 세션에서 재실행함.
+재시작용 `restart_backend.sh`도 `/home/ubuntu/restart_backend.sh`로 함께 전송함. EC2 안에서는 아래 명령으로 Backend를 교체하고 systemd 서비스를 재시작함.
 
 ```bash
 ssh -i ~/Downloads/fitcommit-key.pem ubuntu@54.180.79.90
@@ -267,11 +267,14 @@ bash /home/ubuntu/Backend/deploy/restart_backend.sh
 ./scripts/deploy_backend_to_ec2.sh --restart
 ```
 
-tmux 상태 확인은 아래처럼 함.
+systemd 서비스 관리는 아래 명령을 사용함.
 
 ```bash
-tmux ls
-tmux attach -t fitcommit
+sudo systemctl status fitcommit-backend --no-pager
+sudo systemctl start fitcommit-backend
+sudo systemctl stop fitcommit-backend
+sudo systemctl restart fitcommit-backend
+journalctl -u fitcommit-backend -f
 ```
 
 서버가 켜져 있어야 팀원 앱에서 `http://54.180.79.90:8000`으로 접속 가능함. 테스트가 끝나면 AWS Console에서 EC2 Stop을 해야 비용이 줄어듦.
@@ -310,6 +313,12 @@ curl -X POST http://54.180.79.90:8000/clothes/upload \
 ```
 
 응답의 `image_path`가 `local://`가 아니라 `45482f0f-.../top/...jpg` 형태인지 확인함. Supabase Dashboard의 Storage `clothing-images` bucket에서도 파일이 보여야 함.
+
+health check는 아래처럼 확인함.
+
+```bash
+curl http://54.180.79.90:8000/health
+```
 
 AI 성공 후 같은 row를 업데이트하는 `PUT /clothes/{id}` 테스트는 아래처럼 함.
 
@@ -436,6 +445,17 @@ category_hint=top
 
 ### Backend 서버
 
+#### `GET /health`
+
+Backend 상태를 확인함.
+
+```json
+{
+  "status": "ok",
+  "service": "fitcommit-backend"
+}
+```
+
 #### `POST /clothes`
 
 로컬 저장 이후 서버 연결이 가능할 때 DB 메타데이터를 동기화함. AI 분석 성공은 저장의 필수 조건이 아니며, `image_url`/`image_path` 없이 `local_image_path`만 있어도 row 생성이 가능함.
@@ -486,6 +506,7 @@ curl -X POST http://54.180.79.90:8000/clothes/upload \
 ## 현재 테스트 완료 상태
 
 - EC2 Backend 배포 완료함
+- systemd 서비스 `fitcommit-backend` 실행 완료함
 - Backend ↔ Supabase `GET /clothes`, `POST /clothes` curl 테스트 성공함
 - Supabase `public.clothes` row 저장/조회 성공함
 - AI 없이 `analysis_status=pending`, `needs_analysis=true`, `sync_status=synced` 상태 저장 구조 완료함
@@ -510,10 +531,12 @@ curl -X POST http://54.180.79.90:8000/clothes/upload \
 ## 앞으로 남은 작업
 
 - 실제 AI 서버를 배포해야 함
-- CLIP/FashionCLIP 분석을 운영 서버와 앱 후처리 흐름에 실제 연결하고 성능 검증해야 함
+- 실제 Storage 업로드 end-to-end를 앱에서 검증해야 함
+- MobileNetV3/CLIP/FashionCLIP 분석을 운영 서버와 앱 후처리 흐름에 실제 연결하고 성능 검증해야 함
 - 업로드된 이미지 기반 AI 재분석과 벡터화를 연결해야 함
 - `POST /clothes/{clothing_id}/analyze`에서 Storage 이미지를 내려받아 AI 서버로 재전송하는 재분석 흐름을 완성해야 함
 - iOS/Android 앱에서 실제 저장/조회 end-to-end를 더 넓은 케이스로 검증해야 함
 - Android JDK 환경에서 Gradle 빌드를 검증해야 함
 - 임시 `user_id` 방식에서 Supabase Auth access token 기반 인증으로 개선해야 함
+- Elastic IP 또는 도메인 연결을 적용해야 함
 - YOLO 기반 전신 사진 자동 분리는 1차 프로토타입 범위 밖이며, 필요하면 향후 고도화 기능으로 다시 검토함
