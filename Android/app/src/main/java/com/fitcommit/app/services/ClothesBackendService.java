@@ -9,6 +9,7 @@ import org.json.JSONObject;
 import java.io.BufferedInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
@@ -38,13 +39,25 @@ public class ClothesBackendService {
     }
 
     public JSONObject createPending(String category, String imagePath) throws Exception {
+        String storageImagePath = localImageReference(imagePath);
+        String storageImageUrl = "";
+        try {
+            System.out.println("[ClothesBackendService] Backend /clothes/upload request started category=" + category);
+            JSONObject upload = uploadImage(category, imagePath);
+            storageImagePath = upload.optString("image_path", storageImagePath);
+            storageImageUrl = upload.optString("image_url", "");
+            System.out.println("[ClothesBackendService] Storage upload succeeded path=" + storageImagePath);
+        } catch (Exception error) {
+            System.out.println("[ClothesBackendService] Storage upload failed, falling back to local image reference: " + error.getMessage());
+        }
+
         JSONObject payload = new JSONObject();
         payload.put("user_id", ApiClient.BACKEND_CLOTHES_USER_ID);
         payload.put("main_category", category);
         payload.put("season", new JSONArray());
         payload.put("style_tags", new JSONArray());
-        payload.put("image_url", "");
-        payload.put("image_path", localImageReference(imagePath));
+        payload.put("image_url", storageImageUrl);
+        payload.put("image_path", storageImagePath);
         payload.put("local_image_path", imagePath == null ? "" : imagePath);
         payload.put("analysis_status", "pending");
         payload.put("needs_analysis", true);
@@ -60,6 +73,39 @@ public class ClothesBackendService {
         File file = new File(imagePath);
         String name = file.getName();
         return "local://" + (name == null || name.trim().isEmpty() ? String.valueOf(System.currentTimeMillis()) : name);
+    }
+
+    public JSONObject uploadImage(String category, String imagePath) throws Exception {
+        if (imagePath == null || imagePath.trim().isEmpty()) {
+            throw new IllegalArgumentException("Image path is empty.");
+        }
+        File file = new File(imagePath);
+        if (!file.exists()) {
+            throw new IllegalArgumentException("Image file does not exist: " + imagePath);
+        }
+
+        String boundary = "fitcommit-" + java.util.UUID.randomUUID();
+        HttpURLConnection connection = (HttpURLConnection) new URL(ApiClient.BASE_URL + "/clothes/upload").openConnection();
+        connection.setRequestMethod("POST");
+        connection.setConnectTimeout(15_000);
+        connection.setReadTimeout(30_000);
+        connection.setDoOutput(true);
+        connection.setRequestProperty("Content-Type", "multipart/form-data; boundary=" + boundary);
+        connection.setRequestProperty("Accept", "application/json");
+
+        try (OutputStream output = connection.getOutputStream()) {
+            writeFormField(output, boundary, "user_id", ApiClient.BACKEND_CLOTHES_USER_ID);
+            writeFormField(output, boundary, "main_category", category);
+            writeFileField(output, boundary, "file", file);
+            output.write(("--" + boundary + "--\r\n").getBytes(StandardCharsets.UTF_8));
+        }
+
+        int statusCode = connection.getResponseCode();
+        String body = readResponse(connection, statusCode);
+        if (statusCode < 200 || statusCode >= 300) {
+            throw new IllegalStateException("Backend upload failed: " + statusCode + " " + body);
+        }
+        return new JSONObject(body);
     }
 
     public JSONObject createCompleted(
@@ -207,6 +253,27 @@ public class ClothesBackendService {
             throw new IllegalStateException("Backend clothes request failed: " + statusCode + " " + body);
         }
         return new JSONObject(body);
+    }
+
+    private void writeFormField(OutputStream output, String boundary, String name, String value) throws Exception {
+        output.write(("--" + boundary + "\r\n").getBytes(StandardCharsets.UTF_8));
+        output.write(("Content-Disposition: form-data; name=\"" + name + "\"\r\n\r\n").getBytes(StandardCharsets.UTF_8));
+        output.write((value == null ? "" : value).getBytes(StandardCharsets.UTF_8));
+        output.write("\r\n".getBytes(StandardCharsets.UTF_8));
+    }
+
+    private void writeFileField(OutputStream output, String boundary, String name, File file) throws Exception {
+        output.write(("--" + boundary + "\r\n").getBytes(StandardCharsets.UTF_8));
+        output.write(("Content-Disposition: form-data; name=\"" + name + "\"; filename=\"" + file.getName() + "\"\r\n").getBytes(StandardCharsets.UTF_8));
+        output.write("Content-Type: image/jpeg\r\n\r\n".getBytes(StandardCharsets.UTF_8));
+        try (FileInputStream input = new FileInputStream(file)) {
+            byte[] buffer = new byte[8192];
+            int read;
+            while ((read = input.read(buffer)) != -1) {
+                output.write(buffer, 0, read);
+            }
+        }
+        output.write("\r\n".getBytes(StandardCharsets.UTF_8));
     }
 
     private String isoNow() {

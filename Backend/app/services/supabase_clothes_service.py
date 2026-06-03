@@ -2,8 +2,9 @@ from __future__ import annotations
 
 import logging
 import os
+from datetime import datetime, timezone
 from typing import Any, Optional
-from uuid import UUID
+from uuid import UUID, uuid4
 
 import httpx
 from fastapi import HTTPException, status
@@ -41,8 +42,15 @@ class SupabaseClothesService:
     def _table_url(self) -> str:
         return f"{self.supabase_url}/rest/v1/clothes"
 
+    def _storage_object_url(self, object_path: str) -> str:
+        return f"{self.supabase_url}/storage/v1/object/{self.bucket}/{object_path}"
+
+    def _storage_public_url(self, object_path: str) -> str:
+        return f"{self.supabase_url}/storage/v1/object/public/{self.bucket}/{object_path}"
+
     async def create(self, body: ClothesCreate) -> dict[str, Any]:
         payload = body.model_dump(mode="json", exclude_none=True)
+        self._normalize_image_fields(payload)
         payload["sync_status"] = "synced"
         logger.info(
             "[Clothes] Creating clothing item user_id=%s category=%s subcategory=%s analysis_status=%s sync_status=%s",
@@ -62,6 +70,46 @@ class SupabaseClothesService:
         row = self._single_row(response)
         logger.info("[Clothes] Created clothing item id=%s user_id=%s", row.get("id"), body.user_id)
         return row
+
+    async def upload_image(
+        self,
+        file_bytes: bytes,
+        content_type: str,
+        user_id: UUID,
+        main_category: str,
+    ) -> dict[str, str]:
+        if not self.is_configured:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Supabase Storage upload is not configured.",
+            )
+        if not file_bytes:
+            raise HTTPException(status_code=400, detail="Uploaded file is empty.")
+
+        object_path = self._build_storage_path(user_id, main_category)
+        upload_headers = {
+            "apikey": self.service_role_key,
+            "Authorization": f"Bearer {self.service_role_key}",
+            "Content-Type": content_type or "image/jpeg",
+            "Cache-Control": "3600",
+        }
+        response = await self._request(
+            "POST",
+            self._storage_object_url(object_path),
+            headers=upload_headers,
+            content=file_bytes,
+        )
+        logger.info(
+            "[Clothes] Uploaded clothing image bucket=%s path=%s status=%s",
+            self.bucket,
+            object_path,
+            response.status_code,
+        )
+        return {
+            "image_path": object_path,
+            "image_url": self._storage_public_url(object_path),
+            "bucket": self.bucket,
+        }
 
     async def list_by_user(self, user_id: UUID) -> list[dict[str, Any]]:
         response = await self._request(
@@ -97,6 +145,7 @@ class SupabaseClothesService:
         user_id: Optional[UUID] = None,
     ) -> dict[str, Any]:
         payload = body.model_dump(mode="json", exclude_unset=True, exclude_none=True)
+        self._normalize_image_fields(payload)
         if not payload:
             raise HTTPException(status_code=400, detail="No update fields provided.")
 
@@ -157,6 +206,25 @@ class SupabaseClothesService:
             )
 
         return response
+
+    def _build_storage_path(self, user_id: UUID, main_category: str) -> str:
+        safe_category = "".join(
+            character for character in main_category.lower() if character.isalnum() or character in ("-", "_")
+        )
+        if not safe_category:
+            safe_category = "unknown"
+        timestamp = datetime.now(timezone.utc).strftime("%Y%m%d%H%M%S")
+        return f"{user_id}/{safe_category}/{timestamp}-{uuid4().hex}.jpg"
+
+    def _normalize_image_fields(self, payload: dict[str, Any]) -> None:
+        image_path = payload.get("image_path")
+        if isinstance(image_path, str) and image_path.startswith("local://"):
+            payload.setdefault("local_image_path", image_path)
+            payload.pop("image_path", None)
+
+        image_url = payload.get("image_url")
+        if isinstance(image_url, str) and image_url.startswith("local://"):
+            payload.pop("image_url", None)
 
     def _single_row(self, response: httpx.Response) -> dict[str, Any]:
         rows = response.json()

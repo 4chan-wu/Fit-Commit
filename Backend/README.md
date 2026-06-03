@@ -31,7 +31,8 @@ Backend/
 │   ├── main.py
 │   └── models.py
 ├── deploy/
-│   └── fitcommit-backend.service.example
+│   ├── fitcommit-backend.service.example
+│   └── restart_backend.sh
 ├── scripts/
 │   └── start_backend.sh
 ├── requirements.txt
@@ -79,15 +80,16 @@ Backend는 Supabase `public.clothes` 테이블을 사용함.
 - RLS 정책은 로그인한 사용자가 자기 옷만 접근하도록 설정함
 - Backend는 service role key로 서버 측 저장/조회 요청을 수행함
 - Storage bucket 이름은 `clothing-images` 사용함
-- Storage 업로드는 아직 미구현 상태임
-- 현재는 로컬 사진 저장 + DB 메타데이터 동기화 구조임
-- 다음 단계에서 `clothing-images` bucket에 이미지를 업로드해야 함
+- Storage 업로드는 Backend `POST /clothes/upload`가 담당함
+- iOS/Android 앱에는 service role key를 넣지 않고 Backend에 multipart 파일만 보냄
+- 업로드 성공 시 `image_path`와 `image_url`을 `/clothes` payload에 포함함
+- 업로드 실패 시에도 로컬 사진 저장 + DB 메타데이터 동기화 fallback을 사용함
 - 이후 업로드된 이미지 기반 AI 재분석과 벡터화를 연결할 예정임
-- 향후 이미지 경로는 `{user_id}/{main_category}/{filename}` 형태로 구성할 예정임
+- Storage 이미지 경로는 `{user_id}/{main_category}/{filename}.jpg` 형태로 구성함
 - `analysis_status`는 `pending`, `completed`, `failed` 중 하나를 사용함
 - `analysis_error`, `analyzed_at`, `needs_analysis`로 분석 실패/재분석 상태를 관리함
 - `sync_status`는 `local_only`, `pending_sync`, `synced`, `sync_failed` 중 하나를 사용함
-- `local_image_path`는 Storage 업로드 전까지 앱이 가진 로컬 이미지 참조를 기록하는 임시 필드임
+- `local_image_path`는 앱이 가진 로컬 이미지 참조를 기록하는 fallback 필드임
 
 기존 Supabase 테이블에는 `app/db/clothes_analysis_status_migration.sql`을 SQL Editor에서 실행해 분석/동기화 상태 컬럼을 추가함.
 
@@ -222,6 +224,54 @@ Android 에뮬레이터: http://10.0.2.2:8000
 
 운영에서는 `8000`을 직접 열어두기보다 Nginx reverse proxy와 HTTPS를 붙이는 방향으로 개선해야 함.
 
+## 로컬 Mac에서 EC2로 빠른 배포
+
+프로젝트 루트에서 아래 스크립트를 실행하면 Backend 폴더만 압축해서 EC2로 전송함.
+
+```bash
+./scripts/deploy_backend_to_ec2.sh
+```
+
+기본 설정은 아래 값을 사용함.
+
+```text
+EC2_USER=ubuntu
+EC2_HOST=13.125.252.131
+EC2_KEY_PATH=~/Downloads/fitcommit-key.pem
+REMOTE_DIR=~
+ARCHIVE_NAME=backend.tar.gz
+```
+
+키 파일 위치가 다르면 아래처럼 실행함.
+
+```bash
+EC2_KEY_PATH=/path/to/your-key.pem ./scripts/deploy_backend_to_ec2.sh
+```
+
+압축 파일에는 `Backend/.env`, `Backend/.venv`, `.git`, macOS `._*` 파일이 포함되지 않음. 실제 Supabase secret key는 로컬 `.env`와 EC2 `.env`에만 있어야 함.
+
+배포 스크립트는 `backend.tar.gz`와 함께 `restart_backend.sh`를 EC2 홈 디렉터리에 전송함. EC2에 접속한 뒤 아래 명령으로 새 Backend를 반영함.
+
+```bash
+ssh -i ~/Downloads/fitcommit-key.pem ubuntu@13.125.252.131
+bash ~/restart_backend.sh
+```
+
+`restart_backend.sh`는 아래 순서로 동작함.
+
+1. 기존 `~/Backend`를 `~/Backend.backup.YYYYMMDDHHMMSS`로 백업함
+2. `~/backend.tar.gz`를 `~`에 압축 해제함
+3. 백업 폴더의 `.env`를 새 `~/Backend/.env`로 복원함
+4. `.venv`가 없으면 생성함
+5. `pip install -r requirements.txt`를 실행함
+6. tmux `fitcommit` 세션을 재시작하고 uvicorn을 실행함
+
+실행 명령은 아래와 같음.
+
+```bash
+python -m uvicorn app.main:app --host 0.0.0.0 --port 8000
+```
+
 ## systemd 서비스 예시
 
 터미널을 닫아도 Backend를 계속 실행하려면 `deploy/fitcommit-backend.service.example`을 참고함.
@@ -262,7 +312,7 @@ tmux attach -t fitcommit-backend
 
 ### `POST /clothes`
 
-앱이 로컬 저장에 성공한 뒤 서버 연결이 가능할 때 Supabase에 메타데이터를 동기화함. AI 결과와 Storage 이미지 없이도 row를 만들 수 있음.
+앱이 로컬 저장과 Storage 업로드 시도 이후 Supabase에 메타데이터를 동기화함. AI 결과 없이도 row를 만들 수 있음. Storage 업로드가 실패하면 `local_image_path`만으로도 row를 만들 수 있음.
 
 ```bash
 curl -X POST http://127.0.0.1:8000/clothes \
@@ -277,6 +327,29 @@ curl -X POST http://127.0.0.1:8000/clothes \
     "memo": ""
   }'
 ```
+
+### `POST /clothes/upload`
+
+옷 사진을 Supabase Storage `clothing-images` bucket에 업로드함. Backend가 service role key로 업로드하므로 iOS/Android에는 Supabase secret key를 넣지 않음.
+
+```bash
+curl -X POST http://13.125.252.131:8000/clothes/upload \
+  -F "file=@./sample-clothing.jpg" \
+  -F "user_id=45482f0f-42d0-401e-a18a-77abeb0492cc" \
+  -F "main_category=top"
+```
+
+응답 예시는 아래와 같음.
+
+```json
+{
+  "image_path": "45482f0f-42d0-401e-a18a-77abeb0492cc/top/20260603120000-uuid.jpg",
+  "image_url": "https://{project_ref}.supabase.co/storage/v1/object/public/clothing-images/...",
+  "bucket": "clothing-images"
+}
+```
+
+업로드 후 Supabase Dashboard의 Storage `clothing-images` bucket에서 파일이 보이는지 확인함. 이후 `/clothes` 생성 요청에는 응답의 `image_path`와 `image_url`을 넣음.
 
 ### `GET /clothes?user_id={uuid}`
 
@@ -362,19 +435,60 @@ curl -X DELETE "http://127.0.0.1:8000/clothes/{clothing_id}?user_id=45482f0f-42d
 5. Supabase `public.clothes` 테이블에 `analysis_status=pending`, `needs_analysis=true` row가 생성되는지 확인함
 6. AI 분석은 나중에 앱의 `ENABLE_AI_ANALYSIS=true` 설정과 AI 서버 실행 후 별도 검증함
 
+## 배포 후 확인 명령
+
+GET 테스트는 아래처럼 함.
+
+```bash
+curl "http://13.125.252.131:8000/clothes?user_id=45482f0f-42d0-401e-a18a-77abeb0492cc"
+```
+
+AI 없이 pending row를 생성하는 POST 테스트는 아래처럼 함. 응답에서 `sync_status=synced`, `analysis_status=pending`인지 확인함.
+
+```bash
+curl -X POST http://13.125.252.131:8000/clothes \
+  -H "Content-Type: application/json" \
+  -d '{
+    "user_id": "45482f0f-42d0-401e-a18a-77abeb0492cc",
+    "main_category": "top",
+    "local_image_path": "file:///local/clothing/top-sample.jpg",
+    "analysis_status": "pending",
+    "needs_analysis": true,
+    "sync_status": "synced",
+    "memo": "ec2_deploy_test"
+  }'
+```
+
+Storage 업로드 테스트는 아래처럼 함. 응답에서 `image_path`가 `local://`가 아니라 `45482f0f-.../top/...jpg` 형태인지 확인함.
+
+```bash
+curl -X POST http://13.125.252.131:8000/clothes/upload \
+  -F "file=@./sample-clothing.jpg" \
+  -F "user_id=45482f0f-42d0-401e-a18a-77abeb0492cc" \
+  -F "main_category=top"
+```
+
+업로드 성공 후 Supabase Dashboard의 Storage `clothing-images` bucket에서 파일이 보이는지 확인함. 이후 `/clothes` row에는 Storage 응답의 `image_path`와 `image_url`을 저장해야 함.
+
 ## 검증 상태
 
+- EC2 Backend 배포 완료함
 - EC2 Backend ↔ Supabase `GET /clothes`, `POST /clothes` 외부 curl 테스트 성공함
 - Supabase `public.clothes` row 저장/조회 성공함
+- AI 없이 `analysis_status=pending`, `needs_analysis=true`, `sync_status=synced`로 저장하는 구조 완료함
+- Supabase Storage `clothing-images` 업로드 API 추가 완료함
 - Backend Python 문법 검사 성공함
 - iOS 저장/조회 흐름은 SwiftData 로컬 우선, Backend 동기화 후처리 구조로 연결됨
 - Android 저장/조회 흐름은 `ClothingStorage` 로컬 우선, Backend 동기화 후처리 구조로 연결됨
 - `/clothes`는 AI 결과 없이도 `pending` row를 저장할 수 있게 구성됨
 - `/clothes`는 `image_url`/`image_path` 없이 `local_image_path`만 있어도 row를 저장할 수 있게 구성됨
+- `/clothes/upload`는 Supabase Storage `clothing-images` 업로드 후 `image_path`와 `image_url`을 반환하도록 구성됨
 
 ## 남은 작업
 
-- Supabase Storage `clothing-images` 업로드 API를 연결해야 함
+- 실제 AI 서버를 배포해야 함
+- CLIP/FashionCLIP 분석을 운영 서버와 앱 후처리 흐름에 실제 연결하고 성능 검증해야 함
 - `POST /clothes/{clothing_id}/analyze`에서 이미지 재전송과 AI 결과 업데이트를 완성해야 함
+- 업로드된 Storage 이미지를 기반으로 AI 재분석과 벡터화를 연결해야 함
 - 임시 `user_id` 쿼리/바디 방식에서 Supabase Auth access token 기반 인증으로 개선해야 함
 - 운영 배포 환경에서는 service role key 관리와 CORS 정책을 다시 점검해야 함

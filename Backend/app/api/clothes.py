@@ -3,9 +3,9 @@ from __future__ import annotations
 from typing import Optional
 from uuid import UUID
 
-from fastapi import APIRouter, HTTPException, Query, status
+from fastapi import APIRouter, File, Form, HTTPException, Query, UploadFile, status
 
-from app.schemas.clothes import ClothesCreate, ClothesResponse, ClothesUpdate
+from app.schemas.clothes import ClothesCreate, ClothesImageUploadResponse, ClothesResponse, ClothesUpdate
 from app.services.supabase_clothes_service import clothes_service
 
 
@@ -15,6 +15,21 @@ router = APIRouter(prefix="/clothes", tags=["clothes"])
 @router.post("", response_model=ClothesResponse)
 async def create_clothing(body: ClothesCreate):
     return await clothes_service.create(body)
+
+
+@router.post("/upload", response_model=ClothesImageUploadResponse)
+async def upload_clothing_image(
+    file: UploadFile = File(...),
+    user_id: UUID = Form(...),
+    main_category: str = Form(...),
+):
+    content = await file.read()
+    return await clothes_service.upload_image(
+        file_bytes=content,
+        content_type=file.content_type or "image/jpeg",
+        user_id=user_id,
+        main_category=main_category,
+    )
 
 
 @router.get("", response_model=list[ClothesResponse])

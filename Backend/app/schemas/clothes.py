@@ -54,3 +54,9 @@ class ClothesResponse(ClothesCreate):
     id: Any
     created_at: Optional[Union[datetime, str]] = None
     updated_at: Optional[Union[datetime, str]] = None
+
+
+class ClothesImageUploadResponse(BaseModel):
+    image_path: str
+    image_url: str
+    bucket: str

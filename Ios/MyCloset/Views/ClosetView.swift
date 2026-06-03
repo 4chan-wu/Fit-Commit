@@ -718,6 +718,7 @@ private struct ClothesUploadView: View {
     @State private var selectedCategoryHint = "top"
     @State private var serverClothingID: String?
     @State private var backendImagePath: String?
+    @State private var backendImageURL: String?
     @State private var localItem: ClosetItem?
 
     let image: UIImage
@@ -1077,9 +1078,30 @@ private struct ClothesUploadView: View {
             return
         }
 
-        let imagePath = backendImagePath ?? localImageReference
+        var imagePath = backendImagePath ?? localImageReference
+        var imageURL = backendImageURL ?? ""
+
+        if backendImagePath == nil, imageDataForSaving.isEmpty == false {
+            do {
+                print("[ClothesUploadView] Backend /clothes/upload request started")
+                let upload = try await BackendClothesService.uploadImage(
+                    imageData: imageDataForSaving,
+                    userID: userID,
+                    mainCategory: selectedCategoryHint
+                )
+                imagePath = upload.imagePath
+                imageURL = upload.imageURL
+                backendImagePath = upload.imagePath
+                backendImageURL = upload.imageURL
+                localItem?.imageURL = upload.imageURL
+                print("[ClothesUploadView] Storage upload succeeded path=\(upload.imagePath)")
+            } catch {
+                print("[ClothesUploadView] Storage upload failed, falling back to local image reference: \(error.localizedDescription)")
+            }
+        }
+
         backendImagePath = imagePath
-        localItem?.localImagePath = imagePath
+        localItem?.localImagePath = localImageReference
         print("[ClothesUploadView] Backend /clothes request started")
         do {
             let row = try await BackendClothesService.create(
@@ -1090,9 +1112,9 @@ private struct ClothesUploadView: View {
                     mainColor: nil,
                     season: [],
                     styleTags: [],
-                    imageURL: "",
+                    imageURL: imageURL,
                     imagePath: imagePath,
-                    localImagePath: localItem?.localImagePath ?? imagePath,
+                    localImagePath: localImageReference,
                     confidence: nil,
                     analysisMethod: nil,
                     analysisStatus: "pending",
@@ -1105,6 +1127,7 @@ private struct ClothesUploadView: View {
             )
             serverClothingID = row.id
             localItem?.remoteID = row.id
+            localItem?.imageURL = row.imageURL ?? backendImageURL
             localItem?.syncStatus = "synced"
             localItem?.syncError = nil
             try? modelContext.save()
@@ -1126,7 +1149,7 @@ private struct ClothesUploadView: View {
         localItem?.season = result.season
         localItem?.styleTags = result.styleTags
         localItem?.confidence = result.confidence
-        localItem?.imageURL = result.imageURL
+        localItem?.imageURL = result.imageURL ?? backendImageURL
         localItem?.analysisStatus = "completed"
         localItem?.analysisError = nil
         localItem?.needsAnalysis = false
@@ -1142,7 +1165,7 @@ private struct ClothesUploadView: View {
                     mainColor: result.mainColor,
                     season: seasonValues(from: result.season),
                     styleTags: result.styleTags,
-                    imageURL: result.imageURL,
+                    imageURL: result.imageURL ?? backendImageURL,
                     imagePath: backendImagePath,
                     localImagePath: backendImagePath,
                     confidence: result.confidence,
@@ -1177,7 +1200,7 @@ private struct ClothesUploadView: View {
                     mainColor: nil,
                     season: nil,
                     styleTags: nil,
-                    imageURL: nil,
+                    imageURL: backendImageURL,
                     imagePath: backendImagePath,
                     localImagePath: backendImagePath,
                     confidence: nil,

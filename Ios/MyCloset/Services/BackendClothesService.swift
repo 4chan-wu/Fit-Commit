@@ -78,6 +78,18 @@ struct BackendClothesUpdatePayload: Encodable {
     }
 }
 
+struct BackendClothesUploadResponse: Decodable {
+    let imagePath: String
+    let imageURL: String
+    let bucket: String
+
+    private enum CodingKeys: String, CodingKey {
+        case imagePath = "image_path"
+        case imageURL = "image_url"
+        case bucket
+    }
+}
+
 enum BackendClothesService {
     private static let defaultBackendBaseURL = "http://13.125.252.131:8000"
     private static let defaultSupabaseUserID = "45482f0f-42d0-401e-a18a-77abeb0492cc"
@@ -122,6 +134,49 @@ enum BackendClothesService {
 
     static func save(_ payload: BackendClothesPayload) async throws {
         _ = try await create(payload)
+    }
+
+    static func uploadImage(
+        imageData: Data,
+        userID: String,
+        mainCategory: String
+    ) async throws -> BackendClothesUploadResponse {
+        guard let baseURL else {
+            throw URLError(.badURL)
+        }
+
+        var request = URLRequest(url: baseURL.appending(path: "clothes/upload"))
+        request.httpMethod = "POST"
+
+        let boundary = "fitcommit-\(UUID().uuidString)"
+        request.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+        request.httpBody = multipartBody(
+            boundary: boundary,
+            fields: [
+                "user_id": userID,
+                "main_category": mainCategory
+            ],
+            fileField: "file",
+            fileName: "clothing-\(UUID().uuidString).jpg",
+            mimeType: "image/jpeg",
+            fileData: imageData
+        )
+
+        print("[BackendClothesService] Backend /clothes/upload request started category=\(mainCategory)")
+        let (data, response) = try await URLSession.shared.data(for: request)
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw URLError(.badServerResponse)
+        }
+        guard (200..<300).contains(httpResponse.statusCode) else {
+            let message = String(data: data, encoding: .utf8) ?? "Unknown upload error"
+            print("[BackendClothesService] Upload failed status=\(httpResponse.statusCode) body=\(message)")
+            throw URLError(.badServerResponse)
+        }
+
+        let upload = try JSONDecoder().decode(BackendClothesUploadResponse.self, from: data)
+        print("[BackendClothesService] Upload succeeded bucket=\(upload.bucket) path=\(upload.imagePath)")
+        return upload
     }
 
     static func create(_ payload: BackendClothesPayload) async throws -> BackendClothesRow {
@@ -217,6 +272,41 @@ private func boolValue(_ value: String) -> Bool {
         return true
     default:
         return false
+    }
+}
+
+private func multipartBody(
+    boundary: String,
+    fields: [String: String],
+    fileField: String,
+    fileName: String,
+    mimeType: String,
+    fileData: Data
+) -> Data {
+    var body = Data()
+    let lineBreak = "\r\n"
+
+    for (key, value) in fields {
+        body.append("--\(boundary)\(lineBreak)")
+        body.append("Content-Disposition: form-data; name=\"\(key)\"\(lineBreak)\(lineBreak)")
+        body.append("\(value)\(lineBreak)")
+    }
+
+    body.append("--\(boundary)\(lineBreak)")
+    body.append("Content-Disposition: form-data; name=\"\(fileField)\"; filename=\"\(fileName)\"\(lineBreak)")
+    body.append("Content-Type: \(mimeType)\(lineBreak)\(lineBreak)")
+    body.append(fileData)
+    body.append(lineBreak)
+    body.append("--\(boundary)--\(lineBreak)")
+
+    return body
+}
+
+private extension Data {
+    mutating func append(_ string: String) {
+        if let data = string.data(using: .utf8) {
+            append(data)
+        }
     }
 }
 

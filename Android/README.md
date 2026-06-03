@@ -101,6 +101,9 @@ ipconfig getifaddr en0
 ```text
 AnalysisResultActivity
   -> ClothingStorage에 local item 먼저 저장
+  -> Backend POST /clothes/upload로 Storage 업로드 시도
+  -> 업로드 성공 시 image_path/image_url을 서버 row에 사용
+  -> 업로드 실패 시 local:// fallback 사용
   -> ClothesBackendService.createPending()으로 Backend 동기화 시도
   -> 성공 시 remote_id 저장 + sync_status=synced
   -> 실패 시 로컬 유지 + sync_status=sync_failed
@@ -126,13 +129,15 @@ AI 실패 item과 서버 동기화 실패 item도 옷장 화면에 표시됨. �
 
 ## 이미지 경로
 
-Supabase Storage 업로드는 아직 Android에서 구현되지 않음. 현재는 `ClothingStorage`에 로컬 이미지 경로를 저장하고, Backend에는 `local_image_path` 또는 임시 `image_path` 메타데이터만 동기화함.
+Android는 사진을 `ClothingStorage`에 먼저 저장한 뒤 Backend `POST /clothes/upload`로 Supabase Storage 업로드를 시도함. 업로드 성공 시 `/clothes` 생성 payload에 `image_path`와 `image_url`을 포함함.
 
-향후 `clothing-images` bucket 업로드를 연결할 때는 아래 형태의 경로를 사용할 예정임.
+Storage 경로는 아래 형태를 사용함.
 
 ```text
-{user_id}/{main_category}/{filename}
+{user_id}/{main_category}/{filename}.jpg
 ```
+
+업로드 실패 시에도 옷 등록은 계속 진행함. 이때 `local://...` 또는 앱 내부 로컬 경로를 fallback으로 저장함. `local://` 경로는 Supabase Dashboard에서 볼 수 없는 앱 내부 참조임.
 
 ## AI 서버 연동
 
@@ -160,6 +165,7 @@ category_hint=top
 Android 앱에서 사용하는 Backend 의류 API는 아래와 같음.
 
 ```text
+POST /clothes/upload
 POST /clothes
 GET /clothes?user_id={uuid}
 GET /clothes/{clothing_id}
@@ -180,7 +186,7 @@ POST /clothes/{clothing_id}/analyze
 ## 남은 작업
 
 - Android JDK 환경에서 Gradle 빌드를 검증해야 함
-- Supabase Storage 이미지 업로드를 연결해야 함
+- 실제 AI 서버를 배포하고 Android 후처리 흐름과 연결해야 함
 - 업로드된 이미지 기반 AI 재분석과 벡터화를 연결해야 함
 - 임시 user_id 대신 Supabase Auth access token 기반 인증으로 전환해야 함
 - 재분석 버튼에서 Backend `POST /clothes/{clothing_id}/analyze`를 호출하는 UI를 완성해야 함
