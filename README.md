@@ -10,11 +10,16 @@ Fitcommit은 사용자가 가진 옷을 등록하고, AI가 옷 정보를 분석
 iOS 앱 / Android 앱
   ├─ 카테고리 선택
   ├─ 아이템 단독 사진 촬영 또는 업로드
-  ├─ AI 서버 POST /predict 호출
+  ├─ 로컬 옷장에 먼저 저장
+  │    └─ sync_status=pending_sync 또는 local_only, analysis_status=pending
+  ├─ Backend POST /clothes 동기화 시도
+  │    ├─ 성공 시 remote_id 저장 + sync_status=synced
+  │    └─ 실패 시 로컬 유지 + sync_status=sync_failed
+  ├─ AI 서버 POST /predict 후처리 시도
   │    └─ multipart/form-data: file + category_hint
-  ├─ 분석 결과 확인 및 수정
-  └─ Backend POST /clothes 호출
-       └─ 사용자가 최종 확정한 값 저장
+  └─ Backend PUT /clothes/{clothing_id} 후처리
+       ├─ AI 성공 시 completed + 분석 결과 업데이트
+       └─ AI 실패 시 failed + analysis_error 저장
 
 Python FastAPI AI 서버
   └─ /predict
@@ -32,7 +37,7 @@ Supabase
   └─ Storage clothing-images bucket
 ```
 
-AI 서버와 Backend 서버는 분리되어 있음. AI 서버는 이미지 분석 결과만 반환하고, Backend 서버는 사용자가 확정한 옷장 데이터를 Supabase에 저장함.
+AI 서버와 Backend 서버는 분리되어 있음. 앱은 사진과 기본 카테고리를 로컬에 먼저 저장하고, Backend 서버는 가능한 경우 Supabase에 메타데이터를 동기화함. AI 서버는 저장 이후 분석 결과만 후처리로 반환함.
 
 ## 폴더 구조
 
@@ -74,12 +79,20 @@ AI 서버와 Backend 서버는 분리되어 있음. AI 서버는 이미지 분�
 - 사용자가 업로드 전에 큰 카테고리를 선택함
 - 허용 카테고리는 `top`, `bottom`, `outer`, `shoes`, `hat`, `bag`, `dress` 사용함
 - 촬영/업로드 화면은 전신 사진이 아니라 옷 한 벌만 중앙에 두고 찍도록 안내함
-- 앱에서 AI 서버 `/predict`로 `file`과 `category_hint`를 multipart로 전송함
-- 앱에서 AI 분석 결과를 바로 저장하지 않고 확인/수정 화면을 보여줌
-- 사용자가 확정한 종류, 세부 종류, 대표 색상, 계절, 스타일 태그, 신뢰도를 Backend `/clothes`로 저장함
-- Backend는 Supabase `public.clothes` 테이블에 데이터를 저장함
-- Backend 저장 실패 시 iOS는 SwiftData, Android는 `ClothingStorage` 로컬 저장소를 fallback으로 사용함
-- Supabase Storage 이미지 업로드는 아직 연결되지 않았고, 현재는 `image_url` 또는 `image_path`에 임시 이미지 참조값을 저장함
+- AI 분석 성공은 저장의 필수 조건이 아님
+- 서버/Supabase 저장 성공도 로컬 저장의 필수 조건이 아님
+- 앱은 AI 분석과 서버 동기화 전에 SwiftData 또는 `ClothingStorage`에 먼저 저장함
+- 최초 로컬 데이터는 `sync_status=pending_sync`, `analysis_status=pending`, `needs_analysis=true` 상태임
+- Backend 연결이 가능하면 `/clothes`로 DB 메타데이터 동기화를 시도함
+- Backend 저장 성공 시 로컬 데이터에 `remote_id`를 저장하고 `sync_status=synced`로 업데이트함
+- Backend 저장 실패 시 로컬 데이터는 유지하고 `sync_status=sync_failed`, `sync_error`를 저장함
+- `ENABLE_AI_ANALYSIS=false`이면 앱은 AI 서버 `/predict`를 호출하지 않고 `analysis_status=pending` 상태로 저장만 함
+- `ENABLE_AI_ANALYSIS=true`이면 저장 후 AI 서버 `/predict`로 `file`과 `category_hint`를 multipart로 전송함
+- AI 성공 시 앱은 Backend `PUT /clothes/{clothing_id}`로 `analysis_status=completed`, `needs_analysis=false`, `analyzed_at`과 분석 결과를 업데이트함
+- AI 실패 시 앱은 같은 row를 유지하고 `analysis_status=failed`, `needs_analysis=true`, `analysis_error`를 저장함
+- AI 실패 또는 서버 실패가 발생해도 옷장 화면에는 로컬 아이템이 남아 있어야 함
+- 앱에서 AI 분석 결과를 확인/수정한 뒤 사용자가 확정한 값으로 로컬과 서버 row를 다시 업데이트함
+- Supabase Storage 이미지 업로드는 아직 연결되지 않았고, 현재는 로컬 사진 저장 + DB 메타데이터 동기화 구조임
 
 ## 현재 AI 구조
 
@@ -116,7 +129,12 @@ Fitcommit은 Supabase의 `public.clothes` 테이블을 옷장 저장소로 사�
 - service role key나 secret key는 iOS/Android 코드에 절대 넣으면 안 됨
 - Storage bucket 이름은 `clothing-images` 사용함
 - Storage 업로드는 아직 미구현 상태임
+- 현재는 로컬 사진 저장 + DB 메타데이터 동기화만 사용함
+- 다음 단계에서 `clothing-images` bucket에 이미지를 업로드해야 함
+- 이후 업로드된 이미지 기반 AI 재분석과 벡터화를 연결할 예정임
 - 향후 Storage 경로는 `{user_id}/{main_category}/{filename}` 형태로 만들 예정임
+- 분석/동기화 상태 관리를 위해 `analysis_status`, `analysis_error`, `analyzed_at`, `needs_analysis`, `sync_status`, `local_image_path` 컬럼을 사용함
+- 기존 Supabase 테이블에는 `Backend/app/db/clothes_analysis_status_migration.sql`을 SQL Editor에서 실행해 컬럼을 추가함
 
 Supabase Dashboard 주소와 API URL은 다름.
 
@@ -147,18 +165,62 @@ Backend 상태 확인은 아래처럼 함.
 curl http://127.0.0.1:8000/health
 ```
 
+배포 실행은 reload 없이 실행함.
+
+```bash
+cd Backend
+python -m uvicorn app.main:app --host 0.0.0.0 --port 8000
+```
+
+추가된 스크립트로도 실행 가능함.
+
+```bash
+cd Backend
+./scripts/start_backend.sh
+```
+
 Backend `.env` 예시는 아래처럼 작성함. 실제 키 값은 README에 적지 않아야 함.
 
 ```env
+DATABASE_URL=postgresql://...
 SUPABASE_URL=https://{project_ref}.supabase.co
 SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
 SUPABASE_ANON_KEY=your-anon-key
 SUPABASE_CLOTHING_BUCKET=clothing-images
+ENABLE_AI_ANALYSIS=false
+CORS_ALLOW_ORIGINS=*
+SECRET_KEY=change-this-secret-key
 ```
 
 `SUPABASE_SERVICE_ROLE_KEY`는 Backend 전용 키임. iOS/Android 앱, GitHub, 공개 문서에 넣으면 안 됨.
+`CORS_ALLOW_ORIGINS=*`는 개발 중에만 사용하고, 운영에서는 실제 웹 도메인으로 제한해야 함.
 
-`POST /clothes` curl 테스트는 아래처럼 함.
+## AWS EC2 Backend 배포 요약
+
+자세한 절차는 `Backend/README.md`의 `AWS EC2 배포` 섹션을 기준으로 함.
+
+1. Ubuntu EC2 인스턴스를 생성함
+2. 보안 그룹 inbound rule에 `22/tcp`, `8000/tcp`를 허용함
+3. EC2에 SSH 접속 후 GitHub 저장소를 clone함
+4. `Backend/`에서 Python 3.11 venv를 생성함
+5. `pip install -r requirements.txt`를 실행함
+6. `.env.example`을 복사해 `.env`를 작성함
+7. `python -m uvicorn app.main:app --host 0.0.0.0 --port 8000`으로 실행함
+8. `curl http://EC2_PUBLIC_IP:8000/health`로 상태를 확인함
+9. `curl "http://EC2_PUBLIC_IP:8000/clothes?user_id=45482f0f-42d0-401e-a18a-77abeb0492cc"`로 조회를 확인함
+10. 팀원 앱의 Backend URL을 `http://EC2_PUBLIC_IP:8000`으로 변경함
+
+EC2에서 터미널을 닫아도 실행되게 하려면 `Backend/deploy/fitcommit-backend.service.example` systemd 예시를 사용함.
+
+팀원 테스트용 Backend URL 기준은 아래와 같음.
+
+```text
+iOS 시뮬레이터: http://127.0.0.1:8000
+Android 에뮬레이터: http://10.0.2.2:8000
+팀원 실제 기기: http://EC2_PUBLIC_IP:8000
+```
+
+AI 결과 없이 사진/카테고리만 먼저 저장하는 `POST /clothes` curl 테스트는 아래처럼 함.
 
 ```bash
 curl -X POST http://127.0.0.1:8000/clothes \
@@ -166,15 +228,31 @@ curl -X POST http://127.0.0.1:8000/clothes \
   -d '{
     "user_id": "45482f0f-42d0-401e-a18a-77abeb0492cc",
     "main_category": "top",
+    "local_image_path": "file:///local/clothing/top-sample.jpg",
+    "analysis_status": "pending",
+    "needs_analysis": true,
+    "sync_status": "pending_sync",
+    "memo": ""
+  }'
+```
+
+AI 성공 후 같은 row를 업데이트하는 `PUT /clothes/{id}` 테스트는 아래처럼 함.
+
+```bash
+curl -X PUT http://127.0.0.1:8000/clothes/{clothing_id} \
+  -H "Content-Type: application/json" \
+  -d '{
     "subcategory": "hoodie",
     "main_color": "gray",
     "season": ["fall", "winter"],
     "style_tags": ["casual", "street"],
-    "image_url": "https://example.com/clothing.jpg",
-    "image_path": "45482f0f-42d0-401e-a18a-77abeb0492cc/top/sample.jpg",
     "confidence": 0.82,
     "analysis_method": "clip",
-    "memo": ""
+    "analysis_status": "completed",
+    "analysis_error": "",
+    "analyzed_at": "2026-06-03T12:00:00Z",
+    "needs_analysis": false,
+    "sync_status": "synced"
   }'
 ```
 
@@ -211,8 +289,11 @@ curl -X POST http://127.0.0.1:8001/predict \
 
 iOS 앱은 Xcode에서 `Ios/MyCloset.xcodeproj`를 열어 실행함.
 
-- Backend 설정이 있으면 저장 시 Backend `/clothes`를 우선 호출함
-- Backend 저장 실패 시 SwiftData 로컬 저장 fallback을 사용함
+- 사진을 선택하면 SwiftData 로컬 옷장에 먼저 저장함
+- Backend 설정이 있으면 로컬 저장 후 Backend `/clothes` 동기화를 시도함
+- 개발 테스트 기본값은 `ENABLE_AI_ANALYSIS=false`라서 AI 서버가 꺼져 있어도 저장됨
+- AI 성공/실패 결과는 로컬 데이터에 먼저 반영하고, remote id가 있으면 같은 row에 PUT으로 업데이트함
+- Backend 저장 실패 시에도 SwiftData 로컬 데이터는 유지됨
 - 개발용 설정 키는 `FITCOMMIT_BACKEND_BASE_URL`, `FITCOMMIT_SUPABASE_USER_ID` 사용함
 - iOS 시뮬레이터는 Mac의 localhost에 `http://127.0.0.1:8000`으로 접근 가능함
 - 실제 iPhone 테스트 시에는 `http://{Mac의_로컬_IP}:8000` 형태를 사용해야 함
@@ -230,8 +311,11 @@ FITCOMMIT_SUPABASE_USER_ID=45482f0f-42d0-401e-a18a-77abeb0492cc
 
 Android 앱은 Android Studio에서 `Android/` 폴더를 열어 실행함.
 
-- Backend 설정이 있으면 저장 시 Backend `/clothes`를 우선 호출함
-- Backend 저장 실패 시 `ClothingStorage` 로컬 저장 fallback을 사용함
+- 사진을 선택하면 `ClothingStorage` 로컬 옷장에 먼저 저장함
+- Backend 설정이 있으면 로컬 저장 후 Backend `/clothes` 동기화를 시도함
+- 개발 테스트 기본값은 `ENABLE_AI_ANALYSIS=false`라서 AI 서버가 꺼져 있어도 저장됨
+- AI 성공/실패 결과는 로컬 데이터에 먼저 반영하고, remote id가 있으면 같은 row에 PUT으로 업데이트함
+- Backend 저장 실패 시에도 `ClothingStorage` 로컬 데이터는 유지됨
 - Android 에뮬레이터에서 Mac localhost에 접근할 때는 `http://10.0.2.2:8000`을 사용해야 함
 - 실제 Android 기기는 Mac과 같은 Wi-Fi에 연결한 뒤 `http://{Mac의_로컬_IP}:8000`을 사용해야 함
 - 현재 Codex 검증 환경에는 Java Runtime이 없어 Android Gradle 빌드는 확인하지 못함
@@ -277,20 +361,16 @@ category_hint=top
 
 #### `POST /clothes`
 
-사용자가 최종 확정한 옷 정보를 저장함.
+로컬 저장 이후 서버 연결이 가능할 때 DB 메타데이터를 동기화함. AI 분석 성공은 저장의 필수 조건이 아니며, `image_url`/`image_path` 없이 `local_image_path`만 있어도 row 생성이 가능함.
 
 ```json
 {
   "user_id": "45482f0f-42d0-401e-a18a-77abeb0492cc",
   "main_category": "top",
-  "subcategory": "hoodie",
-  "main_color": "gray",
-  "season": ["fall", "winter"],
-  "style_tags": ["casual", "street"],
-  "image_url": "https://example.com/clothing.jpg",
-  "image_path": "45482f0f-42d0-401e-a18a-77abeb0492cc/top/sample.jpg",
-  "confidence": 0.82,
-  "analysis_method": "clip",
+  "local_image_path": "file:///local/clothing/top-sample.jpg",
+  "analysis_status": "pending",
+  "needs_analysis": true,
+  "sync_status": "pending_sync",
   "memo": ""
 }
 ```
@@ -305,7 +385,11 @@ category_hint=top
 
 #### `PUT /clothes/{clothing_id}`
 
-옷 정보를 수정함. 앱에서 사용자가 수정한 최종 값을 보낼 때 사용함.
+옷 정보를 수정함. AI 성공 시 completed 업데이트, AI 실패 시 failed 업데이트, 사용자가 수정한 최종값 저장에 사용함.
+
+#### `POST /clothes/{clothing_id}/analyze`
+
+재분석 예약용 API임. 현재는 row의 `image_url`/`image_path`를 확인하는 구조만 열려 있고, Supabase Storage download와 AI 서버 재전송은 TODO 상태임.
 
 #### `DELETE /clothes/{clothing_id}`
 
@@ -324,16 +408,20 @@ category_hint=top
 ## End-to-End 테스트 순서
 
 1. Backend를 `http://127.0.0.1:8000`으로 실행함
-2. AI 서버를 별도 포트로 실행하고 앱의 AI 서버 주소를 맞춤
-3. iOS 시뮬레이터에서 옷을 저장함
-4. Supabase `public.clothes` 테이블에 row가 생성됐는지 확인함
-5. 앱을 재실행한 뒤 Backend에서 옷 목록이 조회되는지 확인함
-6. Android 에뮬레이터 테스트 시 Backend 주소는 `http://10.0.2.2:8000`을 사용함
+2. AI 서버는 실행하지 않아도 됨
+3. iOS 시뮬레이터에서 옷 추가를 진행함
+4. Backend 터미널에 `POST /clothes` 200 OK가 찍히는지 확인함
+5. Supabase `public.clothes` 테이블에 `analysis_status=pending`, `needs_analysis=true` row가 생성되는지 확인함
+6. 앱 옷장 목록에 저장된 item이 표시되는지 확인함
+7. AI 분석은 `ENABLE_AI_ANALYSIS=true`로 바꾼 뒤 별도로 실행함
+8. Android 에뮬레이터 테스트 시 Backend 주소는 `http://10.0.2.2:8000`을 사용함
 
 ## 앞으로 남은 작업
 
 - FashionCLIP 전용 모델을 실제 데이터에 맞춰 선택하고 성능 검증해야 함
 - Supabase Storage `clothing-images` 이미지 업로드를 연결해야 함
+- 업로드된 이미지 기반 AI 재분석과 벡터화를 연결해야 함
+- `POST /clothes/{clothing_id}/analyze`에서 Storage 이미지를 내려받아 AI 서버로 재전송하는 재분석 흐름을 완성해야 함
 - iOS/Android 앱에서 실제 저장/조회 end-to-end를 더 넓은 케이스로 검증해야 함
 - Android JDK 환경에서 Gradle 빌드를 검증해야 함
 - 임시 `user_id` 방식에서 Supabase Auth access token 기반 인증으로 개선해야 함

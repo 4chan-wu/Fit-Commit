@@ -1,16 +1,21 @@
 # Fitcommit Android
 
-Fitcommit Android는 Java/XML 기반 Android 앱임. 현재 흐름은 iOS와 동일하게 카테고리를 먼저 선택하고, 아이템 단독 사진을 AI 서버에 보내 분석한 뒤, 사용자가 결과를 확인/수정하고 Backend `/clothes`로 저장하는 구조임.
+Fitcommit Android는 Java/XML 기반 Android 앱임. 현재 흐름은 iOS와 동일하게 카테고리를 먼저 선택하고, 아이템 단독 사진을 로컬 옷장에 먼저 저장한 뒤 Backend 동기화와 AI 분석을 후처리로 시도하는 구조임.
 
 ## 역할
 
 - 사용자가 의류 큰 카테고리를 선택함
 - 아이템 단독 사진 촬영/업로드 흐름을 제공함
+- AI 서버 호출 전에 `ClothingStorage` 로컬 옷장에 먼저 저장함
+- 로컬 저장 후 Backend `/clothes` 동기화를 시도함
 - AI 서버 `/predict`에 `file`과 `category_hint`를 multipart로 전송함
+- AI 성공 시 로컬 데이터를 `completed`로 업데이트하고, remote id가 있으면 같은 row를 업데이트함
+- AI 실패 시 로컬 데이터를 `failed`로 유지하고, remote id가 있으면 `analysis_error`를 저장함
 - 분석 결과 화면에서 종류, 세부 종류, 대표 색상, 계절, 스타일 태그, 신뢰도를 확인/수정함
-- 저장 버튼을 누르면 Backend `/clothes` 저장을 먼저 시도함
-- Backend 저장 실패 시 `ClothingStorage` 로컬 저장소를 fallback으로 사용함
-- 옷장 화면은 Backend 조회를 먼저 시도하고 실패하면 로컬 저장소를 사용함
+- 저장 버튼을 누르면 사용자가 확정한 값을 `ClothingStorage`에 먼저 반영하고, remote id가 있으면 Backend `PUT /clothes/{clothing_id}`로 저장함
+- Backend 저장 실패 시에도 `ClothingStorage` 로컬 item은 유지됨
+- 옷장 화면은 Backend 조회 결과와 로컬 저장소를 remote id/local id 기준으로 병합함
+- 3D 공간 스캔과 신체 비율 측정 진입점은 옷장 화면에 계속 유지함
 
 ## 구조
 
@@ -27,9 +32,9 @@ Android/
 │       │   ├── services/
 │       │   │   ├── ApiClient.java
 │       │   │   ├── ClothesBackendService.java
+│       │   │   ├── ClothingStorage.java
 │       │   │   └── FashionAiService.java
 │       │   └── utils/
-│       │       └── ClothingStorage.java
 │       └── res/
 │           └── layout/
 ├── gradlew
@@ -62,12 +67,21 @@ Android Emulator -> http://10.0.2.2:8000 -> Backend FastAPI
 ```text
 BASE_URL=http://10.0.2.2:8000
 BACKEND_CLOTHES_USER_ID=45482f0f-42d0-401e-a18a-77abeb0492cc
+ENABLE_AI_ANALYSIS=false
 ```
+
+`ENABLE_AI_ANALYSIS=false`이면 AI 서버 `/predict`를 호출하지 않고 Backend `/clothes` 저장까지만 진행함.
 
 실제 Android 기기에서는 Mac과 같은 Wi-Fi에 연결한 뒤 Backend 주소를 Mac의 로컬 IP로 바꿔야 함.
 
 ```text
 예시: http://192.168.0.10:8000
+```
+
+EC2에 배포된 Backend를 팀원이 실제 기기에서 테스트할 때는 `ApiClient.BASE_URL`을 아래처럼 바꿈.
+
+```text
+BASE_URL=http://EC2_PUBLIC_IP:8000
 ```
 
 Mac의 로컬 IP는 아래 명령으로 확인할 수 있음.
@@ -78,30 +92,37 @@ ipconfig getifaddr en0
 
 ## 저장 및 조회 흐름
 
-저장 흐름은 아래 순서로 동작함.
+저장 흐름은 아래 순서로 동작함. AI 분석 성공과 서버 저장 성공은 로컬 저장의 필수 조건이 아님.
 
 ```text
 AnalysisResultActivity
-  -> ClothesBackendService.createClothing()
-  -> POST /clothes 성공 시 서버 저장 완료
-  -> 실패 시 ClothingStorage 로컬 저장 fallback
+  -> ClothingStorage에 local item 먼저 저장
+  -> ClothesBackendService.createPending()으로 Backend 동기화 시도
+  -> 성공 시 remote_id 저장 + sync_status=synced
+  -> 실패 시 로컬 유지 + sync_status=sync_failed
+  -> ENABLE_AI_ANALYSIS=false이면 AI 서버 호출 건너뜀
+  -> ENABLE_AI_ANALYSIS=true이면 FashionAiService.analyze()
+  -> 성공 시 로컬 completed 업데이트 + remote id가 있으면 PUT /clothes/{id}
+  -> 실패 시 로컬 failed 업데이트 + remote id가 있으면 PUT /clothes/{id}
+  -> 저장 버튼에서 확정값을 로컬/서버에 업데이트
 ```
 
 조회 흐름은 아래 순서로 동작함.
 
 ```text
 Closet 화면
+  -> ClothingStorage 로컬 데이터 조회
   -> ClothesBackendService.fetchClothes()
   -> GET /clothes?user_id=...
-  -> 성공 시 Supabase 데이터 표시
-  -> 실패 시 ClothingStorage 로컬 데이터 표시
+  -> 성공 시 Supabase 데이터와 로컬 데이터를 중복 없이 병합
+  -> 실패 시 ClothingStorage 로컬 데이터만 표시
 ```
 
-저장 실패 시 개발 콘솔에 실패 이유를 출력하고, 사용자 화면에는 서버 저장 실패 후 기기에 임시 저장했다는 안내를 보여주는 구조임.
+AI 실패 item과 서버 동기화 실패 item도 옷장 화면에 표시됨. 실패 item은 “분석 실패 · 다시 분석 가능”, 서버 실패 item은 “서버 동기화 실패” 상태로 표시됨.
 
 ## 이미지 경로
 
-Supabase Storage 업로드는 아직 Android에서 구현되지 않음. 현재는 `image_path`에 로컬 이미지 경로 또는 임시 참조값을 저장함.
+Supabase Storage 업로드는 아직 Android에서 구현되지 않음. 현재는 `ClothingStorage`에 로컬 이미지 경로를 저장하고, Backend에는 `local_image_path` 또는 임시 `image_path` 메타데이터만 동기화함.
 
 향후 `clothing-images` bucket 업로드를 연결할 때는 아래 형태의 경로를 사용할 예정임.
 
@@ -119,6 +140,17 @@ category_hint=top
 ```
 
 허용 카테고리는 `top`, `bottom`, `outer`, `shoes`, `hat`, `bag`, `dress` 사용함.
+현재 Supabase 저장 테스트 단계에서는 `ENABLE_AI_ANALYSIS=false`로 두고 AI 서버를 실행하지 않아도 됨.
+
+## Supabase 저장 테스트 순서
+
+1. Backend 서버를 실행함
+2. AI 서버는 실행하지 않아도 됨
+3. Android 에뮬레이터에서는 Backend 주소로 `http://10.0.2.2:8000`을 사용함
+4. Android 앱에서 옷 추가를 진행함
+5. Backend 터미널에 `POST /clothes` 200 OK가 찍히는지 확인함
+6. Supabase `public.clothes` 테이블에 row가 생성되는지 확인함
+7. AI 분석은 나중에 `ENABLE_AI_ANALYSIS=true`로 바꿔 별도 검증함
 
 ## Backend API 연동
 
@@ -130,16 +162,20 @@ GET /clothes?user_id={uuid}
 GET /clothes/{clothing_id}
 PUT /clothes/{clothing_id}
 DELETE /clothes/{clothing_id}
+POST /clothes/{clothing_id}/analyze
 ```
 
 ## 검증 상태
 
-- Android 저장/조회 코드는 Backend 우선, `ClothingStorage` fallback 구조로 구성됨
+- Android 저장/조회 코드는 `ClothingStorage` 로컬 우선, Backend 동기화 후처리 구조로 구성됨
 - Android 에뮬레이터 Backend URL은 `10.0.2.2:8000` 기준으로 분리됨
+- AI 분석 전에 로컬 item을 만들고, 서버 가능 시 pending row를 만든 뒤 성공/실패를 같은 row에 업데이트하도록 구성됨
 - 현재 Codex 환경에는 Java Runtime이 없어 Gradle 빌드는 검증하지 못함
 
 ## 남은 작업
 
 - Android JDK 환경에서 Gradle 빌드를 검증해야 함
 - Supabase Storage 이미지 업로드를 연결해야 함
+- 업로드된 이미지 기반 AI 재분석과 벡터화를 연결해야 함
 - 임시 user_id 대신 Supabase Auth access token 기반 인증으로 전환해야 함
+- 재분석 버튼에서 Backend `POST /clothes/{clothing_id}/analyze`를 호출하는 UI를 완성해야 함

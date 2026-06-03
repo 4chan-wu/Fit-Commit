@@ -9,6 +9,8 @@ Fitcommit AI는 의류 아이템 사진을 분석하는 FastAPI 서버임. 1차 
 - 가장 점수가 높은 후보를 `subcategory`로 반환함
 - 대표 색상과 시즌, 스타일 태그, confidence를 함께 반환함
 - CLIP 로딩 또는 추론 실패 시 기존 MobileNetV3 fallback을 사용함
+- 로컬/DB 저장은 AI 성공 여부와 분리됨
+- 앱은 먼저 로컬 옷장에 저장하고, 가능한 경우 Backend 동기화 후 AI 서버를 호출함
 
 ## 구조
 
@@ -92,7 +94,7 @@ dress
 }
 ```
 
-앱에서는 이 결과를 바로 저장하지 않고 사용자가 확인/수정한 뒤 Backend `/clothes`로 저장함.
+앱에서는 AI 호출 전에 이미 로컬 옷장에 `pending` item을 만들어둠. Backend 연결이 가능하면 `/clothes`에 metadata row를 동기화하고, AI 성공 시 로컬/서버 데이터를 `completed`로 업데이트함. AI 실패 시 로컬 item은 유지되고, remote id가 있으면 서버 row에도 `failed`와 `analysis_error`를 저장함.
 
 ## 실행 방법
 
@@ -154,3 +156,5 @@ OpenCV/KMeans 기반 대표 색상 추출을 위해 기존 이미지 처리 패�
 - Fitcommit 데이터에 맞는 FashionCLIP 모델 후보를 정하고 성능을 비교해야 함
 - style tag와 season 규칙을 실제 앱 데이터 기준으로 보정해야 함
 - 이미지 품질이 낮은 경우의 오류 메시지와 fallback 기준을 더 세밀하게 만들어야 함
+- Supabase Storage `clothing-images` 업로드 후 저장된 이미지를 `/predict`로 다시 보낼 수 있게 연동해야 함
+- 업로드된 이미지 기반 AI 재분석과 벡터화를 연결해야 함

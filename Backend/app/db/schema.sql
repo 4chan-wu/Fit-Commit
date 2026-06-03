@@ -122,6 +122,12 @@ CREATE TABLE IF NOT EXISTS clothes (
     season VARCHAR(50),
     purchase_date DATE,
     memo TEXT,
+    analysis_status TEXT NOT NULL DEFAULT 'pending',
+    analysis_error TEXT,
+    analyzed_at TIMESTAMPTZ,
+    needs_analysis BOOLEAN NOT NULL DEFAULT TRUE,
+    sync_status TEXT,
+    local_image_path TEXT,
     wear_count INT NOT NULL DEFAULT 0,
     last_worn_at TIMESTAMP,
     status VARCHAR(30) NOT NULL DEFAULT 'active',
@@ -133,6 +139,45 @@ CREATE INDEX IF NOT EXISTS idx_clothes_user_id ON clothes(user_id);
 CREATE INDEX IF NOT EXISTS idx_clothes_wardrobe_id ON clothes(wardrobe_id);
 CREATE INDEX IF NOT EXISTS idx_clothes_category ON clothes(category);
 CREATE INDEX IF NOT EXISTS idx_clothes_status ON clothes(status);
+CREATE INDEX IF NOT EXISTS idx_clothes_analysis_status ON clothes(analysis_status);
+CREATE INDEX IF NOT EXISTS idx_clothes_sync_status ON clothes(sync_status);
+
+ALTER TABLE clothes
+    ADD COLUMN IF NOT EXISTS analysis_status TEXT NOT NULL DEFAULT 'pending',
+    ADD COLUMN IF NOT EXISTS analysis_error TEXT,
+    ADD COLUMN IF NOT EXISTS analyzed_at TIMESTAMPTZ,
+    ADD COLUMN IF NOT EXISTS needs_analysis BOOLEAN NOT NULL DEFAULT TRUE,
+    ADD COLUMN IF NOT EXISTS sync_status TEXT,
+    ADD COLUMN IF NOT EXISTS local_image_path TEXT;
+
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_constraint
+        WHERE conname = 'clothes_analysis_status_check'
+    ) THEN
+        ALTER TABLE clothes
+            ADD CONSTRAINT clothes_analysis_status_check
+            CHECK (analysis_status IN ('pending', 'completed', 'failed'));
+    END IF;
+END $$;
+
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_constraint
+        WHERE conname = 'clothes_sync_status_check'
+    ) THEN
+        ALTER TABLE clothes
+            ADD CONSTRAINT clothes_sync_status_check
+            CHECK (
+                sync_status IS NULL
+                OR sync_status IN ('local_only', 'pending_sync', 'synced', 'sync_failed')
+            );
+    END IF;
+END $$;
 
 CREATE TABLE IF NOT EXISTS clothing_images (
     id BIGSERIAL PRIMARY KEY,

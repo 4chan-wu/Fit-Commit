@@ -58,7 +58,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="4dp"
-                android:text="저장 전 최종 값을 확인하고 수정해주세요."
+                android:text="확정 전 최종 값을 확인하고 수정해주세요."
                 android:textColor="@color/fit_text_secondary"
                 android:textSize="13sp" />
 

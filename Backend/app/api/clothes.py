@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Optional
 from uuid import UUID
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, HTTPException, Query, status
 
 from app.schemas.clothes import ClothesCreate, ClothesResponse, ClothesUpdate
 from app.services.supabase_clothes_service import clothes_service
@@ -37,6 +37,22 @@ async def update_clothing(
     user_id: Optional[UUID] = Query(default=None),
 ):
     return await clothes_service.update(clothing_id, body, user_id=user_id)
+
+
+@router.post("/{clothing_id}/analyze")
+async def analyze_clothing(
+    clothing_id: str,
+    user_id: Optional[UUID] = Query(default=None),
+):
+    row = await clothes_service.get(clothing_id, user_id=user_id)
+    raise HTTPException(
+        status_code=status.HTTP_501_NOT_IMPLEMENTED,
+        detail=(
+            "Re-analysis endpoint is reserved. "
+            f"clothing_id={row.get('id')} has image_url/image_path, but AI 재전송 구조와 "
+            "Supabase Storage download flow are not implemented yet."
+        ),
+    )
 
 
 @router.delete("/{clothing_id}")

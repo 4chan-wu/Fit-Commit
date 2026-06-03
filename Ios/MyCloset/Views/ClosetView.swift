@@ -28,49 +28,29 @@ struct ClosetView: View {
 
     var body: some View {
         NavigationStack(path: $navigationPath) {
-            List {
-                Section {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 16) {
+                    header
+                        .padding(.top, 18)
+
+                    arFeatureHub
+
+                    closetInventoryHeader
+
+                    AddClothingListRow(
+                        onCameraTap: presentCamera,
+                        onPhotoLibraryTap: presentPhotoLibrary
+                    )
+
                     if displayedItems.isEmpty {
-                        EmptyClosetPlaceholder(
-                            onCameraTap: presentCamera,
-                            onPhotoLibraryTap: presentPhotoLibrary
-                        )
-                        .listRowInsets(EdgeInsets(top: 18, leading: 20, bottom: 24, trailing: 20))
-                        .listRowSeparator(.hidden)
-                        .listRowBackground(Color.clear)
+                        EmptyClosetPlaceholder()
                     } else {
-                        header
-                            .listRowInsets(EdgeInsets(top: 18, leading: 20, bottom: 10, trailing: 20))
-                            .listRowSeparator(.hidden)
-                            .listRowBackground(Color.clear)
-
-                        arFeatureHub
-                            .listRowInsets(EdgeInsets(top: 8, leading: 20, bottom: 10, trailing: 20))
-                            .listRowSeparator(.hidden)
-                            .listRowBackground(Color.clear)
-
-                        closetInventoryHeader
-                            .listRowInsets(EdgeInsets(top: 8, leading: 20, bottom: 8, trailing: 20))
-                            .listRowSeparator(.hidden)
-                            .listRowBackground(Color.clear)
-
-                        AddClothingListRow(
-                            onCameraTap: presentCamera,
-                            onPhotoLibraryTap: presentPhotoLibrary
-                        )
-                        .listRowInsets(EdgeInsets(top: 6, leading: 20, bottom: 6, trailing: 20))
-                        .listRowSeparator(.hidden)
-                        .listRowBackground(Color.clear)
-
                         closetItemsGrid
-                            .listRowInsets(EdgeInsets(top: 6, leading: 20, bottom: 18, trailing: 20))
-                            .listRowSeparator(.hidden)
-                            .listRowBackground(Color.clear)
                     }
                 }
+                .padding(.horizontal, 20)
+                .padding(.bottom, 120)
             }
-            .listStyle(.plain)
-            .scrollContentBackground(.hidden)
             .background(Color(uiColor: .systemBackground))
             .navigationTitle("내 옷장")
             .navigationBarTitleDisplayMode(.large)
@@ -254,7 +234,7 @@ struct ClosetView: View {
 
     private var closetInventoryHeader: some View {
         HStack {
-            Text(initialFilter == .unworn ? "안 입는 옷" : "스캔된 옷")
+            Text(initialFilter == .unworn ? "안 입는 옷" : "내 옷 목록")
                 .font(.headline)
                 .foregroundStyle(.primary)
 
@@ -271,14 +251,14 @@ struct ClosetView: View {
     private var closetItemsGrid: some View {
         LazyVGrid(
             columns: [
-                GridItem(.flexible(), spacing: 12),
-                GridItem(.flexible(), spacing: 12),
+                GridItem(.flexible(), spacing: 16),
+                GridItem(.flexible(), spacing: 16),
             ],
-            spacing: 12
+            spacing: 16
         ) {
             ForEach(displayedItems) { item in
-                ClosetItemGridCard(item: item)
-                    .contentShape(RoundedRectangle(cornerRadius: ClosetGridCardMetrics.cornerRadius, style: .continuous))
+                ClosetItemCard(item: item)
+                    .contentShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
                     .onTapGesture {
                         activeSheet = .detail(item)
                     }
@@ -300,7 +280,7 @@ struct ClosetView: View {
     }
 
     private var displayedItems: [ClosetItem] {
-        let sourceItems = isUsingBackendItems ? backendItems : items
+        let sourceItems = mergedClosetItems
         switch initialFilter {
         case .all:
             return sourceItems
@@ -308,6 +288,23 @@ struct ClosetView: View {
             let cutoffDate = Calendar.current.date(byAdding: .month, value: -3, to: Date()) ?? Date()
             return sourceItems.filter { $0.timestamp < cutoffDate }
         }
+    }
+
+    private var mergedClosetItems: [ClosetItem] {
+        guard isUsingBackendItems else {
+            return items
+        }
+
+        var merged = items
+        let localRemoteIDs = Set(items.compactMap(\.remoteID).filter { $0.isEmpty == false })
+        let backendOnlyItems = backendItems.filter { item in
+            guard let remoteID = item.remoteID, remoteID.isEmpty == false else {
+                return false
+            }
+            return localRemoteIDs.contains(remoteID) == false
+        }
+        merged.append(contentsOf: backendOnlyItems)
+        return merged.sorted { $0.timestamp > $1.timestamp }
     }
 
     private func setTabBarVisible(_ isVisible: Bool) {
@@ -438,14 +435,6 @@ enum ClosetItemEditOptions {
     ]
 }
 
-private enum ClosetGridCardMetrics {
-    static let mediaAspectRatio: CGFloat = 3.0 / 4.0
-    static let mediaHeight: CGFloat = 180
-    static let cardHeight: CGFloat = 274
-    static let cornerRadius: CGFloat = 20
-    static let metadataHeight: CGFloat = 52
-}
-
 private struct ClosetFeatureCard: View {
     let iconName: String
     let title: String
@@ -490,9 +479,6 @@ private struct ClosetFeatureCard: View {
 }
 
 private struct EmptyClosetPlaceholder: View {
-    let onCameraTap: () -> Void
-    let onPhotoLibraryTap: () -> Void
-
     var body: some View {
         VStack(spacing: 18) {
             ZStack {
@@ -507,42 +493,16 @@ private struct EmptyClosetPlaceholder: View {
             }
 
             VStack(spacing: 7) {
-                Text("스캔 된 옷이 없습니다")
+                Text("내 옷 목록이 비어 있습니다")
                     .font(.system(size: 19, weight: .bold, design: .rounded))
                     .foregroundStyle(.primary)
 
-                Text("사진을 추가하면 배경 제거와 AI 분석을 거쳐 옷장에 정리됩니다.")
+                Text("위의 옷 추가하기 버튼으로 옷을 등록할 수 있습니다.")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
                     .fixedSize(horizontal: false, vertical: true)
             }
-
-            Menu {
-                Button {
-                    onCameraTap()
-                } label: {
-                    Label("사진 촬영하기", systemImage: "camera")
-                }
-
-                Button {
-                    onPhotoLibraryTap()
-                } label: {
-                    Label("갤러리에서 선택하기", systemImage: "photo.on.rectangle")
-                }
-            } label: {
-                Label("의류 등록하기", systemImage: "plus.circle.fill")
-                    .font(.headline.weight(.semibold))
-                    .lineLimit(1)
-                    .frame(maxWidth: 240)
-                    .frame(height: 48)
-                    .foregroundStyle(.white)
-                    .background(Color.primary, in: Capsule())
-                    .shadow(color: .black.opacity(0.12), radius: 12, x: 0, y: 7)
-            }
-            .buttonStyle(.plain)
-            .padding(.top, 4)
-            .accessibilityLabel("의류 등록하기")
         }
         .padding(.horizontal, 20)
         .padding(.vertical, 26)
@@ -581,7 +541,7 @@ private struct AddClothingListRow: View {
                         .font(.subheadline.weight(.bold))
                         .foregroundStyle(.primary)
 
-                    Text("사진 촬영 또는 앨범에서 AI 분석")
+                    Text("사진 촬영 또는 앨범에서 등록")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
@@ -600,33 +560,41 @@ private struct AddClothingListRow: View {
     }
 }
 
-private struct ClosetItemGridCard: View {
+private struct ClosetItemCard: View {
     let item: ClosetItem
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: 0) {
             ZStack {
-                RoundedRectangle(cornerRadius: ClosetGridCardMetrics.cornerRadius, style: .continuous)
+                RoundedRectangle(cornerRadius: 10, style: .continuous)
                     .fill(Color(uiColor: .tertiarySystemBackground))
 
                 if let image = UIImage(data: item.imageData) {
                     Image(uiImage: image)
                         .resizable()
-                        .aspectRatio(contentMode: .fill)
+                        .scaledToFill()
                         .frame(maxWidth: .infinity)
-                        .frame(height: ClosetGridCardMetrics.mediaHeight)
+                        .frame(height: 150)
                         .clipped()
                 } else {
-                    Image(systemName: "tshirt")
-                        .font(.system(size: 34, weight: .light))
-                        .foregroundStyle(.secondary)
-                }
-            }
-            .frame(height: ClosetGridCardMetrics.mediaHeight)
-            .clipShape(RoundedRectangle(cornerRadius: ClosetGridCardMetrics.cornerRadius, style: .continuous))
+                    VStack(spacing: 8) {
+                        Image(systemName: "tshirt")
+                            .font(.system(size: 34, weight: .light))
+                            .foregroundStyle(.secondary)
 
-            VStack(alignment: .leading, spacing: 5) {
-                Text(item.name)
+                        Text("이미지 없음")
+                            .font(.caption2.weight(.medium))
+                            .foregroundStyle(.secondary)
+                    }
+                }
+
+                statusOverlay
+            }
+            .frame(height: 150)
+            .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+
+            VStack(alignment: .leading, spacing: 7) {
+                Text(displayName)
                     .font(.subheadline.weight(.bold))
                     .foregroundStyle(.primary)
                     .lineLimit(1)
@@ -635,6 +603,8 @@ private struct ClosetItemGridCard: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
+
+                statusBadges
 
                 HStack(spacing: 6) {
                     Circle()
@@ -650,23 +620,93 @@ private struct ClosetItemGridCard: View {
                         .lineLimit(1)
                 }
             }
-            .frame(height: ClosetGridCardMetrics.metadataHeight, alignment: .topLeading)
+            .padding(.horizontal, 10)
+            .padding(.top, 10)
+            .padding(.bottom, 12)
         }
-        .padding(12)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .frame(height: ClosetGridCardMetrics.cardHeight, alignment: .top)
         .fitcommitCardStyle(borderOpacity: 0.07)
+    }
+
+    private var displayName: String {
+        if item.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false {
+            return item.name
+        }
+        if item.subcategory.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false {
+            return item.subcategory
+        }
+        return item.category
+    }
+
+    private var statusOverlay: some View {
+        VStack {
+            HStack {
+                Spacer()
+                if let primaryBadge {
+                    StatusBadge(text: primaryBadge.text, color: primaryBadge.color)
+                }
+            }
+            Spacer()
+        }
+        .padding(8)
+    }
+
+    @ViewBuilder
+    private var statusBadges: some View {
+        let badges = allBadges
+        if badges.isEmpty == false {
+            VStack(alignment: .leading, spacing: 5) {
+                ForEach(badges, id: \.text) { badge in
+                    StatusBadge(text: badge.text, color: badge.color)
+                }
+            }
+        }
+    }
+
+    private var primaryBadge: (text: String, color: Color)? {
+        allBadges.first
+    }
+
+    private var allBadges: [(text: String, color: Color)] {
+        var badges: [(text: String, color: Color)] = []
+        if item.analysisStatus == "pending" {
+            badges.append(("분석 대기", .secondary))
+        } else if item.analysisStatus == "failed" {
+            badges.append(("분석 실패", .orange))
+        }
+        if item.syncStatus == "sync_failed" {
+            badges.append(("동기화 실패", .red))
+        }
+        return badges
+    }
+}
+
+private struct StatusBadge: View {
+    let text: String
+    let color: Color
+
+    var body: some View {
+        Text(text)
+            .font(.caption2.weight(.bold))
+            .foregroundStyle(.white)
+            .lineLimit(1)
+            .minimumScaleFactor(0.82)
+            .padding(.horizontal, 7)
+            .padding(.vertical, 4)
+            .background(color, in: Capsule())
     }
 }
 
 private enum AnalysisRequestState {
     case idle
     case loading
+    case saved(String)
     case success(AnalysisResponse)
     case failure(String)
 }
 
 private struct ClothesUploadView: View {
+    @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
     @State private var analysisState: AnalysisRequestState = .idle
     @State private var isShowingAnalysisError = false
@@ -676,6 +716,9 @@ private struct ClothesUploadView: View {
     @State private var processedImage: UIImage?
     @State private var imageDataForSaving: Data
     @State private var selectedCategoryHint = "top"
+    @State private var serverClothingID: String?
+    @State private var backendImagePath: String?
+    @State private var localItem: ClosetItem?
 
     let image: UIImage
     private let analysisService = AnalysisService()
@@ -697,10 +740,14 @@ private struct ClothesUploadView: View {
                         uploadForm
                     case .loading:
                         loadingView
+                    case .saved(let message):
+                        savedView(message: message)
                     case .success(let analysisResponse):
                         AnalysisResultView(
                             result: analysisResponse.analysis,
-                            imageData: imageDataForSaving
+                            imageData: imageDataForSaving,
+                            serverClothingID: serverClothingID,
+                            backendImagePath: backendImagePath
                         )
                     case .failure(let message):
                         failureView(message: message)
@@ -719,12 +766,7 @@ private struct ClothesUploadView: View {
                     }
                 }
             }
-            .alert("서버 연결 실패", isPresented: $isShowingAnalysisError) {
-                Button("재시도") {
-                    Task {
-                        await analyzeImage()
-                    }
-                }
+            .alert("저장 상태", isPresented: $isShowingAnalysisError) {
                 Button("확인", role: .cancel) {}
             } message: {
                 Text(alertMessage)
@@ -770,16 +812,20 @@ private struct ClothesUploadView: View {
             .font(.subheadline)
             .foregroundStyle(.secondary)
 
-            Text("선택한 카테고리는 AI 서버에 category_hint로 함께 전달됩니다.")
+            Text("선택한 카테고리는 서버 저장 시 main_category로 저장됩니다.")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+
+            Text("AI 서버가 꺼져 있어도 Backend 저장은 먼저 진행됩니다.")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
 
             Button {
                 Task {
-                    await analyzeImage()
+                    await registerClothing()
                 }
             } label: {
-                Label("AI 분석하기", systemImage: "sparkles")
+                Label("저장하기", systemImage: "tray.and.arrow.down.fill")
                     .font(.headline)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 15)
@@ -805,11 +851,11 @@ private struct ClothesUploadView: View {
                     .foregroundStyle(Color.accentColor)
             }
 
-            Text("AI가 옷을 분석 중이에요...")
+            Text("의류 정보를 저장 중이에요...")
                 .font(.headline.weight(.semibold))
                 .foregroundStyle(.primary)
 
-            Text("카테고리, 색상, 계절감을 함께 확인하고 있습니다.")
+            Text("Backend /clothes 저장을 먼저 완료하고, AI 분석은 설정에 따라 후처리로 진행합니다.")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
@@ -829,6 +875,38 @@ private struct ClothesUploadView: View {
         }
     }
 
+    private func savedView(message: String) -> some View {
+        VStack(spacing: 16) {
+            Image(systemName: "checkmark.circle.fill")
+                .font(.system(size: 44, weight: .semibold))
+                .foregroundStyle(.green)
+
+            Text("저장 완료")
+                .font(.headline.weight(.semibold))
+                .foregroundStyle(.primary)
+
+            Text(message)
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+                .fixedSize(horizontal: false, vertical: true)
+
+            Button {
+                dismiss()
+            } label: {
+                Text("옷장으로 돌아가기")
+                    .font(.headline)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 15)
+            }
+            .buttonStyle(.borderedProminent)
+            .controlSize(.large)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(20)
+        .fitcommitCardStyle(borderOpacity: 0.07)
+    }
+
     private func failureView(message: String) -> some View {
         VStack(spacing: 16) {
             HStack(alignment: .top, spacing: 12) {
@@ -839,7 +917,7 @@ private struct ClothesUploadView: View {
                     .background(Color.orange.opacity(0.12), in: Circle())
 
                 VStack(alignment: .leading, spacing: 6) {
-                    Text("분석 요청에 실패했어요")
+                    Text("저장 준비에 실패했어요")
                         .font(.headline)
                         .foregroundStyle(.primary)
 
@@ -854,16 +932,21 @@ private struct ClothesUploadView: View {
 
             Button {
                 Task {
-                    await analyzeImage()
+                    await registerClothing()
                 }
             } label: {
-                Label("다시 시도", systemImage: "arrow.clockwise")
+                Label("저장 다시 시도", systemImage: "arrow.clockwise")
                     .font(.headline)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 15)
             }
             .buttonStyle(.borderedProminent)
             .controlSize(.large)
+
+            Text("사진과 기본 카테고리는 기기 옷장에 남아 있어 닫은 뒤에도 확인할 수 있습니다.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
         }
         .frame(maxWidth: .infinity)
         .padding(20)
@@ -875,26 +958,51 @@ private struct ClothesUploadView: View {
     }
 
     @MainActor
-    private func analyzeImage() async {
-        print("[DEBUG][ClothesUploadView] analyzeImage started")
+    private func registerClothing() async {
+        print("[ClothesUploadView] Registration started")
         loadingProgress = 0.08
         analysisState = .loading
 
         do {
-            print("[DEBUG][ClothesUploadView] Preparing image")
+            print("[ClothesUploadView] Preparing image")
             let imageForAnalysis = await prepareImageForAnalysis()
-            print("[DEBUG][ClothesUploadView] Image prepared")
+            print("[ClothesUploadView] Image prepared")
             processedImage = imageForAnalysis
             imageDataForSaving = await imageForAnalysis.imageDataForClosetStorageInBackground(compressionQuality: 0.82) ?? Data()
-            loadingProgress = max(loadingProgress, 0.34)
+            try saveLocalPendingItem()
+            loadingProgress = max(loadingProgress, 0.2)
 
-            print("[DEBUG][ClothesUploadView] Calling AnalysisService.uploadImage")
-            let response = try await analysisService.uploadImage(imageForAnalysis, categoryHint: selectedCategoryHint)
-            print("[DEBUG][ClothesUploadView] AnalysisService returned success")
-            analysisState = .success(response)
+            await syncPendingClothingRow()
+            loadingProgress = max(loadingProgress, 0.62)
+
+            guard BackendClothesService.isAIAnalysisEnabled else {
+                print("[ClothesUploadView] AI analysis skipped ENABLE_AI_ANALYSIS=false")
+                let message = serverClothingID == nil
+                    ? "기기에 저장되었습니다. Backend 연결 실패 시에도 옷장에 남아 있습니다."
+                    : "Backend에 저장되었습니다. AI 분석은 나중에 다시 분석하기로 진행할 수 있습니다."
+                analysisState = .saved(message)
+                loadingProgress = 1
+                try? await Task.sleep(nanoseconds: 650_000_000)
+                dismiss()
+                return
+            }
+
+            print("[ClothesUploadView] AI analysis attempt started")
+            do {
+                let response = try await analysisService.uploadImage(imageForAnalysis, categoryHint: selectedCategoryHint)
+                print("[ClothesUploadView] AI analysis succeeded")
+                await markAnalysisCompleted(response.analysis)
+                analysisState = .success(response)
+            } catch {
+                let message = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
+                print("[ClothesUploadView] AI analysis failed: \(message)")
+                await markAnalysisFailed(message)
+                analysisState = .saved("옷 데이터는 저장되었습니다. AI 분석은 실패 상태로 남겨두었고 나중에 다시 분석할 수 있습니다.")
+                loadingProgress = 1
+            }
         } catch {
             let message = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
-            print("[DEBUG][ClothesUploadView] analyzeImage failed: \(message)")
+            print("[ClothesUploadView] Registration failed before local save: \(message)")
             alertMessage = message
             isShowingAnalysisError = true
             analysisState = .failure(message)
@@ -918,6 +1026,191 @@ private struct ClothesUploadView: View {
         image
     }
 
+    private var localImageReference: String {
+        guard let item = localItem else {
+            return "local://pending-\(UUID().uuidString)"
+        }
+        return "local://\(item.id.uuidString)"
+    }
+
+    @MainActor
+    private func saveLocalPendingItem() throws {
+        guard localItem == nil else { return }
+        let item = ClosetItem(
+            id: UUID(),
+            name: Self.defaultName(for: selectedCategoryHint),
+            category: selectedCategoryHint,
+            subcategory: "",
+            color: "#CCCCCC",
+            season: "분석 대기",
+            styleTags: [],
+            confidence: 0,
+            imageURL: nil,
+            localImagePath: nil,
+            imageData: imageDataForSaving,
+            timestamp: Date(),
+            remoteID: nil,
+            syncStatus: "pending_sync",
+            syncError: nil,
+            analysisStatus: "pending",
+            analysisError: nil,
+            needsAnalysis: true
+        )
+        item.localImagePath = "local://\(item.id.uuidString)"
+        modelContext.insert(item)
+        try modelContext.save()
+        localItem = item
+        print("[ClothesUploadView] Local pending item saved id=\(item.id.uuidString)")
+    }
+
+    @MainActor
+    private func syncPendingClothingRow() async {
+        guard serverClothingID == nil else {
+            return
+        }
+        guard BackendClothesService.isConfigured,
+              let userID = BackendClothesService.configuredUserID else {
+            localItem?.syncStatus = "local_only"
+            localItem?.syncError = nil
+            try? modelContext.save()
+            print("[ClothesUploadView] Backend save skipped: Backend config missing")
+            return
+        }
+
+        let imagePath = backendImagePath ?? localImageReference
+        backendImagePath = imagePath
+        localItem?.localImagePath = imagePath
+        print("[ClothesUploadView] Backend /clothes request started")
+        do {
+            let row = try await BackendClothesService.create(
+                BackendClothesPayload(
+                    userID: userID,
+                    mainCategory: selectedCategoryHint,
+                    subcategory: nil,
+                    mainColor: nil,
+                    season: [],
+                    styleTags: [],
+                    imageURL: "",
+                    imagePath: imagePath,
+                    localImagePath: localItem?.localImagePath ?? imagePath,
+                    confidence: nil,
+                    analysisMethod: nil,
+                    analysisStatus: "pending",
+                    analysisError: nil,
+                    analyzedAt: nil,
+                    needsAnalysis: true,
+                    syncStatus: "pending_sync",
+                    memo: "created_before_ai_analysis"
+                )
+            )
+            serverClothingID = row.id
+            localItem?.remoteID = row.id
+            localItem?.syncStatus = "synced"
+            localItem?.syncError = nil
+            try? modelContext.save()
+            print("[ClothesUploadView] Backend save succeeded id=\(row.id ?? "unknown")")
+        } catch {
+            localItem?.syncStatus = "sync_failed"
+            localItem?.syncError = error.localizedDescription
+            try? modelContext.save()
+            print("[ClothesUploadView] Backend save failed, local item retained: \(error.localizedDescription)")
+        }
+    }
+
+    @MainActor
+    private func markAnalysisCompleted(_ result: AnalysisResult) async {
+        localItem?.name = result.subcategory.isEmpty ? result.mainCategory : result.subcategory
+        localItem?.category = result.mainCategory
+        localItem?.subcategory = result.subcategory
+        localItem?.color = result.mainColor
+        localItem?.season = result.season
+        localItem?.styleTags = result.styleTags
+        localItem?.confidence = result.confidence
+        localItem?.imageURL = result.imageURL
+        localItem?.analysisStatus = "completed"
+        localItem?.analysisError = nil
+        localItem?.needsAnalysis = false
+        try? modelContext.save()
+
+        guard let serverClothingID else { return }
+        do {
+            _ = try await BackendClothesService.update(
+                clothingID: serverClothingID,
+                payload: BackendClothesUpdatePayload(
+                    mainCategory: result.mainCategory,
+                    subcategory: result.subcategory.isEmpty ? nil : result.subcategory,
+                    mainColor: result.mainColor,
+                    season: seasonValues(from: result.season),
+                    styleTags: result.styleTags,
+                    imageURL: result.imageURL,
+                    imagePath: backendImagePath,
+                    localImagePath: backendImagePath,
+                    confidence: result.confidence,
+                    analysisMethod: result.method,
+                    analysisStatus: "completed",
+                    analysisError: "",
+                    analyzedAt: Date(),
+                    needsAnalysis: false,
+                    syncStatus: "synced",
+                    memo: "ai_analysis_completed"
+                )
+            )
+        } catch {
+            print("[ClothesUploadView] Failed to mark completed: \(error.localizedDescription)")
+        }
+    }
+
+    @MainActor
+    private func markAnalysisFailed(_ message: String) async {
+        localItem?.analysisStatus = "failed"
+        localItem?.analysisError = message
+        localItem?.needsAnalysis = true
+        try? modelContext.save()
+
+        guard let serverClothingID else { return }
+        do {
+            _ = try await BackendClothesService.update(
+                clothingID: serverClothingID,
+                payload: BackendClothesUpdatePayload(
+                    mainCategory: nil,
+                    subcategory: nil,
+                    mainColor: nil,
+                    season: nil,
+                    styleTags: nil,
+                    imageURL: nil,
+                    imagePath: backendImagePath,
+                    localImagePath: backendImagePath,
+                    confidence: nil,
+                    analysisMethod: nil,
+                    analysisStatus: "failed",
+                    analysisError: message,
+                    analyzedAt: nil,
+                    needsAnalysis: true,
+                    syncStatus: "synced",
+                    memo: "ai_analysis_failed"
+                )
+            )
+        } catch {
+            print("[ClothesUploadView] Failed to mark failed: \(error.localizedDescription)")
+        }
+    }
+
+    private func seasonValues(from season: String) -> [String] {
+        switch season {
+        case "Spring/Summer":
+            return ["spring", "summer"]
+        case "Fall/Winter":
+            return ["fall", "winter"]
+        case "All-Season":
+            return ["spring", "summer", "fall", "winter"]
+        default:
+            return season
+                .split(separator: "/")
+                .map { $0.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() }
+                .filter { $0.isEmpty == false }
+        }
+    }
+
     private func categoryLabel(for value: String) -> String {
         switch value {
         case "top":
@@ -936,6 +1229,27 @@ private struct ClothesUploadView: View {
             return "원피스 (dress)"
         default:
             return value
+        }
+    }
+
+    private static func defaultName(for category: String) -> String {
+        switch category.lowercased() {
+        case "top":
+            return "새로운 상의"
+        case "bottom":
+            return "새로운 하의"
+        case "outer":
+            return "새로운 아우터"
+        case "shoes":
+            return "새로운 신발"
+        case "hat":
+            return "새로운 모자"
+        case "bag":
+            return "새로운 가방"
+        case "dress":
+            return "새로운 원피스"
+        default:
+            return "새로운 옷"
         }
     }
 }

@@ -141,7 +141,7 @@ public class MainActivity extends Activity {
     }
 
     /**
-     * iOS ClosetView의 AR 기능 허브와 의류 그리드를 더미 데이터로 구성합니다.
+     * iOS ClosetView와 동일하게 AR 기능 허브와 로컬/서버 의류 목록을 구성합니다.
      */
     private void showCloset() {
         currentScreen = "closet";
@@ -163,8 +163,9 @@ public class MainActivity extends Activity {
                 try {
                     List<ClosetItem> backendItems = clothesBackendService.fetchClothes();
                     runOnUiThread(() -> {
-                        countText.setText(backendItems.size() + "개");
-                        new ClosetCardAdapter(this).bind(grid, backendItems);
+                        List<ClosetItem> mergedItems = mergeBackendAndLocalItems(backendItems);
+                        countText.setText(mergedItems.size() + "개");
+                        new ClosetCardAdapter(this).bind(grid, mergedItems);
                     });
                 } catch (Exception error) {
                     System.out.println("[MainActivity] Backend clothes fetch failed, using local fallback: " + error.getMessage());
@@ -182,6 +183,22 @@ public class MainActivity extends Activity {
         items.addAll(sampleClosetItems());
         countText.setText(items.size() + "개");
         new ClosetCardAdapter(this).bind(grid, items);
+    }
+
+    private List<ClosetItem> mergeBackendAndLocalItems(List<ClosetItem> backendItems) {
+        List<ClosetItem> merged = new ArrayList<>(backendItems);
+        java.util.HashSet<String> remoteIds = new java.util.HashSet<>();
+        for (ClosetItem item : backendItems) {
+            if (item.remoteId != null && !item.remoteId.trim().isEmpty()) {
+                remoteIds.add(item.remoteId);
+            }
+        }
+        for (ClosetItem localItem : ClothingStorage.load(this)) {
+            if (localItem.remoteId == null || localItem.remoteId.trim().isEmpty() || !remoteIds.contains(localItem.remoteId)) {
+                merged.add(localItem);
+            }
+        }
+        return merged;
     }
 
     private void showAiLanding() {

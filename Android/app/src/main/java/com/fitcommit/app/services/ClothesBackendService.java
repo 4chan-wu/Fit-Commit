@@ -8,6 +8,7 @@ import org.json.JSONObject;
 
 import java.io.BufferedInputStream;
 import java.io.ByteArrayOutputStream;
+import java.io.File;
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
@@ -33,37 +34,72 @@ public class ClothesBackendService {
             String imagePath,
             AnalysisResult result
     ) throws Exception {
+        createCompleted(category, subcategory, color, season, styleTags, imagePath, result);
+    }
+
+    public JSONObject createPending(String category, String imagePath) throws Exception {
         JSONObject payload = new JSONObject();
         payload.put("user_id", ApiClient.BACKEND_CLOTHES_USER_ID);
         payload.put("main_category", category);
-        payload.put("subcategory", subcategory);
-        payload.put("main_color", color);
-        payload.put("season", seasonArray(season));
-        payload.put("style_tags", tagsArray(styleTags));
-        payload.put("image_url", result == null ? "" : result.imageUrl);
+        payload.put("season", new JSONArray());
+        payload.put("style_tags", new JSONArray());
+        payload.put("image_url", "");
+        payload.put("image_path", localImageReference(imagePath));
+        payload.put("local_image_path", imagePath == null ? "" : imagePath);
+        payload.put("analysis_status", "pending");
+        payload.put("needs_analysis", true);
+        payload.put("sync_status", "pending_sync");
+        payload.put("memo", "created_before_ai_analysis");
+        return requestJson("POST", ApiClient.BASE_URL + "/clothes", payload);
+    }
+
+    private String localImageReference(String imagePath) {
+        if (imagePath == null || imagePath.trim().isEmpty()) {
+            return "local://unknown";
+        }
+        File file = new File(imagePath);
+        String name = file.getName();
+        return "local://" + (name == null || name.trim().isEmpty() ? String.valueOf(System.currentTimeMillis()) : name);
+    }
+
+    public JSONObject createCompleted(
+            String category,
+            String subcategory,
+            String color,
+            String season,
+            String styleTags,
+            String imagePath,
+            AnalysisResult result
+    ) throws Exception {
+        JSONObject payload = completedPayload(category, subcategory, color, season, styleTags, imagePath, result);
+        payload.put("user_id", ApiClient.BACKEND_CLOTHES_USER_ID);
+        return requestJson("POST", ApiClient.BASE_URL + "/clothes", payload);
+    }
+
+    public JSONObject updateCompleted(
+            String clothingId,
+            String category,
+            String subcategory,
+            String color,
+            String season,
+            String styleTags,
+            String imagePath,
+            AnalysisResult result
+    ) throws Exception {
+        JSONObject payload = completedPayload(category, subcategory, color, season, styleTags, imagePath, result);
+        return requestJson("PUT", ApiClient.BASE_URL + "/clothes/" + clothingId, payload);
+    }
+
+    public JSONObject updateFailed(String clothingId, String imagePath, String errorMessage) throws Exception {
+        JSONObject payload = new JSONObject();
         payload.put("image_path", imagePath == null ? "" : imagePath);
-        payload.put("confidence", result == null ? 0 : result.confidence);
-        payload.put("analysis_method", result == null ? "clip" : result.method);
-        payload.put("memo", "");
-
-        byte[] bytes = payload.toString().getBytes(StandardCharsets.UTF_8);
-        HttpURLConnection connection = (HttpURLConnection) new URL(ApiClient.BASE_URL + "/clothes").openConnection();
-        connection.setRequestMethod("POST");
-        connection.setConnectTimeout(10_000);
-        connection.setReadTimeout(15_000);
-        connection.setDoOutput(true);
-        connection.setRequestProperty("Content-Type", "application/json");
-        connection.setRequestProperty("Accept", "application/json");
-
-        try (OutputStream output = connection.getOutputStream()) {
-            output.write(bytes);
-        }
-
-        int statusCode = connection.getResponseCode();
-        if (statusCode < 200 || statusCode >= 300) {
-            String body = readResponse(connection, statusCode);
-            throw new IllegalStateException("Backend clothes save failed: " + statusCode + " " + body);
-        }
+        payload.put("local_image_path", imagePath == null ? "" : imagePath);
+        payload.put("analysis_status", "failed");
+        payload.put("analysis_error", errorMessage == null ? "AI analysis failed" : errorMessage);
+        payload.put("needs_analysis", true);
+        payload.put("sync_status", "synced");
+        payload.put("memo", "ai_analysis_failed");
+        return requestJson("PUT", ApiClient.BASE_URL + "/clothes/" + clothingId, payload);
     }
 
     public List<ClosetItem> fetchClothes() throws Exception {
@@ -90,11 +126,93 @@ public class ClothesBackendService {
             String season = seasonLabel(row.optJSONArray("season"));
             String styleTags = joinTags(row.optJSONArray("style_tags"));
             String imagePath = row.optString("image_path", "");
+            String localImagePath = row.optString("local_image_path", imagePath);
+            String status = row.optString("analysis_status", "completed");
+            String syncStatus = row.optString("sync_status", "synced");
+            boolean needsAnalysis = row.optBoolean("needs_analysis", !"completed".equals(status));
             String name = subcategory.isEmpty() ? category : subcategory;
-            String note = "source=backend; style_tags=" + styleTags;
-            items.add(new ClosetItem(name, category, color, season, note, imagePath));
+            String note = "source=backend; status=" + status + "; style_tags=" + styleTags;
+            if ("pending".equals(status)) {
+                season = "분석 대기";
+            } else if ("failed".equals(status)) {
+                season = "분석 실패";
+                note = note + "; retry_available=true";
+            }
+            items.add(new ClosetItem(
+                    "",
+                    String.valueOf(row.opt("id")),
+                    name,
+                    category,
+                    color,
+                    season,
+                    note,
+                    localImagePath,
+                    status,
+                    row.optString("analysis_error", ""),
+                    needsAnalysis,
+                    syncStatus,
+                    "",
+                    System.currentTimeMillis()
+            ));
         }
         return items;
+    }
+
+    private JSONObject completedPayload(
+            String category,
+            String subcategory,
+            String color,
+            String season,
+            String styleTags,
+            String imagePath,
+            AnalysisResult result
+    ) throws Exception {
+        JSONObject payload = new JSONObject();
+        payload.put("main_category", category);
+        payload.put("subcategory", subcategory);
+        payload.put("main_color", color);
+        payload.put("season", seasonArray(season));
+        payload.put("style_tags", tagsArray(styleTags));
+        payload.put("image_url", result == null ? "" : result.imageUrl);
+        payload.put("image_path", imagePath == null ? "" : imagePath);
+        payload.put("local_image_path", imagePath == null ? "" : imagePath);
+        payload.put("confidence", result == null ? 0 : result.confidence);
+        payload.put("analysis_method", result == null ? "fallback" : result.method);
+        payload.put("analysis_status", "completed");
+        payload.put("analysis_error", "");
+        payload.put("analyzed_at", isoNow());
+        payload.put("needs_analysis", false);
+        payload.put("sync_status", "synced");
+        payload.put("memo", "");
+        return payload;
+    }
+
+    private JSONObject requestJson(String method, String url, JSONObject payload) throws Exception {
+        byte[] bytes = payload.toString().getBytes(StandardCharsets.UTF_8);
+        HttpURLConnection connection = (HttpURLConnection) new URL(url).openConnection();
+        connection.setRequestMethod(method);
+        connection.setConnectTimeout(10_000);
+        connection.setReadTimeout(15_000);
+        connection.setDoOutput(true);
+        connection.setRequestProperty("Content-Type", "application/json");
+        connection.setRequestProperty("Accept", "application/json");
+
+        try (OutputStream output = connection.getOutputStream()) {
+            output.write(bytes);
+        }
+
+        int statusCode = connection.getResponseCode();
+        String body = readResponse(connection, statusCode);
+        if (statusCode < 200 || statusCode >= 300) {
+            throw new IllegalStateException("Backend clothes request failed: " + statusCode + " " + body);
+        }
+        return new JSONObject(body);
+    }
+
+    private String isoNow() {
+        java.text.SimpleDateFormat formatter = new java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", java.util.Locale.US);
+        formatter.setTimeZone(java.util.TimeZone.getTimeZone("UTC"));
+        return formatter.format(new java.util.Date());
     }
 
     private JSONArray seasonArray(String season) {

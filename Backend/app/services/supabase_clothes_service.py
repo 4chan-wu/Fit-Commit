@@ -44,10 +44,11 @@ class SupabaseClothesService:
     async def create(self, body: ClothesCreate) -> dict[str, Any]:
         payload = body.model_dump(mode="json", exclude_none=True)
         logger.info(
-            "[Clothes] Creating clothing item user_id=%s category=%s subcategory=%s",
+            "[Clothes] Creating clothing item user_id=%s category=%s subcategory=%s analysis_status=%s",
             body.user_id,
             body.main_category,
             body.subcategory,
+            body.analysis_status,
         )
 
         response = await self._request(
@@ -109,7 +110,11 @@ class SupabaseClothesService:
             json=payload,
         )
         row = self._single_row_or_404(response, clothing_id)
-        logger.info("[Clothes] Updated clothing item id=%s", clothing_id)
+        logger.info(
+            "[Clothes] Updated clothing item id=%s fields=%s",
+            clothing_id,
+            ",".join(sorted(payload.keys())),
+        )
         return row
 
     async def delete(self, clothing_id: str, user_id: Optional[UUID] = None) -> dict[str, str]:

@@ -1,3 +1,5 @@
+import os
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
@@ -10,13 +12,19 @@ from app.db.session import engine
 
 app = FastAPI(title="Fit Commit Backend")
 
+cors_origins_raw = os.getenv("CORS_ALLOW_ORIGINS", "*")
+cors_allow_origins = [
+    origin.strip()
+    for origin in cors_origins_raw.split(",")
+    if origin.strip()
+]
+if not cors_allow_origins:
+    cors_allow_origins = ["*"]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:5173",
-        "http://127.0.0.1:5173",
-    ],
-    allow_credentials=True,
+    allow_origins=cors_allow_origins,
+    allow_credentials="*" not in cors_allow_origins,
     allow_methods=["*"],
     allow_headers=["*"],
 )

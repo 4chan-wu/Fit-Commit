@@ -7,6 +7,8 @@ struct AnalysisResultView: View {
 
     let result: AnalysisResult
     let imageData: Data
+    let serverClothingID: String?
+    let backendImagePath: String?
 
     @State private var clothingName = ""
     @State private var selectedCategory = ""
@@ -20,9 +22,16 @@ struct AnalysisResultView: View {
     private let categoryOptions = ClosetItemEditOptions.categories
     private let seasonOptions = ["Spring/Summer", "Fall/Winter", "All-Season"]
 
-    init(result: AnalysisResult, imageData: Data) {
+    init(
+        result: AnalysisResult,
+        imageData: Data,
+        serverClothingID: String? = nil,
+        backendImagePath: String? = nil
+    ) {
         self.result = result
         self.imageData = imageData
+        self.serverClothingID = serverClothingID
+        self.backendImagePath = backendImagePath
         _clothingName = State(initialValue: Self.defaultName(for: result.mainCategory))
         _selectedCategory = State(initialValue: result.mainCategory)
         _subcategory = State(initialValue: result.subcategory)
@@ -91,7 +100,7 @@ struct AnalysisResultView: View {
             VStack(alignment: .leading, spacing: 4) {
                 Text("AI 분석 결과 확인")
                     .font(.headline)
-                Text("저장 전 최종 값을 확인하고 수정해주세요.")
+                Text("확정 전 최종 값을 확인하고 수정해주세요.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -240,27 +249,64 @@ struct AnalysisResultView: View {
 
         if BackendClothesService.isConfigured,
            let userID = BackendClothesService.configuredUserID {
-            do {
-                try await BackendClothesService.save(
-                    BackendClothesPayload(
-                        userID: userID,
-                        mainCategory: category,
-                        subcategory: finalSubcategory.isEmpty ? nil : finalSubcategory,
-                        mainColor: color,
-                        season: seasonValues(from: season),
-                        styleTags: finalStyleTags,
-                        imageURL: result.imageURL,
-                        imagePath: backendImagePath(for: userID),
-                        confidence: result.confidence,
-                        analysisMethod: result.method,
-                        memo: ""
+            if let serverClothingID {
+                do {
+                    _ = try await BackendClothesService.update(
+                        clothingID: serverClothingID,
+                        payload: BackendClothesUpdatePayload(
+                            mainCategory: category,
+                            subcategory: finalSubcategory.isEmpty ? nil : finalSubcategory,
+                            mainColor: color,
+                            season: seasonValues(from: season),
+                            styleTags: finalStyleTags,
+                            imageURL: result.imageURL,
+                            imagePath: backendImagePath,
+                            localImagePath: backendImagePath,
+                            confidence: result.confidence,
+                            analysisMethod: result.method,
+                            analysisStatus: "completed",
+                            analysisError: "",
+                            analyzedAt: Date(),
+                            needsAnalysis: false,
+                            syncStatus: "synced",
+                            memo: ""
+                        )
                     )
-                )
-                dismiss()
-                return
-            } catch {
-                print("[AnalysisResultView] Backend save failed, falling back to SwiftData: \(error.localizedDescription)")
-                didFallbackFromBackend = true
+                    dismiss()
+                    return
+                } catch {
+                    print("[AnalysisResultView] Backend update failed, falling back to SwiftData: \(error.localizedDescription)")
+                    didFallbackFromBackend = true
+                }
+            } else {
+                do {
+                    try await BackendClothesService.save(
+                        BackendClothesPayload(
+                            userID: userID,
+                            mainCategory: category,
+                            subcategory: finalSubcategory.isEmpty ? nil : finalSubcategory,
+                            mainColor: color,
+                            season: seasonValues(from: season),
+                            styleTags: finalStyleTags,
+                            imageURL: result.imageURL,
+                            imagePath: backendImagePath ?? Self.backendImagePath(for: userID, category: category),
+                            localImagePath: backendImagePath,
+                            confidence: result.confidence,
+                            analysisMethod: result.method,
+                            analysisStatus: "completed",
+                            analysisError: "",
+                            analyzedAt: Date(),
+                            needsAnalysis: false,
+                            syncStatus: "synced",
+                            memo: ""
+                        )
+                    )
+                    dismiss()
+                    return
+                } catch {
+                    print("[AnalysisResultView] Backend save failed, falling back to SwiftData: \(error.localizedDescription)")
+                    didFallbackFromBackend = true
+                }
             }
         }
 
@@ -273,7 +319,14 @@ struct AnalysisResultView: View {
             styleTags: finalStyleTags,
             confidence: result.confidence,
             imageURL: result.imageURL,
-            imageData: imageData
+            localImagePath: backendImagePath,
+            imageData: imageData,
+            remoteID: serverClothingID,
+            syncStatus: serverClothingID == nil ? "local_only" : "synced",
+            syncError: nil,
+            analysisStatus: "completed",
+            analysisError: nil,
+            needsAnalysis: false
         )
 
         modelContext.insert(item)
@@ -336,8 +389,8 @@ struct AnalysisResultView: View {
         }
     }
 
-    private func backendImagePath(for userID: String) -> String {
-        "\(userID)/ios-local-\(UUID().uuidString).jpg"
+    static func backendImagePath(for userID: String, category: String) -> String {
+        "\(userID)/\(category)/ios-local-\(UUID().uuidString).jpg"
     }
 
     private static func defaultName(for category: String) -> String {
@@ -384,7 +437,9 @@ private struct ResultInputStyle: ViewModifier {
             method: "clip",
             imageURL: nil
         ),
-        imageData: Data()
+        imageData: Data(),
+        serverClothingID: "1",
+        backendImagePath: "user/top/ios-local.jpg"
     )
     .padding()
     .modelContainer(for: ClosetItem.self, inMemory: true)

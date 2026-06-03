@@ -78,6 +78,26 @@ public class ClosetCardAdapter {
         metaParams.topMargin = UiUtils.dp(context, 5);
         card.addView(meta, metaParams);
 
+        if ("pending".equals(item.analysisStatus) || "failed".equals(item.analysisStatus)) {
+            TextView status = new TextView(context);
+            status.setText("failed".equals(item.analysisStatus) ? "분석 실패 · 다시 분석 가능" : "AI 분석 대기");
+            status.setTextColor(context.getColor(R.color.fit_accent));
+            status.setTextSize(11);
+            LinearLayout.LayoutParams statusParams = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+            statusParams.topMargin = UiUtils.dp(context, 4);
+            card.addView(status, statusParams);
+        }
+
+        if ("sync_failed".equals(item.syncStatus)) {
+            TextView sync = new TextView(context);
+            sync.setText("서버 동기화 실패");
+            sync.setTextColor(Color.RED);
+            sync.setTextSize(11);
+            LinearLayout.LayoutParams syncParams = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+            syncParams.topMargin = UiUtils.dp(context, 4);
+            card.addView(sync, syncParams);
+        }
+
         return card;
     }
 }
