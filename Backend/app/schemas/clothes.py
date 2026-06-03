@@ -27,7 +27,7 @@ class ClothesCreate(BaseModel):
     analysis_error: Optional[str] = None
     analyzed_at: Optional[datetime] = None
     needs_analysis: bool = True
-    sync_status: Optional[SyncStatus] = None
+    sync_status: Optional[SyncStatus] = "synced"
     memo: Optional[str] = ""
 
 

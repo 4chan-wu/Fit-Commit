@@ -1099,7 +1099,7 @@ private struct ClothesUploadView: View {
                     analysisError: nil,
                     analyzedAt: nil,
                     needsAnalysis: true,
-                    syncStatus: "pending_sync",
+                    syncStatus: "synced",
                     memo: "created_before_ai_analysis"
                 )
             )

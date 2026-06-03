@@ -29,6 +29,7 @@ Python FastAPI AI 서버
        └─ 시즌/스타일 태그 반환
 
 Python FastAPI Backend 서버
+  ├─ AWS EC2: http://13.125.252.131:8000
   └─ /clothes CRUD
        └─ Supabase public.clothes 저장/조회/수정/삭제
 
@@ -37,7 +38,7 @@ Supabase
   └─ Storage clothing-images bucket
 ```
 
-AI 서버와 Backend 서버는 분리되어 있음. 앱은 사진과 기본 카테고리를 로컬에 먼저 저장하고, Backend 서버는 가능한 경우 Supabase에 메타데이터를 동기화함. AI 서버는 저장 이후 분석 결과만 후처리로 반환함.
+AI 서버와 Backend 서버는 분리되어 있음. Backend는 현재 AWS EC2에서 `http://13.125.252.131:8000` 주소로 실행 중임. 앱은 사진과 기본 카테고리를 로컬에 먼저 저장하고, EC2 Backend를 통해 Supabase에 메타데이터를 동기화함. AI 서버는 아직 배포하지 않았고, 현재 팀원 테스트는 AI 분석 비활성화 상태로 저장/조회만 확인함.
 
 ## 폴더 구조
 
@@ -93,6 +94,7 @@ AI 서버와 Backend 서버는 분리되어 있음. 앱은 사진과 기본 카�
 - AI 실패 또는 서버 실패가 발생해도 옷장 화면에는 로컬 아이템이 남아 있어야 함
 - 앱에서 AI 분석 결과를 확인/수정한 뒤 사용자가 확정한 값으로 로컬과 서버 row를 다시 업데이트함
 - Supabase Storage 이미지 업로드는 아직 연결되지 않았고, 현재는 로컬 사진 저장 + DB 메타데이터 동기화 구조임
+- Backend는 AWS EC2에서 실행 중이며 외부 Mac 터미널 기준 `GET /clothes`, `POST /clothes` 200 OK 확인 완료함
 
 ## 현재 AI 구조
 
@@ -197,7 +199,13 @@ SECRET_KEY=change-this-secret-key
 
 ## AWS EC2 Backend 배포 요약
 
-자세한 절차는 `Backend/README.md`의 `AWS EC2 배포` 섹션을 기준으로 함.
+현재 Backend는 AWS EC2에서 실행 중임.
+
+```text
+http://13.125.252.131:8000
+```
+
+외부 Mac 터미널에서 Supabase DB 연동 `GET /clothes`, `POST /clothes` 200 OK 확인 완료함. 자세한 절차는 `Backend/README.md`의 `AWS EC2 배포` 섹션을 기준으로 함.
 
 1. Ubuntu EC2 인스턴스를 생성함
 2. 보안 그룹 inbound rule에 `22/tcp`, `8000/tcp`를 허용함
@@ -206,9 +214,9 @@ SECRET_KEY=change-this-secret-key
 5. `pip install -r requirements.txt`를 실행함
 6. `.env.example`을 복사해 `.env`를 작성함
 7. `python -m uvicorn app.main:app --host 0.0.0.0 --port 8000`으로 실행함
-8. `curl http://EC2_PUBLIC_IP:8000/health`로 상태를 확인함
-9. `curl "http://EC2_PUBLIC_IP:8000/clothes?user_id=45482f0f-42d0-401e-a18a-77abeb0492cc"`로 조회를 확인함
-10. 팀원 앱의 Backend URL을 `http://EC2_PUBLIC_IP:8000`으로 변경함
+8. `curl http://13.125.252.131:8000/health`로 상태를 확인함
+9. `curl "http://13.125.252.131:8000/clothes?user_id=45482f0f-42d0-401e-a18a-77abeb0492cc"`로 조회를 확인함
+10. 팀원 앱의 Backend URL은 `http://13.125.252.131:8000`을 사용함
 
 EC2에서 터미널을 닫아도 실행되게 하려면 `Backend/deploy/fitcommit-backend.service.example` systemd 예시를 사용함.
 
@@ -217,7 +225,7 @@ EC2에서 터미널을 닫아도 실행되게 하려면 `Backend/deploy/fitcommi
 ```text
 iOS 시뮬레이터: http://127.0.0.1:8000
 Android 에뮬레이터: http://10.0.2.2:8000
-팀원 실제 기기: http://EC2_PUBLIC_IP:8000
+팀원 실제 기기: http://13.125.252.131:8000
 ```
 
 AI 결과 없이 사진/카테고리만 먼저 저장하는 `POST /clothes` curl 테스트는 아래처럼 함.
@@ -291,6 +299,7 @@ iOS 앱은 Xcode에서 `Ios/MyCloset.xcodeproj`를 열어 실행함.
 
 - 사진을 선택하면 SwiftData 로컬 옷장에 먼저 저장함
 - Backend 설정이 있으면 로컬 저장 후 Backend `/clothes` 동기화를 시도함
+- 팀원 테스트 기본값은 `http://13.125.252.131:8000` 사용함
 - 개발 테스트 기본값은 `ENABLE_AI_ANALYSIS=false`라서 AI 서버가 꺼져 있어도 저장됨
 - AI 성공/실패 결과는 로컬 데이터에 먼저 반영하고, remote id가 있으면 같은 row에 PUT으로 업데이트함
 - Backend 저장 실패 시에도 SwiftData 로컬 데이터는 유지됨
@@ -298,10 +307,10 @@ iOS 앱은 Xcode에서 `Ios/MyCloset.xcodeproj`를 열어 실행함.
 - iOS 시뮬레이터는 Mac의 localhost에 `http://127.0.0.1:8000`으로 접근 가능함
 - 실제 iPhone 테스트 시에는 `http://{Mac의_로컬_IP}:8000` 형태를 사용해야 함
 
-현재 iOS 코드에는 개발 기본값이 들어 있음.
+현재 iOS 코드에는 팀원 테스트용 기본값이 들어 있음.
 
 ```text
-FITCOMMIT_BACKEND_BASE_URL=http://127.0.0.1:8000
+FITCOMMIT_BACKEND_BASE_URL=http://13.125.252.131:8000
 FITCOMMIT_SUPABASE_USER_ID=45482f0f-42d0-401e-a18a-77abeb0492cc
 ```
 
@@ -313,6 +322,7 @@ Android 앱은 Android Studio에서 `Android/` 폴더를 열어 실행함.
 
 - 사진을 선택하면 `ClothingStorage` 로컬 옷장에 먼저 저장함
 - Backend 설정이 있으면 로컬 저장 후 Backend `/clothes` 동기화를 시도함
+- 팀원 테스트 기본값은 `http://13.125.252.131:8000` 사용함
 - 개발 테스트 기본값은 `ENABLE_AI_ANALYSIS=false`라서 AI 서버가 꺼져 있어도 저장됨
 - AI 성공/실패 결과는 로컬 데이터에 먼저 반영하고, remote id가 있으면 같은 row에 PUT으로 업데이트함
 - Backend 저장 실패 시에도 `ClothingStorage` 로컬 데이터는 유지됨
@@ -323,7 +333,7 @@ Android 앱은 Android Studio에서 `Android/` 폴더를 열어 실행함.
 Android 개발 기본값은 `Android/app/src/main/java/com/fitcommit/app/services/ApiClient.java`에서 관리함.
 
 ```text
-BASE_URL=http://10.0.2.2:8000
+BASE_URL=http://13.125.252.131:8000
 BACKEND_CLOTHES_USER_ID=45482f0f-42d0-401e-a18a-77abeb0492cc
 ```
 
@@ -407,14 +417,14 @@ category_hint=top
 
 ## End-to-End 테스트 순서
 
-1. Backend를 `http://127.0.0.1:8000`으로 실행함
+1. EC2 Backend `http://13.125.252.131:8000`을 사용함
 2. AI 서버는 실행하지 않아도 됨
 3. iOS 시뮬레이터에서 옷 추가를 진행함
-4. Backend 터미널에 `POST /clothes` 200 OK가 찍히는지 확인함
+4. EC2 Backend에 `POST /clothes` 요청이 성공하는지 확인함
 5. Supabase `public.clothes` 테이블에 `analysis_status=pending`, `needs_analysis=true` row가 생성되는지 확인함
 6. 앱 옷장 목록에 저장된 item이 표시되는지 확인함
 7. AI 분석은 `ENABLE_AI_ANALYSIS=true`로 바꾼 뒤 별도로 실행함
-8. Android 에뮬레이터 테스트 시 Backend 주소는 `http://10.0.2.2:8000`을 사용함
+8. 로컬 Android 에뮬레이터 테스트 시 Backend 주소는 `http://10.0.2.2:8000`을 사용할 수 있음
 
 ## 앞으로 남은 작업
 

@@ -48,7 +48,7 @@ public class ClothesBackendService {
         payload.put("local_image_path", imagePath == null ? "" : imagePath);
         payload.put("analysis_status", "pending");
         payload.put("needs_analysis", true);
-        payload.put("sync_status", "pending_sync");
+        payload.put("sync_status", "synced");
         payload.put("memo", "created_before_ai_analysis");
         return requestJson("POST", ApiClient.BASE_URL + "/clothes", payload);
     }

@@ -1,6 +1,6 @@
 # Fitcommit Backend
 
-Fitcommit Backend는 앱에서 로컬에 먼저 저장한 옷장 메타데이터를 Supabase에 동기화하고 조회하는 FastAPI 서버임. 기존 사용자, 채팅, 결제 API도 같은 서버 안에 남아 있지만, 현재 1차 프로토타입의 핵심은 `/clothes` API와 Supabase `public.clothes` 연동임.
+Fitcommit Backend는 앱에서 로컬에 먼저 저장한 옷장 메타데이터를 Supabase에 동기화하고 조회하는 FastAPI 서버임. 현재 Backend는 AWS EC2에서 `http://13.125.252.131:8000` 주소로 실행 중이며, 외부 Mac 터미널에서 Supabase `public.clothes` GET/POST 200 OK 확인이 완료됨.
 
 ## 역할
 
@@ -130,12 +130,24 @@ curl http://127.0.0.1:8000/health
 
 Ubuntu EC2 인스턴스를 기준으로 배포함.
 
+현재 배포 주소는 아래와 같음.
+
+```text
+http://13.125.252.131:8000
+```
+
 1. AWS EC2에서 Ubuntu 인스턴스를 생성함
 2. 보안 그룹 inbound rule에 `22/tcp`, `8000/tcp`를 허용함
 3. SSH로 접속함
 
 ```bash
 ssh -i your-key.pem ubuntu@EC2_PUBLIC_IP
+```
+
+현재 서버 접속 예시는 아래와 같음.
+
+```bash
+ssh -i your-key.pem ubuntu@13.125.252.131
 ```
 
 4. 서버 패키지와 Python venv 도구를 설치함
@@ -196,8 +208,8 @@ python -m uvicorn app.main:app --host 0.0.0.0 --port 8000
 9. EC2 public IP로 상태와 의류 API를 테스트함
 
 ```bash
-curl http://EC2_PUBLIC_IP:8000/health
-curl "http://EC2_PUBLIC_IP:8000/clothes?user_id=45482f0f-42d0-401e-a18a-77abeb0492cc"
+curl http://13.125.252.131:8000/health
+curl "http://13.125.252.131:8000/clothes?user_id=45482f0f-42d0-401e-a18a-77abeb0492cc"
 ```
 
 10. iOS/Android 앱의 Backend base URL을 바꿈
@@ -205,7 +217,7 @@ curl "http://EC2_PUBLIC_IP:8000/clothes?user_id=45482f0f-42d0-401e-a18a-77abeb04
 ```text
 iOS 시뮬레이터: http://127.0.0.1:8000
 Android 에뮬레이터: http://10.0.2.2:8000
-팀원 실제 기기: http://EC2_PUBLIC_IP:8000
+팀원 실제 기기: http://13.125.252.131:8000
 ```
 
 운영에서는 `8000`을 직접 열어두기보다 Nginx reverse proxy와 HTTPS를 붙이는 방향으로 개선해야 함.
@@ -231,6 +243,21 @@ journalctl -u fitcommit-backend -f
 
 `WorkingDirectory`, `EnvironmentFile`, `ExecStart` 경로는 EC2에 clone한 실제 경로에 맞춰 수정해야 함.
 
+tmux로 간단히 유지하려면 아래처럼 실행함.
+
+```bash
+tmux new -s fitcommit-backend
+cd Fitcommit_Development/Backend
+source .venv/bin/activate
+python -m uvicorn app.main:app --host 0.0.0.0 --port 8000
+```
+
+세션에서 빠져나올 때는 `Ctrl-b` 다음 `d`를 누름. 다시 접속할 때는 아래 명령을 사용함.
+
+```bash
+tmux attach -t fitcommit-backend
+```
+
 ## `/clothes` API
 
 ### `POST /clothes`
@@ -246,7 +273,7 @@ curl -X POST http://127.0.0.1:8000/clothes \
     "local_image_path": "file:///local/clothing/top-sample.jpg",
     "analysis_status": "pending",
     "needs_analysis": true,
-    "sync_status": "pending_sync",
+    "sync_status": "synced",
     "memo": ""
   }'
 ```
@@ -316,27 +343,29 @@ curl -X DELETE "http://127.0.0.1:8000/clothes/{clothing_id}?user_id=45482f0f-42d
 
 ## 앱 연동 기준
 
-- iOS 시뮬레이터는 Backend 주소로 `http://127.0.0.1:8000` 사용 가능함
-- Android 에뮬레이터는 Backend 주소로 `http://10.0.2.2:8000` 사용해야 함
-- 실제 iPhone/Android 기기는 Mac과 같은 Wi-Fi에 연결한 뒤 `http://{Mac의_로컬_IP}:8000` 사용해야 함
+- 팀원 실제 기기 테스트는 Backend 주소로 `http://13.125.252.131:8000` 사용함
+- iOS 시뮬레이터 로컬 테스트는 Backend 주소로 `http://127.0.0.1:8000` 사용 가능함
+- Android 에뮬레이터 로컬 테스트는 Backend 주소로 `http://10.0.2.2:8000` 사용해야 함
+- 실제 iPhone/Android 로컬 Mac 테스트는 `http://{Mac의_로컬_IP}:8000` 사용해야 함
 - 앱은 로컬 저장을 먼저 완료한 뒤 Backend 동기화를 시도함
 - Backend 저장 실패 시에도 로컬 item은 유지되고 `sync_status=sync_failed` 상태로 표시됨
 - Supabase 저장 테스트 단계에서는 AI 서버를 실행하지 않아도 됨
 - 앱의 `ENABLE_AI_ANALYSIS=false` 설정이면 `/predict` 호출 없이 `POST /clothes`만 확인함
+- AI 서버는 아직 배포하지 않았고, 현재는 AI 분석 비활성화 상태로 저장 테스트를 진행함
 
 ## Supabase 저장 테스트 순서
 
-1. Backend 서버를 실행함
+1. EC2 Backend `http://13.125.252.131:8000`을 사용함
 2. AI 서버는 실행하지 않아도 됨
 3. iOS 시뮬레이터 또는 Android 에뮬레이터에서 옷 추가를 진행함
-4. Backend 터미널에 `POST /clothes` 200 OK가 찍히는지 확인함
+4. EC2 Backend에 `POST /clothes` 요청이 성공하는지 확인함
 5. Supabase `public.clothes` 테이블에 `analysis_status=pending`, `needs_analysis=true` row가 생성되는지 확인함
 6. AI 분석은 나중에 앱의 `ENABLE_AI_ANALYSIS=true` 설정과 AI 서버 실행 후 별도 검증함
 
 ## 검증 상태
 
-- Backend ↔ Supabase `POST /clothes` curl 테스트 성공함
-- Supabase `public.clothes` row 저장 성공함
+- EC2 Backend ↔ Supabase `GET /clothes`, `POST /clothes` 외부 curl 테스트 성공함
+- Supabase `public.clothes` row 저장/조회 성공함
 - Backend Python 문법 검사 성공함
 - iOS 저장/조회 흐름은 SwiftData 로컬 우선, Backend 동기화 후처리 구조로 연결됨
 - Android 저장/조회 흐름은 `ClothingStorage` 로컬 우선, Backend 동기화 후처리 구조로 연결됨

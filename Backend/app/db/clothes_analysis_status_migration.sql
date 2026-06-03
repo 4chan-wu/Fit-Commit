@@ -6,8 +6,11 @@ ALTER TABLE public.clothes
     ADD COLUMN IF NOT EXISTS analysis_error TEXT,
     ADD COLUMN IF NOT EXISTS analyzed_at TIMESTAMPTZ,
     ADD COLUMN IF NOT EXISTS needs_analysis BOOLEAN NOT NULL DEFAULT TRUE,
-    ADD COLUMN IF NOT EXISTS sync_status TEXT,
+    ADD COLUMN IF NOT EXISTS sync_status TEXT DEFAULT 'synced',
     ADD COLUMN IF NOT EXISTS local_image_path TEXT;
+
+ALTER TABLE public.clothes
+    ALTER COLUMN sync_status SET DEFAULT 'synced';
 
 DO $$
 BEGIN
@@ -43,3 +46,7 @@ ON public.clothes(analysis_status);
 
 CREATE INDEX IF NOT EXISTS idx_clothes_sync_status
 ON public.clothes(sync_status);
+
+UPDATE public.clothes
+SET sync_status = 'synced'
+WHERE sync_status = 'pending_sync';

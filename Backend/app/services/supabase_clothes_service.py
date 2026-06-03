@@ -43,12 +43,14 @@ class SupabaseClothesService:
 
     async def create(self, body: ClothesCreate) -> dict[str, Any]:
         payload = body.model_dump(mode="json", exclude_none=True)
+        payload["sync_status"] = "synced"
         logger.info(
-            "[Clothes] Creating clothing item user_id=%s category=%s subcategory=%s analysis_status=%s",
+            "[Clothes] Creating clothing item user_id=%s category=%s subcategory=%s analysis_status=%s sync_status=%s",
             body.user_id,
             body.main_category,
             body.subcategory,
             body.analysis_status,
+            payload["sync_status"],
         )
 
         response = await self._request(

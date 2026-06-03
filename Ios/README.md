@@ -8,7 +8,8 @@ Fitcommit iOS는 SwiftUI 기반 앱임. 현재 1차 프로토타입에서는 전
 - 옷 한 벌만 화면 중앙에 놓고 촬영/업로드하도록 안내함
 - AI 서버 호출 전에 SwiftData 로컬 옷장에 먼저 저장함
 - 로컬 저장 후 Backend `/clothes` 동기화를 시도함
-- AI 서버 `/predict`에 `file`과 `category_hint`를 multipart로 전송함
+- `ENABLE_AI_ANALYSIS=false`이면 AI 서버 `/predict`를 호출하지 않음
+- `ENABLE_AI_ANALYSIS=true`일 때만 AI 서버 `/predict`에 `file`과 `category_hint`를 multipart로 전송함
 - AI 성공 시 로컬 데이터를 `completed`로 업데이트하고, remote id가 있으면 같은 row를 업데이트함
 - AI 실패 시 로컬 데이터를 `failed`로 유지하고, remote id가 있으면 `analysis_error`를 저장함
 - 분석 결과 확인 화면에서 종류, 세부 종류, 대표 색상, 계절, 스타일 태그, 신뢰도를 보여줌
@@ -62,16 +63,17 @@ FITCOMMIT_SUPABASE_USER_ID
 ENABLE_AI_ANALYSIS
 ```
 
-개발 기본값은 아래와 같음.
+팀원 테스트용 기본값은 아래와 같음.
 
 ```text
-FITCOMMIT_BACKEND_BASE_URL=http://127.0.0.1:8000
+FITCOMMIT_BACKEND_BASE_URL=http://13.125.252.131:8000
 FITCOMMIT_SUPABASE_USER_ID=45482f0f-42d0-401e-a18a-77abeb0492cc
 ENABLE_AI_ANALYSIS=false
 ```
 
-`BackendClothesService.swift`는 환경변수 또는 Info.plist 값을 읽고, 값이 없으면 위 개발 기본값을 사용함.
+`BackendClothesService.swift`는 Backend base URL과 테스트 user_id를 한 곳에서 관리함. 환경변수 또는 Info.plist 값이 있으면 그 값을 우선 사용하고, 값이 없으면 위 EC2 기본값을 사용함.
 `ENABLE_AI_ANALYSIS=false`이면 AI 서버 `/predict`를 호출하지 않고 Backend `/clothes` 저장까지만 진행함.
+실제 서비스에서는 `FITCOMMIT_SUPABASE_USER_ID` 직접 입력 방식이 아니라 Supabase Auth access token 기반 인증으로 바꿔야 함.
 
 ## 시뮬레이터와 실기기 URL 차이
 
@@ -87,10 +89,10 @@ http://127.0.0.1:8000
 예시: http://192.168.0.10:8000
 ```
 
-EC2에 배포된 Backend를 팀원이 실제 기기에서 테스트할 때는 아래처럼 설정함.
+현재 EC2 Backend 주소는 아래와 같음.
 
 ```text
-FITCOMMIT_BACKEND_BASE_URL=http://EC2_PUBLIC_IP:8000
+http://13.125.252.131:8000
 ```
 
 Mac의 로컬 IP는 아래 명령으로 확인할 수 있음.
@@ -166,10 +168,10 @@ AI 서버가 꺼져 있어도 로컬 옷장에는 pending/failed item이 남아�
 
 ## Supabase 저장 테스트 순서
 
-1. Backend 서버를 `http://127.0.0.1:8000`으로 실행함
+1. EC2 Backend `http://13.125.252.131:8000`을 사용함
 2. AI 서버는 실행하지 않아도 됨
 3. iOS 시뮬레이터에서 옷 추가를 진행함
-4. Backend 터미널에 `POST /clothes` 200 OK가 찍히는지 확인함
+4. EC2 Backend에 `POST /clothes` 요청이 성공하는지 확인함
 5. Supabase `public.clothes` 테이블에 row가 생성되는지 확인함
 6. AI 분석은 나중에 `ENABLE_AI_ANALYSIS=true`로 바꿔 별도 검증함
 
@@ -177,8 +179,9 @@ AI 서버가 꺼져 있어도 로컬 옷장에는 pending/failed item이 남아�
 
 - iOS Debug 빌드 성공 확인됨
 - SwiftData 로컬 우선, Backend 동기화 후처리 구조로 구성됨
-- iOS 시뮬레이터 개발 기본 URL은 `http://127.0.0.1:8000` 사용함
-- 실제 iPhone 테스트는 Mac 로컬 IP 설정이 필요함
+- 팀원 테스트 기본 URL은 `http://13.125.252.131:8000` 사용함
+- iOS 시뮬레이터 로컬 테스트는 `http://127.0.0.1:8000` 사용 가능함
+- 실제 iPhone 로컬 Mac 테스트는 `http://{Mac의_로컬_IP}:8000` 사용해야 함
 
 ## 남은 작업
 

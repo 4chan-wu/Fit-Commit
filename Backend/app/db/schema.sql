@@ -126,7 +126,7 @@ CREATE TABLE IF NOT EXISTS clothes (
     analysis_error TEXT,
     analyzed_at TIMESTAMPTZ,
     needs_analysis BOOLEAN NOT NULL DEFAULT TRUE,
-    sync_status TEXT,
+    sync_status TEXT DEFAULT 'synced',
     local_image_path TEXT,
     wear_count INT NOT NULL DEFAULT 0,
     last_worn_at TIMESTAMP,
@@ -147,8 +147,11 @@ ALTER TABLE clothes
     ADD COLUMN IF NOT EXISTS analysis_error TEXT,
     ADD COLUMN IF NOT EXISTS analyzed_at TIMESTAMPTZ,
     ADD COLUMN IF NOT EXISTS needs_analysis BOOLEAN NOT NULL DEFAULT TRUE,
-    ADD COLUMN IF NOT EXISTS sync_status TEXT,
+    ADD COLUMN IF NOT EXISTS sync_status TEXT DEFAULT 'synced',
     ADD COLUMN IF NOT EXISTS local_image_path TEXT;
+
+ALTER TABLE clothes
+    ALTER COLUMN sync_status SET DEFAULT 'synced';
 
 DO $$
 BEGIN
