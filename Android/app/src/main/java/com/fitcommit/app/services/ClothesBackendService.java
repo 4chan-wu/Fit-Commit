@@ -206,6 +206,40 @@ public class ClothesBackendService {
         return items;
     }
 
+    public JSONArray fetchWardrobes() throws Exception {
+        String url = ApiClient.BASE_URL + "/wardrobes?user_id=" + ApiClient.BACKEND_CLOTHES_USER_ID;
+        HttpURLConnection connection = (HttpURLConnection) new URL(url).openConnection();
+        connection.setRequestMethod("GET");
+        connection.setConnectTimeout(10_000);
+        connection.setReadTimeout(15_000);
+        connection.setRequestProperty("Accept", "application/json");
+        applyAuthHeaders(connection);
+
+        int statusCode = connection.getResponseCode();
+        String body = readResponse(connection, statusCode);
+        if (statusCode < 200 || statusCode >= 300) {
+            throw new IllegalStateException("Backend wardrobes fetch failed: " + statusCode + " " + body);
+        }
+        return new JSONArray(body);
+    }
+
+    public JSONObject fetchDefaultWardrobe() throws Exception {
+        String url = ApiClient.BASE_URL + "/wardrobes/default?user_id=" + ApiClient.BACKEND_CLOTHES_USER_ID;
+        HttpURLConnection connection = (HttpURLConnection) new URL(url).openConnection();
+        connection.setRequestMethod("GET");
+        connection.setConnectTimeout(10_000);
+        connection.setReadTimeout(15_000);
+        connection.setRequestProperty("Accept", "application/json");
+        applyAuthHeaders(connection);
+
+        int statusCode = connection.getResponseCode();
+        String body = readResponse(connection, statusCode);
+        if (statusCode < 200 || statusCode >= 300) {
+            throw new IllegalStateException("Backend default wardrobe fetch failed: " + statusCode + " " + body);
+        }
+        return new JSONObject(body);
+    }
+
     private JSONObject completedPayload(
             String category,
             String subcategory,

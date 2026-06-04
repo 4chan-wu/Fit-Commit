@@ -141,7 +141,13 @@ Fitcommit은 Supabase의 `public.clothes` 테이블을 옷장 저장소로 사�
 - `user_id`는 `auth.users(id)`를 참조하는 `uuid` 타입임
 - 사용자 프로필은 `public.user_profiles`를 사용하며 `user_id uuid primary key references auth.users(id) on delete cascade` 구조로 연결함
 - 사용자별 옷장은 `public.wardrobes`를 사용하며 `wardrobes.user_id`가 `auth.users(id)`를 참조함
+- 사용자는 여러 개의 옷장을 가질 수 있음
+- 기본 옷장은 사용자당 1개만 가능함
+- 추가 옷장은 여러 개 만들 수 있음
+- 같은 사용자 안에서는 같은 옷장 이름을 중복해서 만들 수 없도록 unique index를 사용함
 - `clothes.wardrobe_id`는 있으면 특정 옷장에 연결하고, 없으면 기존처럼 `clothes.user_id` 기준으로 조회함
+- 옷 등록 시 `wardrobe_id`가 없으면 Backend가 기본 옷장을 자동 생성 또는 조회해서 `clothes.wardrobe_id`에 연결함
+- iOS, Android, 추후 웹은 모두 같은 Backend wardrobe API를 사용해야 함
 - RLS 정책은 로그인한 사용자가 자기 옷만 접근할 수 있도록 설정함
 - Backend는 서버 내부에서만 `SUPABASE_SERVICE_ROLE_KEY`를 사용함
 - 현재 Backend는 service role key로 Supabase REST API를 호출하므로 RLS를 우회할 수 있음
@@ -157,6 +163,7 @@ Fitcommit은 Supabase의 `public.clothes` 테이블을 옷장 저장소로 사�
 - 분석/동기화 상태 관리를 위해 `analysis_status`, `analysis_error`, `analyzed_at`, `needs_analysis`, `sync_status`, `local_image_path` 컬럼을 사용함
 - 기존 Supabase 테이블에는 `Backend/app/db/clothes_analysis_status_migration.sql`을 SQL Editor에서 실행해 의류 상태 컬럼을 추가함
 - 사용자별 프로필/옷장 구조는 `Backend/app/db/user_profiles_wardrobes_migration.sql`을 SQL Editor에서 실행해 추가함
+- 기본 옷장 제약과 중복 이름 방지는 `Backend/app/db/wardrobes_default_constraints_migration.sql`을 SQL Editor에서 실행해 적용함
 
 Supabase Dashboard 주소와 API URL은 다름.
 
@@ -493,6 +500,12 @@ curl -X POST http://54.180.79.90:8000/clothes/upload \
 #### `GET /clothes?user_id={uuid}`
 
 특정 사용자의 옷 목록을 최신순으로 조회함.
+`wardrobe_id`를 함께 넘기면 특정 옷장에 속한 옷만 조회함.
+
+```bash
+curl "http://54.180.79.90:8000/clothes?user_id=45482f0f-42d0-401e-a18a-77abeb0492cc"
+curl "http://54.180.79.90:8000/clothes?user_id=45482f0f-42d0-401e-a18a-77abeb0492cc&wardrobe_id={wardrobe_id}"
+```
 
 #### `GET /clothes/me`
 
@@ -509,6 +522,45 @@ curl -X POST http://54.180.79.90:8000/clothes/upload \
 #### `PUT /users/me/profile`
 
 현재 사용자의 `nickname`, `height_cm`, `body_type`, `preferred_style` 값을 수정함.
+
+#### `GET /wardrobes?user_id={uuid}`
+
+사용자의 옷장 목록을 조회함.
+
+```bash
+curl "http://54.180.79.90:8000/wardrobes?user_id=45482f0f-42d0-401e-a18a-77abeb0492cc"
+```
+
+#### `GET /wardrobes/default?user_id={uuid}`
+
+사용자의 기본 옷장을 조회함. 기본 옷장이 없으면 Backend가 자동 생성함.
+
+```bash
+curl "http://54.180.79.90:8000/wardrobes/default?user_id=45482f0f-42d0-401e-a18a-77abeb0492cc"
+```
+
+#### `POST /wardrobes`
+
+추가 옷장을 생성함. 같은 사용자 안에서 같은 `name`은 중복될 수 없음.
+
+```bash
+curl -X POST "http://54.180.79.90:8000/wardrobes" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "user_id": "45482f0f-42d0-401e-a18a-77abeb0492cc",
+    "name": "여름 옷장",
+    "description": "여름 아이템 모음",
+    "is_default": false
+  }'
+```
+
+#### `PUT /wardrobes/{wardrobe_id}`
+
+옷장 이름과 설명을 수정함. 기본 옷장의 `is_default`를 직접 해제하거나 기본 옷장을 삭제하는 동작은 막음.
+
+#### `DELETE /wardrobes/{wardrobe_id}`
+
+추가 옷장을 삭제함. 기본 옷장은 삭제할 수 없음.
 
 #### `GET /clothes/{clothing_id}`
 
@@ -563,5 +615,6 @@ curl -X POST http://54.180.79.90:8000/clothes/upload \
 - 팀원 테스트 단계에서는 같은 테스트 user_id를 쓰면 옷 데이터가 같은 계정에 섞일 수 있음
 - 임시 `user_id`/`X-Test-User-Id` 방식에서 Supabase Auth access token 기반 인증으로 개선해야 함
 - 가입 또는 로그인 후 `user_profiles` 생성, 기본 `wardrobes` 생성, `clothes.wardrobe_id` 연결 흐름을 앱에 붙여야 함
+- 웹은 아직 구현하지 않았지만 프로필 조회, 옷장 목록 조회, 기본 옷장 조회, 옷 등록 시 `wardrobe_id` 선택 흐름을 같은 Backend API로 사용해야 함
 - Elastic IP 또는 도메인 연결을 적용해야 함
 - YOLO 기반 전신 사진 자동 분리는 1차 프로토타입 범위 밖이며, 필요하면 향후 고도화 기능으로 다시 검토함

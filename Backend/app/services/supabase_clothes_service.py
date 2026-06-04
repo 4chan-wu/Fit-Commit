@@ -10,6 +10,7 @@ import httpx
 from fastapi import HTTPException, status
 
 from app.schemas.clothes import ClothesCreate, ClothesUpdate
+from app.services.supabase_wardrobe_service import wardrobe_service
 
 
 logger = logging.getLogger(__name__)
@@ -51,6 +52,8 @@ class SupabaseClothesService:
     async def create(self, body: ClothesCreate) -> dict[str, Any]:
         if body.user_id is None:
             raise HTTPException(status_code=400, detail="user_id is required.")
+        wardrobe = await wardrobe_service.ensure_owned_or_default(body.user_id, body.wardrobe_id)
+        body = body.model_copy(update={"wardrobe_id": wardrobe.get("id")})
         payload = body.model_dump(mode="json", exclude_none=True)
         self._normalize_image_fields(payload)
         payload["sync_status"] = "synced"
@@ -168,6 +171,8 @@ class SupabaseClothesService:
         self._normalize_image_fields(payload)
         if not payload:
             raise HTTPException(status_code=400, detail="No update fields provided.")
+        if body.wardrobe_id is not None and user_id is not None:
+            await wardrobe_service.get_owned(body.wardrobe_id, user_id)
 
         params = {"id": f"eq.{clothing_id}"}
         if user_id is not None:

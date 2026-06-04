@@ -78,6 +78,18 @@ ENABLE_AI_ANALYSIS=false
 실제 서비스에서는 `FITCOMMIT_SUPABASE_USER_ID` 직접 입력 방식이 아니라 Supabase Auth access token 기반 인증으로 바꿔야 함.
 팀원들이 같은 테스트 user_id를 쓰면 Supabase `clothes` 데이터가 같은 사용자 옷장에 섞일 수 있음.
 
+## 사용자별 옷장 구조
+
+iOS 앱은 현재 `wardrobe_id`를 몰라도 옷 등록이 가능함. Backend가 `POST /clothes` 저장 시 사용자 기본 옷장을 자동 생성 또는 조회해서 `clothes.wardrobe_id`에 연결함.
+
+- 사용자는 여러 옷장을 가질 수 있음
+- 기본 옷장은 사용자당 1개만 가능함
+- 추가 옷장은 여러 개 가능함
+- 같은 사용자 안에서 같은 옷장 이름은 중복될 수 없음
+- 향후 옷장 선택 UI는 Backend `/wardrobes` API를 사용해야 함
+- `BackendClothesService.swift`에는 기본 옷장 조회용 `fetchDefaultWardrobe()` 구조를 준비함
+- 웹도 같은 Backend wardrobe API를 사용해야 함
+
 ## 시뮬레이터와 실기기 URL 차이
 
 iOS 시뮬레이터는 Mac에서 실행 중인 Backend에 아래 주소로 접근 가능함.

@@ -90,6 +90,26 @@ struct BackendClothesUploadResponse: Decodable {
     }
 }
 
+struct BackendWardrobeRow: Decodable, Identifiable {
+    let id: String
+    let userID: String
+    let name: String
+    let description: String?
+    let isDefault: Bool
+    let createdAt: String?
+    let updatedAt: String?
+
+    private enum CodingKeys: String, CodingKey {
+        case id
+        case userID = "user_id"
+        case name
+        case description
+        case isDefault = "is_default"
+        case createdAt = "created_at"
+        case updatedAt = "updated_at"
+    }
+}
+
 enum BackendClothesService {
     private static let defaultBackendBaseURL = "http://54.180.79.90:8000"
     private static let defaultSupabaseUserID = "45482f0f-42d0-401e-a18a-77abeb0492cc"
@@ -247,6 +267,36 @@ enum BackendClothesService {
         let row = try JSONDecoder().decode(BackendClothesRow.self, from: data)
         print("[BackendClothesService] Update succeeded id=\(row.id ?? clothingID) status=\(row.analysisStatus ?? "unknown")")
         return row
+    }
+
+    static func fetchDefaultWardrobe() async throws -> BackendWardrobeRow {
+        guard let baseURL,
+              let userID = configuredUserID else {
+            throw URLError(.badURL)
+        }
+
+        var components = URLComponents(url: baseURL.appending(path: "wardrobes/default"), resolvingAgainstBaseURL: false)
+        components?.queryItems = [URLQueryItem(name: "user_id", value: userID)]
+
+        guard let url = components?.url else {
+            throw URLError(.badURL)
+        }
+
+        var request = URLRequest(url: url)
+        applyAuthHeaders(to: &request)
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+
+        let (data, response) = try await URLSession.shared.data(for: request)
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw URLError(.badServerResponse)
+        }
+        guard (200..<300).contains(httpResponse.statusCode) else {
+            let message = String(data: data, encoding: .utf8) ?? "Unknown wardrobe error"
+            print("[BackendClothesService] Default wardrobe fetch failed status=\(httpResponse.statusCode) body=\(message)")
+            throw URLError(.badServerResponse)
+        }
+
+        return try JSONDecoder().decode(BackendWardrobeRow.self, from: data)
     }
 
     static func fetchClothes() async throws -> [ClosetItem] {

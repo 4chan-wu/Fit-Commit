@@ -6,6 +6,8 @@ from uuid import UUID
 
 from pydantic import BaseModel, Field
 
+from app.schemas.wardrobes import WardrobeResponse
+
 
 class UserProfileCreate(BaseModel):
     user_id: Optional[UUID] = None
@@ -31,10 +33,3 @@ class UserProfileResponse(BaseModel):
     created_at: Optional[Union[datetime, str]] = None
     updated_at: Optional[Union[datetime, str]] = None
 
-
-class WardrobeResponse(BaseModel):
-    id: UUID
-    user_id: UUID
-    name: str = "기본 옷장"
-    created_at: Optional[Union[datetime, str]] = None
-    updated_at: Optional[Union[datetime, str]] = None

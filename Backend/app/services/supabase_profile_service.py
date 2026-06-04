@@ -9,6 +9,7 @@ import httpx
 from fastapi import HTTPException, status
 
 from app.schemas.profiles import UserProfileCreate, UserProfileUpdate
+from app.services.supabase_wardrobe_service import wardrobe_service
 
 
 logger = logging.getLogger(__name__)
@@ -63,7 +64,7 @@ class SupabaseProfileService:
             json=payload,
         )
         profile = self._single_row(response)
-        await self.ensure_default_wardrobe(user_id)
+        await wardrobe_service.get_default(user_id, create_if_missing=True)
         logger.info("[Profiles] Upserted profile user_id=%s", user_id)
         return profile
 
@@ -84,31 +85,10 @@ class SupabaseProfileService:
         return profile
 
     async def ensure_default_wardrobe(self, user_id: UUID) -> dict[str, Any]:
-        wardrobes = await self.list_wardrobes(user_id)
-        if wardrobes:
-            return wardrobes[0]
-
-        response = await self._request(
-            "POST",
-            self._table_url("wardrobes"),
-            headers={**self._headers(), "Prefer": "return=representation"},
-            json={
-                "user_id": str(user_id),
-                "name": "기본 옷장",
-            },
-        )
-        wardrobe = self._single_row(response)
-        logger.info("[Profiles] Created default wardrobe id=%s user_id=%s", wardrobe.get("id"), user_id)
-        return wardrobe
+        return await wardrobe_service.get_default(user_id, create_if_missing=True)
 
     async def list_wardrobes(self, user_id: UUID) -> list[dict[str, Any]]:
-        response = await self._request(
-            "GET",
-            self._table_url("wardrobes"),
-            headers=self._headers(),
-            params={"user_id": f"eq.{user_id}", "order": "created_at.asc"},
-        )
-        return response.json()
+        return await wardrobe_service.list_by_user(user_id)
 
     async def _request(self, method: str, url: str, **kwargs: Any) -> httpx.Response:
         try:

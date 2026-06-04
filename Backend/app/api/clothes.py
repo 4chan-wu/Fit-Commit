@@ -39,7 +39,12 @@ async def upload_clothing_image(
 
 
 @router.get("", response_model=list[ClothesResponse])
-async def list_clothes(user_id: UUID = Query(...)):
+async def list_clothes(
+    user_id: UUID = Query(...),
+    wardrobe_id: Optional[UUID] = Query(default=None),
+):
+    if wardrobe_id is not None:
+        return await clothes_service.list_by_wardrobe(wardrobe_id, user_id=user_id)
     return await clothes_service.list_by_user(user_id)
 
 

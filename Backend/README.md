@@ -79,7 +79,12 @@ Backend는 Supabase `public.clothes` 테이블을 사용함.
 - `user_id`는 `auth.users(id)`를 참조하는 `uuid` 타입임
 - 사용자 프로필은 `public.user_profiles`에 저장하며 `user_id`가 Supabase Auth `auth.users(id)`를 참조함
 - 사용자별 옷장은 `public.wardrobes`에 저장하며 한 사용자가 여러 옷장을 가질 수 있는 구조로 준비함
+- 기본 옷장은 사용자당 1개만 존재할 수 있음
+- 추가 옷장은 여러 개 생성할 수 있음
+- 같은 사용자 안에서 같은 옷장 이름은 중복될 수 없음
 - `public.clothes.wardrobe_id`는 있으면 특정 옷장에 연결하고, 없으면 기존처럼 `user_id` 기준 조회를 사용함
+- `POST /clothes`에서 `wardrobe_id`가 없으면 Backend가 기본 옷장을 자동 생성 또는 조회해서 연결함
+- `wardrobe_id`가 들어오면 Backend가 요청 사용자 소유 옷장인지 확인함
 - RLS 정책은 로그인한 사용자가 자기 옷만 접근하도록 설정함
 - Backend는 service role key로 서버 측 저장/조회 요청을 수행함
 - service role key 요청은 RLS를 우회하므로 실제 운영 전에는 Supabase Auth access token 기반 사용자 식별로 전환해야 함
@@ -98,6 +103,7 @@ Backend는 Supabase `public.clothes` 테이블을 사용함.
 
 기존 Supabase 테이블에는 `app/db/clothes_analysis_status_migration.sql`을 SQL Editor에서 실행해 분석/동기화 상태 컬럼을 추가함.
 사용자별 프로필/옷장 구조는 `app/db/user_profiles_wardrobes_migration.sql`을 SQL Editor에서 실행해 추가함.
+기본 옷장 1개 보장, 사용자 내 옷장명 중복 방지, 테스트 user_id seed는 `app/db/wardrobes_default_constraints_migration.sql`을 SQL Editor에서 실행해 적용함.
 
 ## 실행 방법
 
@@ -401,9 +407,11 @@ curl -X POST http://54.180.79.90:8000/clothes/upload \
 ### `GET /clothes?user_id={uuid}`
 
 특정 사용자의 옷 목록을 최신순으로 조회함.
+`wardrobe_id`를 함께 넘기면 특정 옷장에 속한 옷만 조회함.
 
 ```bash
 curl "http://127.0.0.1:8000/clothes?user_id=45482f0f-42d0-401e-a18a-77abeb0492cc"
+curl "http://127.0.0.1:8000/clothes?user_id=45482f0f-42d0-401e-a18a-77abeb0492cc&wardrobe_id={wardrobe_id}"
 ```
 
 ### `GET /clothes/me`
@@ -443,6 +451,61 @@ curl -X POST "http://127.0.0.1:8000/users/me/profile" \
 ### `PUT /users/me/profile`
 
 현재 사용자 프로필을 수정함.
+
+### `GET /wardrobes?user_id={uuid}`
+
+사용자 옷장 목록을 조회함. iOS, Android, 추후 웹 모두 같은 API를 사용해야 함.
+
+```bash
+curl "http://127.0.0.1:8000/wardrobes?user_id=45482f0f-42d0-401e-a18a-77abeb0492cc"
+```
+
+### `GET /wardrobes/default?user_id={uuid}`
+
+사용자 기본 옷장을 조회함. 기본 옷장이 없으면 Backend가 자동 생성함.
+
+```bash
+curl "http://127.0.0.1:8000/wardrobes/default?user_id=45482f0f-42d0-401e-a18a-77abeb0492cc"
+```
+
+### `POST /wardrobes`
+
+추가 옷장을 생성함. `is_default=true`로 요청했는데 이미 기본 옷장이 있으면 기존 기본 옷장을 반환함.
+
+```bash
+curl -X POST "http://127.0.0.1:8000/wardrobes" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "user_id": "45482f0f-42d0-401e-a18a-77abeb0492cc",
+    "name": "여름 옷장",
+    "description": "여름 아이템 모음",
+    "is_default": false
+  }'
+```
+
+### `PUT /wardrobes/{wardrobe_id}`
+
+옷장 이름, 설명, 기본 여부를 수정함. 기본 옷장의 `is_default`를 직접 false로 바꾸는 요청은 거부함.
+
+### `DELETE /wardrobes/{wardrobe_id}`
+
+추가 옷장을 삭제함. 기본 옷장은 삭제할 수 없음.
+
+### `POST /clothes` 기본 옷장 자동 연결 확인
+
+`wardrobe_id` 없이 저장하면 응답에 `wardrobe_id`가 채워지는지 확인함.
+
+```bash
+curl -X POST "http://127.0.0.1:8000/clothes" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "user_id": "45482f0f-42d0-401e-a18a-77abeb0492cc",
+    "main_category": "top",
+    "image_path": "local://test.jpg",
+    "analysis_status": "pending",
+    "needs_analysis": true
+  }'
+```
 
 ### `GET /clothes/{clothing_id}`
 
@@ -580,5 +643,6 @@ curl -X POST http://54.180.79.90:8000/clothes/upload \
 - 팀원 테스트 단계에서는 같은 테스트 user_id를 쓰면 옷 데이터가 같은 계정에 섞일 수 있음
 - 임시 `user_id` 쿼리/바디 및 `X-Test-User-Id` 방식에서 Supabase Auth access token 기반 인증으로 개선해야 함
 - 가입 또는 로그인 후 `user_profiles` 생성, 기본 `wardrobes` 생성, `clothes.wardrobe_id` 연결 흐름을 앱에 붙여야 함
+- 웹은 아직 구현하지 않았지만 프로필 조회, 옷장 목록 조회, 기본 옷장 조회, 옷 등록 시 `wardrobe_id` 선택 흐름을 같은 Backend API로 사용해야 함
 - Elastic IP 또는 도메인 연결을 적용해야 함
 - 운영 배포 환경에서는 service role key 관리와 CORS 정책을 다시 점검해야 함
