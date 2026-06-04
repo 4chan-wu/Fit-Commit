@@ -59,26 +59,32 @@ async def list_my_clothes(request: Request, wardrobe_id: Optional[UUID] = Query(
 @router.get("/{clothing_id}", response_model=ClothesResponse)
 async def get_clothing(
     clothing_id: str,
+    request: Request,
     user_id: Optional[UUID] = Query(default=None),
 ):
-    return await clothes_service.get(clothing_id, user_id=user_id)
+    resolved_user_id = await _optional_user_id(request, user_id)
+    return await clothes_service.get(clothing_id, user_id=resolved_user_id)
 
 
 @router.put("/{clothing_id}", response_model=ClothesResponse)
 async def update_clothing(
     clothing_id: str,
     body: ClothesUpdate,
+    request: Request,
     user_id: Optional[UUID] = Query(default=None),
 ):
-    return await clothes_service.update(clothing_id, body, user_id=user_id)
+    resolved_user_id = await _optional_user_id(request, user_id)
+    return await clothes_service.update(clothing_id, body, user_id=resolved_user_id)
 
 
 @router.post("/{clothing_id}/analyze")
 async def analyze_clothing(
     clothing_id: str,
+    request: Request,
     user_id: Optional[UUID] = Query(default=None),
 ):
-    row = await clothes_service.get(clothing_id, user_id=user_id)
+    resolved_user_id = await _optional_user_id(request, user_id)
+    row = await clothes_service.get(clothing_id, user_id=resolved_user_id)
     raise HTTPException(
         status_code=status.HTTP_501_NOT_IMPLEMENTED,
         detail=(
@@ -92,6 +98,16 @@ async def analyze_clothing(
 @router.delete("/{clothing_id}")
 async def delete_clothing(
     clothing_id: str,
+    request: Request,
     user_id: Optional[UUID] = Query(default=None),
 ):
-    return await clothes_service.delete(clothing_id, user_id=user_id)
+    resolved_user_id = await _optional_user_id(request, user_id)
+    return await clothes_service.delete(clothing_id, user_id=resolved_user_id)
+
+
+async def _optional_user_id(request: Request, user_id: Optional[UUID]) -> Optional[UUID]:
+    if user_id is not None:
+        return user_id
+    if request.headers.get("Authorization") or request.headers.get("X-Test-User-Id"):
+        return await user_resolver.resolve_user_id(request)
+    return None

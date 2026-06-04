@@ -3,6 +3,9 @@ package com.fitcommit.app.services;
 import com.fitcommit.app.models.AnalysisResult;
 import com.fitcommit.app.models.ClosetItem;
 
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
+
 import org.json.JSONArray;
 import org.json.JSONObject;
 
@@ -54,6 +57,8 @@ public class ClothesBackendService {
         JSONObject payload = new JSONObject();
         payload.put("user_id", ApiClient.BACKEND_CLOTHES_USER_ID);
         payload.put("main_category", category);
+        payload.put("main_color", dominantColorName(imagePath));
+        payload.put("analysis_method", "manual");
         payload.put("season", new JSONArray());
         payload.put("style_tags", new JSONArray());
         payload.put("image_url", storageImageUrl);
@@ -73,6 +78,40 @@ public class ClothesBackendService {
         File file = new File(imagePath);
         String name = file.getName();
         return "local://" + (name == null || name.trim().isEmpty() ? String.valueOf(System.currentTimeMillis()) : name);
+    }
+
+    private String dominantColorName(String imagePath) {
+        try {
+            Bitmap bitmap = BitmapFactory.decodeFile(imagePath);
+            if (bitmap == null) {
+                return "gray";
+            }
+            Bitmap scaled = Bitmap.createScaledBitmap(bitmap, 1, 1, true);
+            int pixel = scaled.getPixel(0, 0);
+            int red = android.graphics.Color.red(pixel);
+            int green = android.graphics.Color.green(pixel);
+            int blue = android.graphics.Color.blue(pixel);
+            String[] names = {"black", "white", "gray", "navy", "blue", "brown", "beige", "red", "pink", "green", "yellow", "purple"};
+            int[][] values = {
+                    {20, 20, 20}, {245, 245, 245}, {140, 140, 140}, {20, 35, 90},
+                    {50, 100, 210}, {120, 80, 50}, {210, 190, 150}, {220, 40, 40},
+                    {230, 130, 170}, {50, 150, 80}, {230, 210, 50}, {130, 80, 180}
+            };
+            String bestName = "gray";
+            double bestDistance = Double.MAX_VALUE;
+            for (int i = 0; i < names.length; i++) {
+                double distance = Math.pow(red - values[i][0], 2)
+                        + Math.pow(green - values[i][1], 2)
+                        + Math.pow(blue - values[i][2], 2);
+                if (distance < bestDistance) {
+                    bestDistance = distance;
+                    bestName = names[i];
+                }
+            }
+            return bestName;
+        } catch (Exception ignored) {
+            return "gray";
+        }
     }
 
     public JSONObject uploadImage(String category, String imagePath) throws Exception {
@@ -259,11 +298,14 @@ public class ClothesBackendService {
         payload.put("image_path", imagePath == null ? "" : imagePath);
         payload.put("local_image_path", imagePath == null ? "" : imagePath);
         payload.put("confidence", result == null ? 0 : result.confidence);
-        payload.put("analysis_method", result == null ? "fallback" : result.method);
-        payload.put("analysis_status", "completed");
+        boolean manual = result == null || result.confidence <= 0;
+        payload.put("analysis_method", manual ? "manual" : result.method);
+        payload.put("analysis_status", manual ? "pending" : "completed");
         payload.put("analysis_error", "");
-        payload.put("analyzed_at", isoNow());
-        payload.put("needs_analysis", false);
+        if (!manual) {
+            payload.put("analyzed_at", isoNow());
+        }
+        payload.put("needs_analysis", manual);
         payload.put("sync_status", "synced");
         payload.put("memo", "");
         return payload;
@@ -321,19 +363,18 @@ public class ClothesBackendService {
 
     private JSONArray seasonArray(String season) {
         JSONArray array = new JSONArray();
-        if ("Spring/Summer".equals(season)) {
-            array.put("spring");
-            array.put("summer");
-        } else if ("Fall/Winter".equals(season)) {
-            array.put("fall");
-            array.put("winter");
-        } else if ("All-Season".equals(season)) {
+        if ("All-Season".equals(season)) {
             array.put("spring");
             array.put("summer");
             array.put("fall");
             array.put("winter");
         } else if (season != null && !season.trim().isEmpty()) {
-            array.put(season.trim().toLowerCase());
+            for (String value : season.split("[/, ]+")) {
+                String normalized = value.trim().toLowerCase();
+                if (!normalized.isEmpty()) {
+                    array.put(normalized);
+                }
+            }
         }
         return array;
     }

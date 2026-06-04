@@ -19,6 +19,7 @@ final class ClosetItem {
     var syncStatus: String
     var syncError: String?
     var analysisStatus: String
+    var analysisMethod: String?
     var analysisError: String?
     var needsAnalysis: Bool
 
@@ -39,6 +40,7 @@ final class ClosetItem {
         syncStatus: String = "local_only",
         syncError: String? = nil,
         analysisStatus: String = "completed",
+        analysisMethod: String? = nil,
         analysisError: String? = nil,
         needsAnalysis: Bool = false
     ) {
@@ -58,6 +60,7 @@ final class ClosetItem {
         self.syncStatus = syncStatus
         self.syncError = syncError
         self.analysisStatus = analysisStatus
+        self.analysisMethod = analysisMethod
         self.analysisError = analysisError
         self.needsAnalysis = needsAnalysis
     }

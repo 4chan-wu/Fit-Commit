@@ -505,6 +505,54 @@ extension UIImage {
         }
     }
 
+    func fitcommitDominantColorName() -> String {
+        let sampleSize = CGSize(width: 1, height: 1)
+        let format = UIGraphicsImageRendererFormat.default()
+        format.scale = 1
+        format.opaque = true
+
+        let image = UIGraphicsImageRenderer(size: sampleSize, format: format).image { _ in
+            self.normalizedForProcessing().draw(in: CGRect(origin: .zero, size: sampleSize))
+        }
+
+        guard let cgImage = image.cgImage,
+              let data = cgImage.dataProvider?.data,
+              let bytes = CFDataGetBytePtr(data) else {
+            return "gray"
+        }
+
+        let red = Double(bytes[0])
+        let green = Double(bytes[1])
+        let blue = Double(bytes[2])
+        let candidates: [(name: String, rgb: (Double, Double, Double))] = [
+            ("black", (20, 20, 20)),
+            ("white", (245, 245, 245)),
+            ("gray", (140, 140, 140)),
+            ("navy", (20, 35, 90)),
+            ("blue", (50, 100, 210)),
+            ("brown", (120, 80, 50)),
+            ("beige", (210, 190, 150)),
+            ("red", (220, 40, 40)),
+            ("pink", (230, 130, 170)),
+            ("green", (50, 150, 80)),
+            ("yellow", (230, 210, 50)),
+            ("purple", (130, 80, 180)),
+        ]
+
+        return candidates.min { lhs, rhs in
+            squaredDistance(red, green, blue, lhs.rgb) < squaredDistance(red, green, blue, rhs.rgb)
+        }?.name ?? "gray"
+    }
+
+    private func squaredDistance(
+        _ red: Double,
+        _ green: Double,
+        _ blue: Double,
+        _ target: (Double, Double, Double)
+    ) -> Double {
+        pow(red - target.0, 2) + pow(green - target.1, 2) + pow(blue - target.2, 2)
+    }
+
     private func normalizedForProcessing() -> UIImage {
         guard imageOrientation != .up else { return self }
 

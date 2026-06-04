@@ -92,6 +92,11 @@ AI 서버와 Backend 서버는 분리되어 있음. Backend는 현재 AWS EC2에
 - 서버/Supabase 저장 성공도 로컬 저장의 필수 조건이 아님
 - 앱은 AI 분석과 서버 동기화 전에 SwiftData 또는 `ClothingStorage`에 먼저 저장함
 - 최초 로컬 데이터는 `sync_status=pending_sync`, `analysis_status=pending`, `needs_analysis=true` 상태임
+- AI 서버가 없어도 사용자는 카테고리, 세부 종류, 대표 색상, 계절을 직접 수정할 수 있음
+- 직접 수정한 값은 Backend `PUT /clothes/{clothing_id}`로 Supabase에 반영해야 함
+- 수동 수정은 `analysis_method=manual`을 사용하고, AI 분석 완료를 의미하지 않으므로 `analysis_status=pending`을 유지할 수 있음
+- 대표색 추출은 iOS/Android 로컬 이미지 처리 기반 추천값이며 사용자가 직접 바꿀 수 있음
+- 배경 제거는 저장 필수 조건이 아니며 원본 사진 저장을 우선하고 향후 선택 기능으로 분리함
 - Backend 연결이 가능하면 `/clothes`로 DB 메타데이터 동기화를 시도함
 - Backend 연결이 가능하면 `/clothes/upload`로 사진을 `clothing-images` bucket에 업로드함
 - Storage 업로드 성공 시 `/clothes` payload에 Supabase Storage `image_path`와 `image_url`을 포함함
@@ -570,6 +575,25 @@ curl -X POST "http://54.180.79.90:8000/wardrobes" \
 
 옷 정보를 수정함. AI 성공 시 completed 업데이트, AI 실패 시 failed 업데이트, 사용자가 수정한 최종값 저장에 사용함.
 
+```bash
+curl -X PUT "http://54.180.79.90:8000/clothes/{clothing_id}?user_id=45482f0f-42d0-401e-a18a-77abeb0492cc" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "main_category": "top",
+    "subcategory": "hoodie",
+    "main_color": "black",
+    "season": ["fall", "winter"],
+    "style_tags": ["casual", "street"],
+    "analysis_method": "manual",
+    "analysis_status": "pending",
+    "needs_analysis": true,
+    "sync_status": "synced",
+    "memo": "manual_edit"
+  }'
+```
+
+수정 후에는 `GET /clothes/{clothing_id}?user_id=...`로 변경값을 확인함.
+
 #### `POST /clothes/{clothing_id}/analyze`
 
 재분석 예약용 API임. 현재는 row의 `image_url`/`image_path`를 확인하는 구조만 열려 있고, Supabase Storage download와 AI 서버 재전송은 TODO 상태임.
@@ -609,6 +633,7 @@ curl -X POST "http://54.180.79.90:8000/wardrobes" \
 - 실제 Storage 업로드 end-to-end를 앱에서 검증해야 함
 - MobileNetV3/CLIP/FashionCLIP 분석을 운영 서버와 앱 후처리 흐름에 실제 연결하고 성능 검증해야 함
 - 업로드된 이미지 기반 AI 재분석과 벡터화를 연결해야 함
+- 배경 제거 이미지를 별도 Storage path로 저장하려면 원본 이미지 path와 배경 제거 이미지 path를 구분하는 schema를 설계해야 함
 - `POST /clothes/{clothing_id}/analyze`에서 Storage 이미지를 내려받아 AI 서버로 재전송하는 재분석 흐름을 완성해야 함
 - iOS/Android 앱에서 실제 저장/조회 end-to-end를 더 넓은 케이스로 검증해야 함
 - Android JDK 환경에서 Gradle 빌드를 검증해야 함

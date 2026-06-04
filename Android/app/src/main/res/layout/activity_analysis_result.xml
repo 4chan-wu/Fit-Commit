@@ -115,35 +115,49 @@
                 android:layout_height="52dp"
                 android:layout_marginTop="12dp"
                 android:background="@drawable/bg_input"
-                android:hint="대표 색상 HEX"
+                android:hint="대표 색상"
                 android:paddingHorizontal="14dp"
                 android:singleLine="true" />
 
-            <RadioGroup
+            <Spinner
+                android:id="@+id/colorSpinner"
+                android:layout_width="match_parent"
+                android:layout_height="52dp"
+                android:layout_marginTop="12dp"
+                android:background="@drawable/bg_input"
+                android:paddingHorizontal="14dp" />
+
+            <LinearLayout
                 android:id="@+id/seasonGroup"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="14dp"
                 android:orientation="vertical">
 
-                <RadioButton
+                <CheckBox
                     android:id="@+id/seasonSpring"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="Spring/Summer" />
+                    android:text="spring" />
 
-                <RadioButton
+                <CheckBox
+                    android:id="@+id/seasonSummer"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="summer" />
+
+                <CheckBox
                     android:id="@+id/seasonFall"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="Fall/Winter" />
+                    android:text="fall" />
 
-                <RadioButton
-                    android:id="@+id/seasonAll"
+                <CheckBox
+                    android:id="@+id/seasonWinter"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="All-Season" />
-            </RadioGroup>
+                    android:text="winter" />
+            </LinearLayout>
 
             <EditText
                 android:id="@+id/styleTagsEditText"

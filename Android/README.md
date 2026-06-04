@@ -14,6 +14,10 @@ Fitcommit Android는 Java/XML 기반 Android 앱임. 현재 흐름은 iOS와 동
 - AI 실패 시 로컬 데이터를 `failed`로 유지하고, remote id가 있으면 `analysis_error`를 저장함
 - 분석 결과 화면에서 종류, 세부 종류, 대표 색상, 계절, 스타일 태그, 신뢰도를 확인/수정함
 - 저장 버튼을 누르면 사용자가 확정한 값을 `ClothingStorage`에 먼저 반영하고, remote id가 있으면 Backend `PUT /clothes/{clothing_id}`로 저장함
+- AI 서버 없이도 사용자가 카테고리, 세부 종류, 대표 색상, 계절을 직접 수정할 수 있음
+- 대표색은 Android 로컬 이미지 처리로 추천값을 계산하고, 사용자가 직접 바꿀 수 있음
+- 수동 수정은 `analysis_method=manual`로 저장하고 `analysis_status=pending`을 유지할 수 있음
+- 배경 제거는 저장 필수 조건이 아니며 향후 선택 기능으로 분리함
 - Backend 저장 실패 시에도 `ClothingStorage` 로컬 item은 유지됨
 - 옷장 화면은 Backend 조회 결과와 로컬 저장소를 remote id/local id 기준으로 병합함
 - 3D 공간 스캔과 신체 비율 측정 진입점은 옷장 화면에 계속 유지함

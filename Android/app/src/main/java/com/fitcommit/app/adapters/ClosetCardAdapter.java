@@ -1,6 +1,7 @@
 package com.fitcommit.app.adapters;
 
 import android.content.Context;
+import android.content.Intent;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Color;
@@ -11,6 +12,7 @@ import android.widget.LinearLayout;
 import android.widget.TextView;
 
 import com.fitcommit.app.R;
+import com.fitcommit.app.activities.AnalysisResultActivity;
 import com.fitcommit.app.models.ClosetItem;
 import com.fitcommit.app.utils.UiUtils;
 
@@ -47,6 +49,19 @@ public class ClosetCardAdapter {
         params.columnSpec = GridLayout.spec(GridLayout.UNDEFINED, 1f);
         params.setMargins(UiUtils.dp(context, 5), UiUtils.dp(context, 5), UiUtils.dp(context, 5), UiUtils.dp(context, 5));
         card.setLayoutParams(params);
+        card.setOnClickListener(v -> {
+            Intent intent = new Intent(context, AnalysisResultActivity.class);
+            intent.putExtra(AnalysisResultActivity.EXTRA_EDIT_MODE, true);
+            intent.putExtra(AnalysisResultActivity.EXTRA_LOCAL_ID, item.localId);
+            intent.putExtra(AnalysisResultActivity.EXTRA_REMOTE_ID, item.remoteId);
+            intent.putExtra(AnalysisResultActivity.EXTRA_IMAGE_PATH, item.imagePath);
+            intent.putExtra(AnalysisResultActivity.EXTRA_CATEGORY_HINT, item.category);
+            intent.putExtra(AnalysisResultActivity.EXTRA_NAME, item.name);
+            intent.putExtra(AnalysisResultActivity.EXTRA_COLOR, item.color);
+            intent.putExtra(AnalysisResultActivity.EXTRA_SEASON, item.season);
+            intent.putExtra(AnalysisResultActivity.EXTRA_NOTE, item.note);
+            context.startActivity(intent);
+        });
 
         if (item.imagePath != null && !item.imagePath.isEmpty() && new File(item.imagePath).exists()) {
             ImageView image = new ImageView(context);

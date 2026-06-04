@@ -1,13 +1,14 @@
 package com.fitcommit.app.activities;
 
 import android.app.Activity;
+import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.os.Bundle;
 import android.view.View;
 import android.widget.ArrayAdapter;
+import android.widget.CheckBox;
 import android.widget.EditText;
 import android.widget.ImageView;
-import android.widget.RadioButton;
 import android.widget.Spinner;
 import android.widget.TextView;
 
@@ -29,8 +30,16 @@ import java.util.Arrays;
 public class AnalysisResultActivity extends Activity {
     public static final String EXTRA_IMAGE_PATH = "imagePath";
     public static final String EXTRA_CATEGORY_HINT = "categoryHint";
+    public static final String EXTRA_EDIT_MODE = "editMode";
+    public static final String EXTRA_LOCAL_ID = "localId";
+    public static final String EXTRA_REMOTE_ID = "remoteId";
+    public static final String EXTRA_NAME = "name";
+    public static final String EXTRA_COLOR = "color";
+    public static final String EXTRA_SEASON = "season";
+    public static final String EXTRA_NOTE = "note";
 
     private static final String[] CATEGORIES = {"top", "bottom", "outer", "shoes", "hat", "bag", "dress"};
+    private static final String[] COLORS = {"black", "white", "gray", "navy", "blue", "brown", "beige", "red", "pink", "green", "yellow", "purple"};
     private final FashionAiService fashionAiService = new FashionAiService();
     private final ClothesBackendService clothesBackendService = new ClothesBackendService();
 
@@ -47,6 +56,11 @@ public class AnalysisResultActivity extends Activity {
 
         imagePath = getIntent().getStringExtra(EXTRA_IMAGE_PATH);
         categoryHint = valueOrDefault(getIntent().getStringExtra(EXTRA_CATEGORY_HINT), "top");
+        localItemId = getIntent().getStringExtra(EXTRA_LOCAL_ID);
+        serverClothingId = getIntent().getStringExtra(EXTRA_REMOTE_ID);
+        if (localItemId == null || localItemId.trim().isEmpty()) {
+            localItemId = java.util.UUID.randomUUID().toString();
+        }
 
         findViewById(R.id.resultBackText).setOnClickListener(v -> finish());
         ImageView preview = findViewById(R.id.resultPreviewImage);
@@ -55,8 +69,12 @@ public class AnalysisResultActivity extends Activity {
         }
 
         setupStaticForm();
-        saveLocalPendingItem();
-        registerClothing();
+        if (getIntent().getBooleanExtra(EXTRA_EDIT_MODE, false)) {
+            setupEditMode();
+        } else {
+            saveLocalPendingItem();
+            registerClothing();
+        }
     }
 
     private void setupStaticForm() {
@@ -66,8 +84,42 @@ public class AnalysisResultActivity extends Activity {
         int hintIndex = Arrays.asList(CATEGORIES).indexOf(categoryHint);
         categorySpinner.setSelection(Math.max(hintIndex, 0));
 
+        Spinner colorSpinner = findViewById(R.id.colorSpinner);
+        ArrayAdapter<String> colorAdapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_dropdown_item, COLORS);
+        colorSpinner.setAdapter(colorAdapter);
+        colorSpinner.setOnItemSelectedListener(new android.widget.AdapterView.OnItemSelectedListener() {
+            @Override
+            public void onItemSelected(android.widget.AdapterView<?> parent, View view, int position, long id) {
+                ((EditText) findViewById(R.id.colorEditText)).setText(COLORS[position]);
+            }
+
+            @Override
+            public void onNothingSelected(android.widget.AdapterView<?> parent) {
+            }
+        });
+
         findViewById(R.id.editResultButton).setOnClickListener(v -> resetFields());
         findViewById(R.id.saveResultButton).setOnClickListener(v -> saveConfirmedResult());
+    }
+
+    private void setupEditMode() {
+        result = new AnalysisResult(
+                categoryHint,
+                "",
+                valueOrDefault(getIntent().getStringExtra(EXTRA_COLOR), dominantColorName()),
+                valueOrDefault(getIntent().getStringExtra(EXTRA_SEASON), "spring/summer/fall/winter"),
+                new String[0],
+                0,
+                "manual",
+                ""
+        );
+        bindResult(result);
+        ((EditText) findViewById(R.id.clothingNameEditText)).setText(valueOrDefault(getIntent().getStringExtra(EXTRA_NAME), defaultNameFor(categoryHint)));
+        String note = getIntent().getStringExtra(EXTRA_NOTE);
+        if (note != null && note.contains("subcategory=")) {
+            ((EditText) findViewById(R.id.subcategoryEditText)).setText(extractNoteValue(note, "subcategory"));
+        }
+        setLoading(false, "수정 후 저장하면 Backend PUT /clothes/{id}로 반영됩니다.");
     }
 
     private void registerClothing() {
@@ -118,26 +170,23 @@ public class AnalysisResultActivity extends Activity {
     private void bindResult(AnalysisResult result) {
         ((TextView) findViewById(R.id.resultCategoryText)).setText(result.mainCategory);
         ((TextView) findViewById(R.id.resultConfidenceText)).setText(Math.round(result.confidence * 100) + "% confidence");
-        ((TextView) findViewById(R.id.colorSummaryText)).setText("대표 색상  " + result.mainColor);
+        String color = normalizeColor(result.mainColor);
+        ((TextView) findViewById(R.id.colorSummaryText)).setText("대표 색상  " + color);
         ((EditText) findViewById(R.id.clothingNameEditText)).setText(defaultNameFor(result.mainCategory));
         ((EditText) findViewById(R.id.subcategoryEditText)).setText(result.subcategory);
-        ((EditText) findViewById(R.id.colorEditText)).setText(result.mainColor);
+        ((EditText) findViewById(R.id.colorEditText)).setText(color);
         ((EditText) findViewById(R.id.styleTagsEditText)).setText(joinTags(result.styleTags));
+        Spinner colorSpinner = findViewById(R.id.colorSpinner);
+        int colorIndex = Arrays.asList(COLORS).indexOf(color);
+        if (colorIndex >= 0) {
+            colorSpinner.setSelection(colorIndex);
+        }
 
         Spinner categorySpinner = findViewById(R.id.categorySpinner);
         int index = Arrays.asList(CATEGORIES).indexOf(result.mainCategory);
         categorySpinner.setSelection(Math.max(index, 0));
 
-        RadioButton spring = findViewById(R.id.seasonSpring);
-        RadioButton fall = findViewById(R.id.seasonFall);
-        RadioButton all = findViewById(R.id.seasonAll);
-        if ("Fall/Winter".equals(result.season)) {
-            fall.setChecked(true);
-        } else if ("All-Season".equals(result.season)) {
-            all.setChecked(true);
-        } else {
-            spring.setChecked(true);
-        }
+        bindSeason(result.season);
     }
 
     private void resetFields() {
@@ -150,7 +199,7 @@ public class AnalysisResultActivity extends Activity {
         String name = valueOrDefault(((EditText) findViewById(R.id.clothingNameEditText)).getText().toString(), "새 의류");
         String category = ((Spinner) findViewById(R.id.categorySpinner)).getSelectedItem().toString();
         String subcategory = ((EditText) findViewById(R.id.subcategoryEditText)).getText().toString().trim();
-        String color = valueOrDefault(((EditText) findViewById(R.id.colorEditText)).getText().toString(), "#CCCCCC");
+        String color = valueOrDefault(((EditText) findViewById(R.id.colorEditText)).getText().toString(), "gray");
         String styleTags = ((EditText) findViewById(R.id.styleTagsEditText)).getText().toString().trim();
         String season = selectedSeason();
 
@@ -186,6 +235,16 @@ public class AnalysisResultActivity extends Activity {
 
         UiUtils.toast(this, "기기에 임시 저장되었습니다.");
         finish();
+    }
+
+    private String extractNoteValue(String note, String key) {
+        for (String part : note.split(";")) {
+            String trimmed = part.trim();
+            if (trimmed.startsWith(key + "=")) {
+                return trimmed.substring((key + "=").length()).trim();
+            }
+        }
+        return "";
     }
 
     private void saveLocally(
@@ -233,7 +292,7 @@ public class AnalysisResultActivity extends Activity {
                 "",
                 defaultNameFor(categoryHint),
                 categoryHint,
-                "#CCCCCC",
+                dominantColorName(),
                 "분석 대기",
                 "created_before_ai_analysis",
                 imagePath,
@@ -319,6 +378,78 @@ public class AnalysisResultActivity extends Activity {
         ));
     }
 
+    private void bindSeason(String season) {
+        ((CheckBox) findViewById(R.id.seasonSpring)).setChecked(false);
+        ((CheckBox) findViewById(R.id.seasonSummer)).setChecked(false);
+        ((CheckBox) findViewById(R.id.seasonFall)).setChecked(false);
+        ((CheckBox) findViewById(R.id.seasonWinter)).setChecked(false);
+
+        String normalized = season == null ? "" : season.toLowerCase();
+        if (normalized.contains("all-season")) {
+            ((CheckBox) findViewById(R.id.seasonSpring)).setChecked(true);
+            ((CheckBox) findViewById(R.id.seasonSummer)).setChecked(true);
+            ((CheckBox) findViewById(R.id.seasonFall)).setChecked(true);
+            ((CheckBox) findViewById(R.id.seasonWinter)).setChecked(true);
+            return;
+        }
+        if (normalized.contains("spring")) {
+            ((CheckBox) findViewById(R.id.seasonSpring)).setChecked(true);
+        }
+        if (normalized.contains("summer")) {
+            ((CheckBox) findViewById(R.id.seasonSummer)).setChecked(true);
+        }
+        if (normalized.contains("fall")) {
+            ((CheckBox) findViewById(R.id.seasonFall)).setChecked(true);
+        }
+        if (normalized.contains("winter")) {
+            ((CheckBox) findViewById(R.id.seasonWinter)).setChecked(true);
+        }
+        if (!normalized.contains("spring") && !normalized.contains("summer") && !normalized.contains("fall") && !normalized.contains("winter")) {
+            ((CheckBox) findViewById(R.id.seasonSpring)).setChecked(true);
+            ((CheckBox) findViewById(R.id.seasonSummer)).setChecked(true);
+        }
+    }
+
+    private String normalizeColor(String color) {
+        if (color == null || color.trim().isEmpty() || "#CCCCCC".equalsIgnoreCase(color.trim())) {
+            return dominantColorName();
+        }
+        return color.trim().toLowerCase();
+    }
+
+    private String dominantColorName() {
+        try {
+            Bitmap bitmap = BitmapFactory.decodeFile(imagePath);
+            if (bitmap == null) {
+                return "gray";
+            }
+            Bitmap scaled = Bitmap.createScaledBitmap(bitmap, 1, 1, true);
+            int pixel = scaled.getPixel(0, 0);
+            int red = android.graphics.Color.red(pixel);
+            int green = android.graphics.Color.green(pixel);
+            int blue = android.graphics.Color.blue(pixel);
+            String bestName = "gray";
+            double bestDistance = Double.MAX_VALUE;
+            int[][] values = {
+                    {20, 20, 20}, {245, 245, 245}, {140, 140, 140}, {20, 35, 90},
+                    {50, 100, 210}, {120, 80, 50}, {210, 190, 150}, {220, 40, 40},
+                    {230, 130, 170}, {50, 150, 80}, {230, 210, 50}, {130, 80, 180}
+            };
+            for (int i = 0; i < COLORS.length; i++) {
+                double distance = Math.pow(red - values[i][0], 2)
+                        + Math.pow(green - values[i][1], 2)
+                        + Math.pow(blue - values[i][2], 2);
+                if (distance < bestDistance) {
+                    bestDistance = distance;
+                    bestName = COLORS[i];
+                }
+            }
+            return bestName;
+        } catch (Exception ignored) {
+            return "gray";
+        }
+    }
+
     private void updateAnalysisCompleted(AnalysisResult analyzed) {
         updateLocalAnalysisCompleted(analyzed);
         if (serverClothingId == null || serverClothingId.trim().isEmpty()) {
@@ -353,13 +484,21 @@ public class AnalysisResultActivity extends Activity {
     }
 
     private String selectedSeason() {
-        if (((RadioButton) findViewById(R.id.seasonFall)).isChecked()) {
-            return "Fall/Winter";
+        StringBuilder builder = new StringBuilder();
+        appendSeason(builder, R.id.seasonSpring, "spring");
+        appendSeason(builder, R.id.seasonSummer, "summer");
+        appendSeason(builder, R.id.seasonFall, "fall");
+        appendSeason(builder, R.id.seasonWinter, "winter");
+        return builder.length() == 0 ? "spring/summer/fall/winter" : builder.toString();
+    }
+
+    private void appendSeason(StringBuilder builder, int viewId, String value) {
+        if (((CheckBox) findViewById(viewId)).isChecked()) {
+            if (builder.length() > 0) {
+                builder.append("/");
+            }
+            builder.append(value);
         }
-        if (((RadioButton) findViewById(R.id.seasonAll)).isChecked()) {
-            return "All-Season";
-        }
-        return "Spring/Summer";
     }
 
     private void setLoading(boolean loading, String message) {

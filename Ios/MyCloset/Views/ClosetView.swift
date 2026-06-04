@@ -429,9 +429,25 @@ enum ClosetItemEditOptions {
     ]
 
     static let seasons = [
-        "Spring/Summer",
-        "Fall/Winter",
-        "All-Season",
+        "spring",
+        "summer",
+        "fall",
+        "winter",
+    ]
+
+    static let colors = [
+        "black",
+        "white",
+        "gray",
+        "navy",
+        "blue",
+        "brown",
+        "beige",
+        "red",
+        "pink",
+        "green",
+        "yellow",
+        "purple",
     ]
 }
 
@@ -1042,7 +1058,7 @@ private struct ClothesUploadView: View {
             name: Self.defaultName(for: selectedCategoryHint),
             category: selectedCategoryHint,
             subcategory: "",
-            color: "#CCCCCC",
+            color: activeImage.fitcommitDominantColorName(),
             season: "분석 대기",
             styleTags: [],
             confidence: 0,
@@ -1109,14 +1125,14 @@ private struct ClothesUploadView: View {
                     userID: userID,
                     mainCategory: selectedCategoryHint,
                     subcategory: nil,
-                    mainColor: nil,
+                    mainColor: localItem?.color,
                     season: [],
                     styleTags: [],
                     imageURL: imageURL,
                     imagePath: imagePath,
                     localImagePath: localImageReference,
                     confidence: nil,
-                    analysisMethod: nil,
+                    analysisMethod: "manual",
                     analysisStatus: "pending",
                     analysisError: nil,
                     analyzedAt: nil,
@@ -1282,6 +1298,11 @@ private struct ClothingDetailView: View {
     @Environment(\.modelContext) private var modelContext
     @Bindable var item: ClosetItem
     @State private var isShowingDeleteAlert = false
+    @State private var selectedPhotoItem: PhotosPickerItem?
+    @State private var selectedSeasonValues: Set<String> = []
+    @State private var isSaving = false
+    @State private var saveMessage: String?
+    @State private var changedImageData: Data?
 
     var body: some View {
         NavigationStack {
@@ -1298,6 +1319,10 @@ private struct ClothingDetailView: View {
                             Spacer()
                         }
                     }
+
+                    PhotosPicker(selection: $selectedPhotoItem, matching: .images) {
+                        Label("사진 변경", systemImage: "photo.on.rectangle.angled")
+                    }
                 }
 
                 Section("기본 정보") {
@@ -1308,6 +1333,10 @@ private struct ClothingDetailView: View {
                             Text(category).tag(category)
                         }
                     }
+
+                    TextField("세부 종류", text: $item.subcategory)
+                        .textInputAutocapitalization(.never)
+                        .autocorrectionDisabled()
                 }
 
                 Section("색상") {
@@ -1324,15 +1353,33 @@ private struct ClothingDetailView: View {
                             .textInputAutocapitalization(.characters)
                             .autocorrectionDisabled()
                     }
+
+                    Picker("대표 색상", selection: $item.color) {
+                        ForEach(ClosetItemEditOptions.colors, id: \.self) { color in
+                            Text(color).tag(color)
+                        }
+                    }
                 }
 
                 Section("계절") {
-                    Picker("계절", selection: $item.season) {
-                        ForEach(ClosetItemEditOptions.seasons, id: \.self) { season in
-                            Label(season, systemImage: seasonIconName(for: season)).tag(season)
+                    ForEach(ClosetItemEditOptions.seasons, id: \.self) { season in
+                        Toggle(isOn: seasonBinding(for: season)) {
+                            Label(season, systemImage: seasonIconName(for: season))
                         }
                     }
-                    .pickerStyle(.segmented)
+                    Text(selectedSeasonValues.isEmpty ? "선택된 계절 없음" : selectedSeasonValues.sorted().joined(separator: ", "))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
+                Section("상태") {
+                    LabeledContent("분석 상태", value: analysisStatusLabel(item.analysisStatus))
+                    LabeledContent("동기화 상태", value: syncStatusLabel(item.syncStatus))
+                    if let saveMessage {
+                        Text(saveMessage)
+                            .font(.footnote)
+                            .foregroundStyle(item.syncStatus == "sync_failed" ? .orange : .secondary)
+                    }
                 }
 
                 Section {
@@ -1348,6 +1395,12 @@ private struct ClothingDetailView: View {
             }
             .navigationTitle("의류 정보")
             .navigationBarTitleDisplayMode(.inline)
+            .onAppear {
+                selectedSeasonValues = seasonValues(from: item.season)
+            }
+            .onChange(of: selectedPhotoItem) { _, newItem in
+                loadChangedPhoto(newItem)
+            }
             .alert("의류를 삭제할까요?", isPresented: $isShowingDeleteAlert) {
                 Button("삭제하기", role: .destructive) {
                     deleteItem()
@@ -1365,24 +1418,96 @@ private struct ClothingDetailView: View {
 
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
-                        saveAndDismiss()
+                        Task {
+                            await saveAndDismiss()
+                        }
                     } label: {
-                        Text("수정 완료")
+                        Text(isSaving ? "저장 중" : "수정 완료")
                             .foregroundStyle(.primary)
                     }
                     .fontWeight(.semibold)
+                    .disabled(isSaving)
                 }
             }
         }
     }
 
-    private func saveAndDismiss() {
+    @MainActor
+    private func saveAndDismiss() async {
+        isSaving = true
         item.name = normalizedValue(item.name, fallback: "새로운 옷")
         item.category = normalizedValue(item.category, fallback: "top")
-        item.color = normalizedValue(item.color, fallback: "#CCCCCC")
-        item.season = normalizedValue(item.season, fallback: "All-Season")
+        item.subcategory = normalizedValue(item.subcategory, fallback: "")
+        item.color = normalizedValue(item.color, fallback: "gray")
+        item.season = seasonDisplayValue(from: selectedSeasonValues)
+        item.analysisMethod = "manual"
+        item.syncStatus = item.remoteID == nil ? "local_only" : "pending_sync"
         try? modelContext.save()
-        dismiss()
+
+        guard let remoteID = item.remoteID, remoteID.isEmpty == false else {
+            isSaving = false
+            dismiss()
+            return
+        }
+
+        var imagePathForUpdate = item.localImagePath
+        var imageURLForUpdate = item.imageURL
+
+        if let changedImageData,
+           let userID = BackendClothesService.configuredUserID {
+            do {
+                let upload = try await BackendClothesService.uploadImage(
+                    imageData: changedImageData,
+                    userID: userID,
+                    mainCategory: item.category
+                )
+                imagePathForUpdate = upload.imagePath
+                imageURLForUpdate = upload.imageURL
+                item.localImagePath = upload.imagePath
+                item.imageURL = upload.imageURL
+            } catch {
+                print("[ClothingDetailView] Image upload failed, keeping local edit: \(error.localizedDescription)")
+                saveMessage = "이미지 업로드 실패, 기존 서버 이미지는 유지됩니다."
+            }
+        }
+
+        do {
+            let row = try await BackendClothesService.update(
+                clothingID: remoteID,
+                payload: BackendClothesUpdatePayload(
+                    mainCategory: item.category,
+                    subcategory: item.subcategory.isEmpty ? nil : item.subcategory,
+                    mainColor: item.color,
+                    season: selectedSeasonValues.sorted(),
+                    styleTags: item.styleTags,
+                    imageURL: imageURLForUpdate,
+                    imagePath: imagePathForUpdate,
+                    localImagePath: item.localImagePath,
+                    confidence: nil,
+                    analysisMethod: "manual",
+                    analysisStatus: item.analysisStatus,
+                    analysisError: item.analysisError,
+                    analyzedAt: nil,
+                    needsAnalysis: item.needsAnalysis,
+                    syncStatus: "synced",
+                    memo: "manual_edit"
+                )
+            )
+            apply(row: row)
+            item.syncStatus = "synced"
+            item.syncError = nil
+            try? modelContext.save()
+            saveMessage = "서버에 수정 사항이 반영되었습니다."
+            isSaving = false
+            dismiss()
+        } catch {
+            item.syncStatus = "sync_failed"
+            item.syncError = error.localizedDescription
+            try? modelContext.save()
+            saveMessage = "서버 수정 실패, 기기에는 저장되었습니다."
+            print("[ClothingDetailView] Backend update failed: \(error.localizedDescription)")
+            isSaving = false
+        }
     }
 
     private func deleteItem() {
@@ -1393,12 +1518,113 @@ private struct ClothingDetailView: View {
 
     private func seasonIconName(for season: String) -> String {
         switch season {
-        case "Spring/Summer":
+        case "spring":
             return "sun.max.fill"
-        case "Fall/Winter":
+        case "summer":
+            return "thermometer.sun.fill"
+        case "fall":
+            return "leaf.fill"
+        case "winter":
             return "snowflake"
         default:
             return "circle.lefthalf.filled"
+        }
+    }
+
+    private func seasonBinding(for season: String) -> Binding<Bool> {
+        Binding {
+            selectedSeasonValues.contains(season)
+        } set: { isSelected in
+            if isSelected {
+                selectedSeasonValues.insert(season)
+            } else {
+                selectedSeasonValues.remove(season)
+            }
+        }
+    }
+
+    private func loadChangedPhoto(_ photoItem: PhotosPickerItem?) {
+        guard let photoItem else { return }
+        Task {
+            guard let data = try? await photoItem.loadTransferable(type: Data.self),
+                  let image = UIImage(data: data),
+                  let jpegData = image.jpegData(compressionQuality: 0.82) else {
+                return
+            }
+            await MainActor.run {
+                changedImageData = jpegData
+                item.imageData = jpegData
+                if item.color == "#CCCCCC" || item.color == "gray" {
+                    item.color = image.fitcommitDominantColorName()
+                }
+                item.localImagePath = "local://\(item.id.uuidString)"
+                try? modelContext.save()
+            }
+        }
+    }
+
+    private func apply(row: BackendClothesRow) {
+        item.remoteID = row.id ?? item.remoteID
+        item.category = row.mainCategory
+        item.subcategory = row.subcategory ?? item.subcategory
+        item.color = row.mainColor ?? item.color
+        item.season = seasonDisplayValue(from: Set(row.season ?? []))
+        item.imageURL = row.imageURL ?? item.imageURL
+        item.localImagePath = row.localImagePath ?? row.imagePath ?? item.localImagePath
+        item.syncStatus = row.syncStatus ?? "synced"
+        item.analysisStatus = row.analysisStatus ?? item.analysisStatus
+        item.analysisMethod = row.analysisMethod ?? item.analysisMethod
+        item.analysisError = row.analysisError
+        item.needsAnalysis = row.needsAnalysis ?? item.needsAnalysis
+    }
+
+    private func seasonValues(from value: String) -> Set<String> {
+        let normalized = value.lowercased()
+        if normalized == "spring/summer" {
+            return ["spring", "summer"]
+        }
+        if normalized == "fall/winter" {
+            return ["fall", "winter"]
+        }
+        if normalized == "all-season" {
+            return Set(ClosetItemEditOptions.seasons)
+        }
+        return Set(
+            normalized
+                .split { $0 == "/" || $0 == "," || $0 == " " }
+                .map(String.init)
+                .filter { ClosetItemEditOptions.seasons.contains($0) }
+        )
+    }
+
+    private func seasonDisplayValue(from values: Set<String>) -> String {
+        if values.isEmpty {
+            return "분석 대기"
+        }
+        return ClosetItemEditOptions.seasons.filter { values.contains($0) }.joined(separator: "/")
+    }
+
+    private func analysisStatusLabel(_ value: String) -> String {
+        switch value {
+        case "completed":
+            return "분석 완료"
+        case "failed":
+            return "분석 실패"
+        default:
+            return "분석 대기"
+        }
+    }
+
+    private func syncStatusLabel(_ value: String) -> String {
+        switch value {
+        case "synced":
+            return "서버 동기화 완료"
+        case "sync_failed":
+            return "서버 동기화 실패"
+        case "pending_sync":
+            return "서버 동기화 대기"
+        default:
+            return "기기 저장"
         }
     }
 

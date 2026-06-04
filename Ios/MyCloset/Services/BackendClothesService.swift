@@ -474,6 +474,7 @@ struct BackendClothesRow: Decodable {
             syncStatus: syncStatus ?? "synced",
             syncError: nil,
             analysisStatus: status,
+            analysisMethod: analysisMethod,
             analysisError: analysisError,
             needsAnalysis: needsAnalysis ?? (status != "completed")
         )

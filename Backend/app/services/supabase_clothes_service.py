@@ -173,6 +173,7 @@ class SupabaseClothesService:
             raise HTTPException(status_code=400, detail="No update fields provided.")
         if body.wardrobe_id is not None and user_id is not None:
             await wardrobe_service.get_owned(body.wardrobe_id, user_id)
+        payload["updated_at"] = datetime.now(timezone.utc).isoformat()
 
         params = {"id": f"eq.{clothing_id}"}
         if user_id is not None:

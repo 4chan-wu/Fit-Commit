@@ -100,6 +100,10 @@ Backend는 Supabase `public.clothes` 테이블을 사용함.
 - `analysis_error`, `analyzed_at`, `needs_analysis`로 분석 실패/재분석 상태를 관리함
 - `sync_status`는 `local_only`, `pending_sync`, `synced`, `sync_failed` 중 하나를 사용함
 - `local_image_path`는 앱이 가진 로컬 이미지 참조를 기록하는 fallback 필드임
+- AI 서버가 없어도 사용자는 카테고리, 세부 종류, 대표 색상, 계절을 직접 수정할 수 있음
+- 직접 수정한 값은 `analysis_method=manual`로 저장하고, AI 완료 상태가 아니면 `analysis_status=pending`을 유지할 수 있음
+- 대표색 추출은 앱 로컬 이미지 처리 기반 추천값이며 사용자가 수정할 수 있음
+- 배경 제거는 저장 필수 조건이 아니고 향후 선택 기능으로 분리함
 
 기존 Supabase 테이블에는 `app/db/clothes_analysis_status_migration.sql`을 SQL Editor에서 실행해 분석/동기화 상태 컬럼을 추가함.
 사용자별 프로필/옷장 구조는 `app/db/user_profiles_wardrobes_migration.sql`을 SQL Editor에서 실행해 추가함.
@@ -518,23 +522,29 @@ curl "http://127.0.0.1:8000/clothes/{clothing_id}?user_id=45482f0f-42d0-401e-a18
 ### `PUT /clothes/{clothing_id}`
 
 옷 정보를 수정함.
+수동 수정은 아래처럼 `analysis_method=manual`, `analysis_status=pending`으로 저장함.
 
 ```bash
 curl -X PUT "http://127.0.0.1:8000/clothes/{clothing_id}?user_id=45482f0f-42d0-401e-a18a-77abeb0492cc" \
   -H "Content-Type: application/json" \
   -d '{
+    "main_category": "top",
     "subcategory": "hoodie",
-    "main_color": "gray",
+    "main_color": "black",
     "season": ["fall", "winter"],
     "style_tags": ["casual", "street"],
-    "confidence": 0.82,
-    "analysis_method": "clip",
-    "analysis_status": "completed",
-    "analysis_error": "",
-    "analyzed_at": "2026-06-03T12:00:00Z",
-    "needs_analysis": false,
-    "sync_status": "synced"
+    "analysis_method": "manual",
+    "analysis_status": "pending",
+    "needs_analysis": true,
+    "sync_status": "synced",
+    "memo": "manual_edit"
   }'
+```
+
+수정 후에는 아래처럼 GET으로 변경값을 확인함.
+
+```bash
+curl "http://127.0.0.1:8000/clothes/{clothing_id}?user_id=45482f0f-42d0-401e-a18a-77abeb0492cc"
 ```
 
 AI 실패 상태 업데이트는 아래처럼 함.
