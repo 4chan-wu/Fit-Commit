@@ -12,7 +12,8 @@ SyncStatus = Literal["local_only", "pending_sync", "synced", "sync_failed"]
 
 
 class ClothesCreate(BaseModel):
-    user_id: UUID
+    user_id: Optional[UUID] = None
+    wardrobe_id: Optional[UUID] = None
     main_category: str = Field(..., examples=["top"])
     subcategory: Optional[str] = Field(default=None, examples=["hoodie"])
     main_color: Optional[str] = Field(default=None, examples=["gray"])
@@ -32,6 +33,7 @@ class ClothesCreate(BaseModel):
 
 
 class ClothesUpdate(BaseModel):
+    wardrobe_id: Optional[UUID] = None
     main_category: Optional[str] = None
     subcategory: Optional[str] = None
     main_color: Optional[str] = None

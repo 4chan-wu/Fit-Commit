@@ -60,6 +60,7 @@ iOS 앱은 아래 설정이 있으면 로컬 저장 후 Backend `/clothes` 동�
 ```text
 FITCOMMIT_BACKEND_BASE_URL
 FITCOMMIT_SUPABASE_USER_ID
+FITCOMMIT_SUPABASE_ACCESS_TOKEN
 ENABLE_AI_ANALYSIS
 ```
 
@@ -72,8 +73,10 @@ ENABLE_AI_ANALYSIS=false
 ```
 
 `BackendClothesService.swift`는 Backend base URL과 테스트 user_id를 한 곳에서 관리함. 환경변수 또는 Info.plist 값이 있으면 그 값을 우선 사용하고, 값이 없으면 위 EC2 기본값을 사용함.
+개발 단계에서는 `FITCOMMIT_SUPABASE_USER_ID`를 `X-Test-User-Id` 헤더로 함께 보내며, `FITCOMMIT_SUPABASE_ACCESS_TOKEN`이 있으면 `Authorization: Bearer <token>` 헤더도 보낼 수 있게 준비함.
 `ENABLE_AI_ANALYSIS=false`이면 AI 서버 `/predict`를 호출하지 않고 Backend `/clothes` 저장까지만 진행함.
 실제 서비스에서는 `FITCOMMIT_SUPABASE_USER_ID` 직접 입력 방식이 아니라 Supabase Auth access token 기반 인증으로 바꿔야 함.
+팀원들이 같은 테스트 user_id를 쓰면 Supabase `clothes` 데이터가 같은 사용자 옷장에 섞일 수 있음.
 
 ## 시뮬레이터와 실기기 URL 차이
 

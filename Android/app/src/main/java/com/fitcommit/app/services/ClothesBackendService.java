@@ -92,6 +92,7 @@ public class ClothesBackendService {
         connection.setDoOutput(true);
         connection.setRequestProperty("Content-Type", "multipart/form-data; boundary=" + boundary);
         connection.setRequestProperty("Accept", "application/json");
+        applyAuthHeaders(connection);
 
         try (OutputStream output = connection.getOutputStream()) {
             writeFormField(output, boundary, "user_id", ApiClient.BACKEND_CLOTHES_USER_ID);
@@ -155,6 +156,7 @@ public class ClothesBackendService {
         connection.setConnectTimeout(10_000);
         connection.setReadTimeout(15_000);
         connection.setRequestProperty("Accept", "application/json");
+        applyAuthHeaders(connection);
 
         int statusCode = connection.getResponseCode();
         String body = readResponse(connection, statusCode);
@@ -242,6 +244,7 @@ public class ClothesBackendService {
         connection.setDoOutput(true);
         connection.setRequestProperty("Content-Type", "application/json");
         connection.setRequestProperty("Accept", "application/json");
+        applyAuthHeaders(connection);
 
         try (OutputStream output = connection.getOutputStream()) {
             output.write(bytes);
@@ -373,6 +376,15 @@ public class ClothesBackendService {
                 output.write(buffer, 0, read);
             }
             return output.toString("UTF-8");
+        }
+    }
+
+    private void applyAuthHeaders(HttpURLConnection connection) {
+        if (ApiClient.SUPABASE_ACCESS_TOKEN != null && !ApiClient.SUPABASE_ACCESS_TOKEN.trim().isEmpty()) {
+            connection.setRequestProperty("Authorization", "Bearer " + ApiClient.SUPABASE_ACCESS_TOKEN);
+        }
+        if (ApiClient.BACKEND_CLOTHES_USER_ID != null && !ApiClient.BACKEND_CLOTHES_USER_ID.trim().isEmpty()) {
+            connection.setRequestProperty("X-Test-User-Id", ApiClient.BACKEND_CLOTHES_USER_ID);
         }
     }
 }

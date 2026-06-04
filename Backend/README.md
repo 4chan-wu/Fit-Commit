@@ -77,8 +77,13 @@ CORS_ALLOW_ORIGINS=*
 Backend는 Supabase `public.clothes` 테이블을 사용함.
 
 - `user_id`는 `auth.users(id)`를 참조하는 `uuid` 타입임
+- 사용자 프로필은 `public.user_profiles`에 저장하며 `user_id`가 Supabase Auth `auth.users(id)`를 참조함
+- 사용자별 옷장은 `public.wardrobes`에 저장하며 한 사용자가 여러 옷장을 가질 수 있는 구조로 준비함
+- `public.clothes.wardrobe_id`는 있으면 특정 옷장에 연결하고, 없으면 기존처럼 `user_id` 기준 조회를 사용함
 - RLS 정책은 로그인한 사용자가 자기 옷만 접근하도록 설정함
 - Backend는 service role key로 서버 측 저장/조회 요청을 수행함
+- service role key 요청은 RLS를 우회하므로 실제 운영 전에는 Supabase Auth access token 기반 사용자 식별로 전환해야 함
+- 개발 단계에서는 `X-Test-User-Id` 헤더 또는 기존 `user_id` 쿼리/바디 값을 fallback으로 사용할 수 있음
 - Storage bucket 이름은 `clothing-images` 사용함
 - Storage 업로드는 Backend `POST /clothes/upload`가 담당함
 - iOS/Android 앱에는 service role key를 넣지 않고 Backend에 multipart 파일만 보냄
@@ -92,6 +97,7 @@ Backend는 Supabase `public.clothes` 테이블을 사용함.
 - `local_image_path`는 앱이 가진 로컬 이미지 참조를 기록하는 fallback 필드임
 
 기존 Supabase 테이블에는 `app/db/clothes_analysis_status_migration.sql`을 SQL Editor에서 실행해 분석/동기화 상태 컬럼을 추가함.
+사용자별 프로필/옷장 구조는 `app/db/user_profiles_wardrobes_migration.sql`을 SQL Editor에서 실행해 추가함.
 
 ## 실행 방법
 
@@ -400,6 +406,44 @@ curl -X POST http://54.180.79.90:8000/clothes/upload \
 curl "http://127.0.0.1:8000/clothes?user_id=45482f0f-42d0-401e-a18a-77abeb0492cc"
 ```
 
+### `GET /clothes/me`
+
+현재 사용자 옷 목록을 조회함. 운영 구조에서는 `Authorization: Bearer <supabase_access_token>`을 사용하고, 개발 단계에서는 `X-Test-User-Id`를 사용할 수 있음.
+
+```bash
+curl "http://127.0.0.1:8000/clothes/me" \
+  -H "X-Test-User-Id: 45482f0f-42d0-401e-a18a-77abeb0492cc"
+```
+
+### `GET /users/me/profile`
+
+현재 사용자 프로필을 조회함.
+
+```bash
+curl "http://127.0.0.1:8000/users/me/profile" \
+  -H "X-Test-User-Id: 45482f0f-42d0-401e-a18a-77abeb0492cc"
+```
+
+### `POST /users/me/profile`
+
+현재 사용자 프로필을 생성하거나 갱신함. 프로필 생성 시 기본 옷장이 없으면 `wardrobes`에 `기본 옷장`을 만들 수 있는 구조로 구성함.
+
+```bash
+curl -X POST "http://127.0.0.1:8000/users/me/profile" \
+  -H "Content-Type: application/json" \
+  -H "X-Test-User-Id: 45482f0f-42d0-401e-a18a-77abeb0492cc" \
+  -d '{
+    "nickname": "fitcommit-test",
+    "height_cm": 170,
+    "body_type": "standard",
+    "preferred_style": ["casual", "minimal"]
+  }'
+```
+
+### `PUT /users/me/profile`
+
+현재 사용자 프로필을 수정함.
+
 ### `GET /clothes/{clothing_id}`
 
 옷 단건을 조회함.
@@ -533,6 +577,8 @@ curl -X POST http://54.180.79.90:8000/clothes/upload \
 - MobileNetV3/CLIP/FashionCLIP 분석을 운영 서버와 앱 후처리 흐름에 실제 연결하고 성능 검증해야 함
 - `POST /clothes/{clothing_id}/analyze`에서 이미지 재전송과 AI 결과 업데이트를 완성해야 함
 - 업로드된 Storage 이미지를 기반으로 AI 재분석과 벡터화를 연결해야 함
-- 임시 `user_id` 쿼리/바디 방식에서 Supabase Auth access token 기반 인증으로 개선해야 함
+- 팀원 테스트 단계에서는 같은 테스트 user_id를 쓰면 옷 데이터가 같은 계정에 섞일 수 있음
+- 임시 `user_id` 쿼리/바디 및 `X-Test-User-Id` 방식에서 Supabase Auth access token 기반 인증으로 개선해야 함
+- 가입 또는 로그인 후 `user_profiles` 생성, 기본 `wardrobes` 생성, `clothes.wardrobe_id` 연결 흐름을 앱에 붙여야 함
 - Elastic IP 또는 도메인 연결을 적용해야 함
 - 운영 배포 환경에서는 service role key 관리와 CORS 정책을 다시 점검해야 함

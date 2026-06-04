@@ -8,6 +8,7 @@ from app.api.user import router as user_router
 from app.api.billing import router as billing_router
 from app.api.chat import router as chat_router
 from app.api.clothes import router as clothes_router
+from app.api.profiles import router as profiles_router
 from app.db.session import engine
 
 app = FastAPI(title="Fit Commit Backend")
@@ -33,6 +34,7 @@ app.include_router(user_router)
 app.include_router(billing_router)
 app.include_router(chat_router)
 app.include_router(clothes_router)
+app.include_router(profiles_router)
 
 
 @app.get("/")

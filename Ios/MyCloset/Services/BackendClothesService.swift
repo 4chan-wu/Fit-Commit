@@ -118,6 +118,18 @@ enum BackendClothesService {
         return defaultSupabaseUserID
     }
 
+    static var configuredAccessToken: String? {
+        if let value = ProcessInfo.processInfo.environment["FITCOMMIT_SUPABASE_ACCESS_TOKEN"],
+           value.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false {
+            return value
+        }
+        if let value = Bundle.main.object(forInfoDictionaryKey: "FITCOMMIT_SUPABASE_ACCESS_TOKEN") as? String,
+           value.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false {
+            return value
+        }
+        return nil
+    }
+
     static var isConfigured: Bool {
         baseURL != nil && configuredUserID != nil
     }
@@ -147,6 +159,7 @@ enum BackendClothesService {
 
         var request = URLRequest(url: baseURL.appending(path: "clothes/upload"))
         request.httpMethod = "POST"
+        applyAuthHeaders(to: &request)
 
         let boundary = "fitcommit-\(UUID().uuidString)"
         request.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
@@ -186,6 +199,7 @@ enum BackendClothesService {
 
         var request = URLRequest(url: baseURL.appending(path: "clothes"))
         request.httpMethod = "POST"
+        applyAuthHeaders(to: &request)
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue("application/json", forHTTPHeaderField: "Accept")
         request.httpBody = try jsonEncoder.encode(payload)
@@ -215,6 +229,7 @@ enum BackendClothesService {
 
         var request = URLRequest(url: baseURL.appending(path: "clothes/\(clothingID)"))
         request.httpMethod = "PUT"
+        applyAuthHeaders(to: &request)
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue("application/json", forHTTPHeaderField: "Accept")
         request.httpBody = try jsonEncoder.encode(payload)
@@ -248,6 +263,7 @@ enum BackendClothesService {
         }
 
         var request = URLRequest(url: url)
+        applyAuthHeaders(to: &request)
         request.setValue("application/json", forHTTPHeaderField: "Accept")
 
         let (data, response) = try await URLSession.shared.data(for: request)
@@ -263,6 +279,15 @@ enum BackendClothesService {
         let rows = try JSONDecoder().decode([BackendClothesRow].self, from: data)
         print("[BackendClothesService] Fetch succeeded count=\(rows.count)")
         return rows.map { $0.closetItem }
+    }
+}
+
+private func applyAuthHeaders(to request: inout URLRequest) {
+    if let token = BackendClothesService.configuredAccessToken {
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+    }
+    if let userID = BackendClothesService.configuredUserID {
+        request.setValue(userID, forHTTPHeaderField: "X-Test-User-Id")
     }
 }
 

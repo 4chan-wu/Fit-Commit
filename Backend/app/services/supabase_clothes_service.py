@@ -49,6 +49,8 @@ class SupabaseClothesService:
         return f"{self.supabase_url}/storage/v1/object/public/{self.bucket}/{object_path}"
 
     async def create(self, body: ClothesCreate) -> dict[str, Any]:
+        if body.user_id is None:
+            raise HTTPException(status_code=400, detail="user_id is required.")
         payload = body.model_dump(mode="json", exclude_none=True)
         self._normalize_image_fields(payload)
         payload["sync_status"] = "synced"
@@ -123,6 +125,24 @@ class SupabaseClothesService:
         )
         rows = response.json()
         logger.info("[Clothes] Listed %s clothing items user_id=%s", len(rows), user_id)
+        return rows
+
+    async def list_by_wardrobe(self, wardrobe_id: UUID, user_id: Optional[UUID] = None) -> list[dict[str, Any]]:
+        params = {
+            "wardrobe_id": f"eq.{wardrobe_id}",
+            "order": "created_at.desc",
+        }
+        if user_id is not None:
+            params["user_id"] = f"eq.{user_id}"
+
+        response = await self._request(
+            "GET",
+            self._table_url(),
+            headers=self._headers(),
+            params=params,
+        )
+        rows = response.json()
+        logger.info("[Clothes] Listed %s clothing items wardrobe_id=%s", len(rows), wardrobe_id)
         return rows
 
     async def get(self, clothing_id: str, user_id: Optional[UUID] = None) -> dict[str, Any]:

@@ -64,11 +64,14 @@ Android 앱의 Backend base URL은 `app/src/main/java/com/fitcommit/app/services
 ```text
 BASE_URL=http://54.180.79.90:8000
 BACKEND_CLOTHES_USER_ID=45482f0f-42d0-401e-a18a-77abeb0492cc
+SUPABASE_ACCESS_TOKEN=
 ENABLE_AI_ANALYSIS=false
 ```
 
 `ENABLE_AI_ANALYSIS=false`이면 AI 서버 `/predict`를 호출하지 않고 Backend `/clothes` 저장까지만 진행함.
+개발 단계에서는 `BACKEND_CLOTHES_USER_ID`를 `X-Test-User-Id` 헤더로 함께 보내며, `SUPABASE_ACCESS_TOKEN` 값이 있으면 `Authorization: Bearer <token>` 헤더도 보낼 수 있게 준비함.
 실제 서비스에서는 테스트 user_id 직접 입력 방식이 아니라 Supabase Auth access token 기반 인증으로 바꿔야 함.
+팀원들이 같은 테스트 user_id를 쓰면 Supabase `clothes` 데이터가 같은 사용자 옷장에 섞일 수 있음.
 
 Android 에뮬레이터에서 로컬 Mac Backend를 테스트할 때는 `10.0.2.2`를 사용해야 함.
 

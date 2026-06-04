@@ -139,8 +139,14 @@ dress
 Fitcommit은 Supabase의 `public.clothes` 테이블을 옷장 저장소로 사용함.
 
 - `user_id`는 `auth.users(id)`를 참조하는 `uuid` 타입임
+- 사용자 프로필은 `public.user_profiles`를 사용하며 `user_id uuid primary key references auth.users(id) on delete cascade` 구조로 연결함
+- 사용자별 옷장은 `public.wardrobes`를 사용하며 `wardrobes.user_id`가 `auth.users(id)`를 참조함
+- `clothes.wardrobe_id`는 있으면 특정 옷장에 연결하고, 없으면 기존처럼 `clothes.user_id` 기준으로 조회함
 - RLS 정책은 로그인한 사용자가 자기 옷만 접근할 수 있도록 설정함
 - Backend는 서버 내부에서만 `SUPABASE_SERVICE_ROLE_KEY`를 사용함
+- 현재 Backend는 service role key로 Supabase REST API를 호출하므로 RLS를 우회할 수 있음
+- 실제 서비스 전에는 앱이 Supabase Auth access token을 보내고 Backend가 `Authorization: Bearer <token>`에서 user_id를 결정하도록 전환해야 함
+- 개발 중에는 `X-Test-User-Id` 또는 기존 테스트 user_id를 fallback으로 사용할 수 있음
 - service role key나 secret key는 iOS/Android 코드에 절대 넣으면 안 됨
 - Storage bucket 이름은 `clothing-images` 사용함
 - Storage 업로드는 Backend `POST /clothes/upload`가 담당함
@@ -149,7 +155,8 @@ Fitcommit은 Supabase의 `public.clothes` 테이블을 옷장 저장소로 사�
 - 업로드 실패 시에는 로컬 사진 저장 + DB 메타데이터 동기화 fallback을 사용함
 - 이후 업로드된 이미지 기반 AI 재분석과 벡터화를 연결할 예정임
 - 분석/동기화 상태 관리를 위해 `analysis_status`, `analysis_error`, `analyzed_at`, `needs_analysis`, `sync_status`, `local_image_path` 컬럼을 사용함
-- 기존 Supabase 테이블에는 `Backend/app/db/clothes_analysis_status_migration.sql`을 SQL Editor에서 실행해 컬럼을 추가함
+- 기존 Supabase 테이블에는 `Backend/app/db/clothes_analysis_status_migration.sql`을 SQL Editor에서 실행해 의류 상태 컬럼을 추가함
+- 사용자별 프로필/옷장 구조는 `Backend/app/db/user_profiles_wardrobes_migration.sql`을 SQL Editor에서 실행해 추가함
 
 Supabase Dashboard 주소와 API URL은 다름.
 
@@ -487,6 +494,22 @@ curl -X POST http://54.180.79.90:8000/clothes/upload \
 
 특정 사용자의 옷 목록을 최신순으로 조회함.
 
+#### `GET /clothes/me`
+
+`Authorization: Bearer <supabase_access_token>` 또는 개발용 `X-Test-User-Id`로 현재 사용자의 옷 목록을 조회함. `wardrobe_id` 쿼리를 넘기면 해당 옷장 기준으로 필터링함.
+
+#### `GET /users/me/profile`
+
+현재 사용자의 프로필을 조회함. 운영 구조에서는 Supabase Auth access token을 사용해야 하며, 개발 중에는 `X-Test-User-Id` 헤더를 사용할 수 있음.
+
+#### `POST /users/me/profile`
+
+현재 사용자의 프로필을 생성 또는 upsert함. 프로필 생성 후 기본 옷장이 없으면 `wardrobes`에 `기본 옷장`을 만들 수 있는 구조로 구성됨.
+
+#### `PUT /users/me/profile`
+
+현재 사용자의 `nickname`, `height_cm`, `body_type`, `preferred_style` 값을 수정함.
+
 #### `GET /clothes/{clothing_id}`
 
 옷 단건을 조회함. 필요하면 `user_id` 쿼리로 소유자 필터를 함께 사용함.
@@ -537,6 +560,8 @@ curl -X POST http://54.180.79.90:8000/clothes/upload \
 - `POST /clothes/{clothing_id}/analyze`에서 Storage 이미지를 내려받아 AI 서버로 재전송하는 재분석 흐름을 완성해야 함
 - iOS/Android 앱에서 실제 저장/조회 end-to-end를 더 넓은 케이스로 검증해야 함
 - Android JDK 환경에서 Gradle 빌드를 검증해야 함
-- 임시 `user_id` 방식에서 Supabase Auth access token 기반 인증으로 개선해야 함
+- 팀원 테스트 단계에서는 같은 테스트 user_id를 쓰면 옷 데이터가 같은 계정에 섞일 수 있음
+- 임시 `user_id`/`X-Test-User-Id` 방식에서 Supabase Auth access token 기반 인증으로 개선해야 함
+- 가입 또는 로그인 후 `user_profiles` 생성, 기본 `wardrobes` 생성, `clothes.wardrobe_id` 연결 흐름을 앱에 붙여야 함
 - Elastic IP 또는 도메인 연결을 적용해야 함
 - YOLO 기반 전신 사진 자동 분리는 1차 프로토타입 범위 밖이며, 필요하면 향후 고도화 기능으로 다시 검토함
