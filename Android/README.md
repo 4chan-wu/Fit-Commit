@@ -18,6 +18,9 @@ Fitcommit Android는 Java/XML 기반 Android 앱임. 현재 흐름은 iOS와 동
 - 대표색은 Android 로컬 이미지 처리로 추천값을 계산하고, 사용자가 직접 바꿀 수 있음
 - 수동 수정은 `analysis_method=manual`로 저장하고 `analysis_status=pending`을 유지할 수 있음
 - 배경 제거는 저장 필수 조건이 아니며 향후 선택 기능으로 분리함
+- 원본 이미지는 항상 먼저 저장하고, 배경 제거 실패 시에도 원본 이미지와 clothes row는 유지해야 함
+- Android에는 밝은 배경을 투명 처리하는 `BackgroundRemover.processBitmap/processUri`가 있지만 현재 등록 저장 흐름에는 연결하지 않음
+- Android 배경 제거는 ML Kit, OpenCV, 또는 서버 처리 중 하나로 안정화한 뒤 연결해야 함
 - Backend 저장 실패 시에도 `ClothingStorage` 로컬 item은 유지됨
 - 옷장 화면은 Backend 조회 결과와 로컬 저장소를 remote id/local id 기준으로 병합함
 - 3D 공간 스캔과 신체 비율 측정 진입점은 옷장 화면에 계속 유지함

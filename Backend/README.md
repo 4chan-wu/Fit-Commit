@@ -104,10 +104,14 @@ Backend는 Supabase `public.clothes` 테이블을 사용함.
 - 직접 수정한 값은 `analysis_method=manual`로 저장하고, AI 완료 상태가 아니면 `analysis_status=pending`을 유지할 수 있음
 - 대표색 추출은 앱 로컬 이미지 처리 기반 추천값이며 사용자가 수정할 수 있음
 - 배경 제거는 저장 필수 조건이 아니고 향후 선택 기능으로 분리함
+- 원본 이미지는 `{user_id}/{main_category}/{filename}.jpg` 경로에 저장함
+- 배경 제거 이미지는 선택적으로 `{user_id}/{main_category}/background_removed/{filename}.png` 경로에 저장함
+- 배경 제거 실패 시에도 원본 이미지와 `clothes` row는 유지함
 
 기존 Supabase 테이블에는 `app/db/clothes_analysis_status_migration.sql`을 SQL Editor에서 실행해 분석/동기화 상태 컬럼을 추가함.
 사용자별 프로필/옷장 구조는 `app/db/user_profiles_wardrobes_migration.sql`을 SQL Editor에서 실행해 추가함.
 기본 옷장 1개 보장, 사용자 내 옷장명 중복 방지, 테스트 user_id seed는 `app/db/wardrobes_default_constraints_migration.sql`을 SQL Editor에서 실행해 적용함.
+배경 제거 이미지 선택 저장 컬럼은 `app/db/clothes_background_removal_migration.sql`을 SQL Editor에서 실행해 추가함.
 
 ## 실행 방법
 
@@ -623,7 +627,18 @@ Storage 업로드 테스트는 아래처럼 함. 응답에서 `image_path`가 `l
 curl -X POST http://54.180.79.90:8000/clothes/upload \
   -F "file=@./sample-clothing.jpg" \
   -F "user_id=45482f0f-42d0-401e-a18a-77abeb0492cc" \
-  -F "main_category=top"
+  -F "main_category=top" \
+  -F "image_type=original"
+```
+
+배경 제거 이미지 업로드 테스트는 아래처럼 함. 응답의 `image_path`가 `background_removed/`를 포함하면 원본과 별도 경로로 저장된 것임.
+
+```bash
+curl -X POST http://54.180.79.90:8000/clothes/upload \
+  -F "file=@./sample-background-removed.png" \
+  -F "user_id=45482f0f-42d0-401e-a18a-77abeb0492cc" \
+  -F "main_category=top" \
+  -F "image_type=background_removed"
 ```
 
 업로드 성공 후 Supabase Dashboard의 Storage `clothing-images` bucket에서 파일이 보이는지 확인함. 이후 `/clothes` row에는 Storage 응답의 `image_path`와 `image_url`을 저장해야 함.

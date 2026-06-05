@@ -97,6 +97,9 @@ AI 서버와 Backend 서버는 분리되어 있음. Backend는 현재 AWS EC2에
 - 수동 수정은 `analysis_method=manual`을 사용하고, AI 분석 완료를 의미하지 않으므로 `analysis_status=pending`을 유지할 수 있음
 - 대표색 추출은 iOS/Android 로컬 이미지 처리 기반 추천값이며 사용자가 직접 바꿀 수 있음
 - 배경 제거는 저장 필수 조건이 아니며 원본 사진 저장을 우선하고 향후 선택 기능으로 분리함
+- 원본 이미지는 기존 Storage 경로 `{user_id}/{main_category}/{filename}.jpg`에 저장함
+- 배경 제거 이미지는 선택적으로 `{user_id}/{main_category}/background_removed/{filename}.png`에 저장함
+- 배경 제거 실패 시에도 원본 이미지와 `clothes` row는 유지함
 - Backend 연결이 가능하면 `/clothes`로 DB 메타데이터 동기화를 시도함
 - Backend 연결이 가능하면 `/clothes/upload`로 사진을 `clothing-images` bucket에 업로드함
 - Storage 업로드 성공 시 `/clothes` payload에 Supabase Storage `image_path`와 `image_url`을 포함함
@@ -169,6 +172,7 @@ Fitcommit은 Supabase의 `public.clothes` 테이블을 옷장 저장소로 사�
 - 기존 Supabase 테이블에는 `Backend/app/db/clothes_analysis_status_migration.sql`을 SQL Editor에서 실행해 의류 상태 컬럼을 추가함
 - 사용자별 프로필/옷장 구조는 `Backend/app/db/user_profiles_wardrobes_migration.sql`을 SQL Editor에서 실행해 추가함
 - 기본 옷장 제약과 중복 이름 방지는 `Backend/app/db/wardrobes_default_constraints_migration.sql`을 SQL Editor에서 실행해 적용함
+- 배경 제거 이미지 선택 저장 컬럼은 `Backend/app/db/clothes_background_removal_migration.sql`을 SQL Editor에서 실행해 추가함
 
 Supabase Dashboard 주소와 API URL은 다름.
 
@@ -494,12 +498,24 @@ Backend 상태를 확인함.
 #### `POST /clothes/upload`
 
 옷 사진을 Supabase Storage `clothing-images` bucket에 업로드함. multipart/form-data로 `file`, `user_id`, `main_category`를 보냄. 성공하면 `image_path`, `image_url`, `bucket`을 반환함.
+`image_type=background_removed`를 보내면 `background_removed/` 하위 PNG 경로로 업로드함. 기본값은 `original`임.
 
 ```bash
 curl -X POST http://54.180.79.90:8000/clothes/upload \
   -F "file=@./sample-clothing.jpg" \
   -F "user_id=45482f0f-42d0-401e-a18a-77abeb0492cc" \
-  -F "main_category=top"
+  -F "main_category=top" \
+  -F "image_type=original"
+```
+
+배경 제거 이미지 업로드 테스트는 아래처럼 함.
+
+```bash
+curl -X POST http://54.180.79.90:8000/clothes/upload \
+  -F "file=@./sample-background-removed.png" \
+  -F "user_id=45482f0f-42d0-401e-a18a-77abeb0492cc" \
+  -F "main_category=top" \
+  -F "image_type=background_removed"
 ```
 
 #### `GET /clothes?user_id={uuid}`
@@ -634,6 +650,8 @@ curl -X PUT "http://54.180.79.90:8000/clothes/{clothing_id}?user_id=45482f0f-42d
 - MobileNetV3/CLIP/FashionCLIP 분석을 운영 서버와 앱 후처리 흐름에 실제 연결하고 성능 검증해야 함
 - 업로드된 이미지 기반 AI 재분석과 벡터화를 연결해야 함
 - 배경 제거 이미지를 별도 Storage path로 저장하려면 원본 이미지 path와 배경 제거 이미지 path를 구분하는 schema를 설계해야 함
+- Android 배경 제거는 현재 저장 흐름에 연결하지 않았고, ML Kit/OpenCV/서버 처리 중 하나로 안정화해야 함
+- AI 서버 기반 배경 제거는 향후 기능으로 분리해야 함
 - `POST /clothes/{clothing_id}/analyze`에서 Storage 이미지를 내려받아 AI 서버로 재전송하는 재분석 흐름을 완성해야 함
 - iOS/Android 앱에서 실제 저장/조회 end-to-end를 더 넓은 케이스로 검증해야 함
 - Android JDK 환경에서 Gradle 빌드를 검증해야 함

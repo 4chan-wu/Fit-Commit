@@ -17,7 +17,11 @@ Fitcommit iOS는 SwiftUI 기반 앱임. 현재 1차 프로토타입에서는 전
 - AI 서버 없이도 사용자가 카테고리, 세부 종류, 대표 색상, 계절을 직접 수정할 수 있음
 - 대표색은 iOS 로컬 이미지 처리로 추천값을 계산하고, 사용자가 직접 바꿀 수 있음
 - 수동 수정은 `analysis_method=manual`로 저장하고 `analysis_status=pending`을 유지할 수 있음
-- 배경 제거는 저장 필수 조건이 아니며 향후 선택 기능으로 분리함
+- 배경 제거는 저장 필수 조건이 아니며 선택 기능으로 분리함
+- 원본 이미지는 항상 먼저 저장하고, 배경 제거 실패 시에도 원본 이미지와 clothes row는 유지함
+- iOS는 `VisionImageService`의 `VNGenerateForegroundInstanceMaskRequest` 기반 배경 제거를 상세 화면에서 다시 시도할 수 있게 구성함
+- 배경 제거 성공 시 PNG를 `background_removed/` Storage 경로에 업로드하고 `background_removal_status=completed`로 저장함
+- 배경 제거 실패 시 `background_removal_status=failed`, `background_removal_error`를 저장함
 - Backend 저장 실패 시에도 SwiftData 로컬 item은 유지됨
 - 옷장 화면은 SwiftData 로컬 데이터와 Backend 조회 결과를 remote id/local id 기준으로 병합함
 - 3D 공간 스캔과 신체 비율 측정 진입점은 옷장 화면에 계속 유지함

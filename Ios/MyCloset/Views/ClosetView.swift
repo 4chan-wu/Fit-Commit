@@ -1131,6 +1131,10 @@ private struct ClothesUploadView: View {
                     imageURL: imageURL,
                     imagePath: imagePath,
                     localImagePath: localImageReference,
+                    backgroundRemovedImagePath: nil,
+                    backgroundRemovedImageURL: nil,
+                    backgroundRemovalStatus: "not_requested",
+                    backgroundRemovalError: nil,
                     confidence: nil,
                     analysisMethod: "manual",
                     analysisStatus: "pending",
@@ -1184,6 +1188,10 @@ private struct ClothesUploadView: View {
                     imageURL: result.imageURL ?? backendImageURL,
                     imagePath: backendImagePath,
                     localImagePath: backendImagePath,
+                    backgroundRemovedImagePath: nil,
+                    backgroundRemovedImageURL: nil,
+                    backgroundRemovalStatus: nil,
+                    backgroundRemovalError: nil,
                     confidence: result.confidence,
                     analysisMethod: result.method,
                     analysisStatus: "completed",
@@ -1219,6 +1227,10 @@ private struct ClothesUploadView: View {
                     imageURL: backendImageURL,
                     imagePath: backendImagePath,
                     localImagePath: backendImagePath,
+                    backgroundRemovedImagePath: nil,
+                    backgroundRemovedImageURL: nil,
+                    backgroundRemovalStatus: nil,
+                    backgroundRemovalError: nil,
                     confidence: nil,
                     analysisMethod: nil,
                     analysisStatus: "failed",
@@ -1301,6 +1313,7 @@ private struct ClothingDetailView: View {
     @State private var selectedPhotoItem: PhotosPickerItem?
     @State private var selectedSeasonValues: Set<String> = []
     @State private var isSaving = false
+    @State private var isRemovingBackground = false
     @State private var saveMessage: String?
     @State private var changedImageData: Data?
 
@@ -1375,11 +1388,32 @@ private struct ClothingDetailView: View {
                 Section("상태") {
                     LabeledContent("분석 상태", value: analysisStatusLabel(item.analysisStatus))
                     LabeledContent("동기화 상태", value: syncStatusLabel(item.syncStatus))
+                    LabeledContent("배경 제거", value: backgroundRemovalStatusLabel(item.backgroundRemovalStatus))
+                    if let error = item.backgroundRemovalError, error.isEmpty == false {
+                        Text(error)
+                            .font(.footnote)
+                            .foregroundStyle(.orange)
+                    }
                     if let saveMessage {
                         Text(saveMessage)
                             .font(.footnote)
                             .foregroundStyle(item.syncStatus == "sync_failed" ? .orange : .secondary)
                     }
+                }
+
+                Section("배경 제거") {
+                    Button {
+                        Task {
+                            await removeBackgroundAndUpload()
+                        }
+                    } label: {
+                        Label(isRemovingBackground ? "배경 제거 중" : "배경 제거 다시 시도", systemImage: "wand.and.sparkles")
+                    }
+                    .disabled(isRemovingBackground || item.remoteID == nil)
+
+                    Text("배경 제거는 선택 기능입니다. 실패해도 원본 이미지와 옷 데이터는 유지됩니다.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
                 }
 
                 Section {
@@ -1483,6 +1517,10 @@ private struct ClothingDetailView: View {
                     imageURL: imageURLForUpdate,
                     imagePath: imagePathForUpdate,
                     localImagePath: item.localImagePath,
+                    backgroundRemovedImagePath: item.backgroundRemovedImagePath,
+                    backgroundRemovedImageURL: item.backgroundRemovedImageURL,
+                    backgroundRemovalStatus: item.backgroundRemovalStatus,
+                    backgroundRemovalError: item.backgroundRemovalError,
                     confidence: nil,
                     analysisMethod: "manual",
                     analysisStatus: item.analysisStatus,
@@ -1571,11 +1609,118 @@ private struct ClothingDetailView: View {
         item.season = seasonDisplayValue(from: Set(row.season ?? []))
         item.imageURL = row.imageURL ?? item.imageURL
         item.localImagePath = row.localImagePath ?? row.imagePath ?? item.localImagePath
+        item.backgroundRemovedImagePath = row.backgroundRemovedImagePath ?? item.backgroundRemovedImagePath
+        item.backgroundRemovedImageURL = row.backgroundRemovedImageURL ?? item.backgroundRemovedImageURL
+        item.backgroundRemovalStatus = row.backgroundRemovalStatus ?? item.backgroundRemovalStatus
+        item.backgroundRemovalError = row.backgroundRemovalError
         item.syncStatus = row.syncStatus ?? "synced"
         item.analysisStatus = row.analysisStatus ?? item.analysisStatus
         item.analysisMethod = row.analysisMethod ?? item.analysisMethod
         item.analysisError = row.analysisError
         item.needsAnalysis = row.needsAnalysis ?? item.needsAnalysis
+    }
+
+    @MainActor
+    private func removeBackgroundAndUpload() async {
+        guard let remoteID = item.remoteID, remoteID.isEmpty == false else {
+            saveMessage = "서버에 먼저 저장된 의류만 배경 제거 이미지를 업로드할 수 있습니다."
+            return
+        }
+        guard let userID = BackendClothesService.configuredUserID else {
+            saveMessage = "테스트 user_id 설정이 없어 배경 제거 이미지를 업로드할 수 없습니다."
+            return
+        }
+        guard let originalImage = UIImage(data: item.imageData) else {
+            saveMessage = "원본 이미지를 읽을 수 없습니다."
+            return
+        }
+
+        isRemovingBackground = true
+        item.backgroundRemovalStatus = "pending"
+        item.backgroundRemovalError = nil
+        try? modelContext.save()
+
+        do {
+            guard #available(iOS 17.0, *) else {
+                throw VisionImageServiceError.renderedImageUnavailable
+            }
+            let removedImage = try await VisionImageService.shared.removeBackground(from: originalImage)
+            guard let pngData = removedImage.pngData() else {
+                throw VisionImageServiceError.renderedImageUnavailable
+            }
+            let upload = try await BackendClothesService.uploadImage(
+                imageData: pngData,
+                userID: userID,
+                mainCategory: item.category,
+                imageType: "background_removed",
+                fileName: "background-removed-\(UUID().uuidString).png",
+                mimeType: "image/png"
+            )
+            let row = try await BackendClothesService.update(
+                clothingID: remoteID,
+                payload: BackendClothesUpdatePayload(
+                    mainCategory: nil,
+                    subcategory: nil,
+                    mainColor: nil,
+                    season: nil,
+                    styleTags: nil,
+                    imageURL: nil,
+                    imagePath: nil,
+                    localImagePath: nil,
+                    backgroundRemovedImagePath: upload.imagePath,
+                    backgroundRemovedImageURL: upload.imageURL,
+                    backgroundRemovalStatus: "completed",
+                    backgroundRemovalError: nil,
+                    confidence: nil,
+                    analysisMethod: nil,
+                    analysisStatus: nil,
+                    analysisError: nil,
+                    analyzedAt: nil,
+                    needsAnalysis: nil,
+                    syncStatus: "synced",
+                    memo: "background_removed_image_uploaded"
+                )
+            )
+            apply(row: row)
+            saveMessage = "배경 제거 이미지가 업로드되었습니다."
+        } catch {
+            let message = error.localizedDescription
+            item.backgroundRemovalStatus = "failed"
+            item.backgroundRemovalError = message
+            saveMessage = "배경 제거 실패, 원본 이미지로 저장되었습니다."
+            do {
+                _ = try await BackendClothesService.update(
+                    clothingID: remoteID,
+                    payload: BackendClothesUpdatePayload(
+                        mainCategory: nil,
+                        subcategory: nil,
+                        mainColor: nil,
+                        season: nil,
+                        styleTags: nil,
+                        imageURL: nil,
+                        imagePath: nil,
+                        localImagePath: nil,
+                        backgroundRemovedImagePath: nil,
+                        backgroundRemovedImageURL: nil,
+                        backgroundRemovalStatus: "failed",
+                        backgroundRemovalError: message,
+                        confidence: nil,
+                        analysisMethod: nil,
+                        analysisStatus: nil,
+                        analysisError: nil,
+                        analyzedAt: nil,
+                        needsAnalysis: nil,
+                        syncStatus: "synced",
+                        memo: "background_removal_failed"
+                    )
+                )
+            } catch {
+                print("[ClothingDetailView] Failed to update background removal failure: \(error.localizedDescription)")
+            }
+        }
+
+        isRemovingBackground = false
+        try? modelContext.save()
     }
 
     private func seasonValues(from value: String) -> Set<String> {
@@ -1625,6 +1770,19 @@ private struct ClothingDetailView: View {
             return "서버 동기화 대기"
         default:
             return "기기 저장"
+        }
+    }
+
+    private func backgroundRemovalStatusLabel(_ value: String) -> String {
+        switch value {
+        case "completed":
+            return "배경 제거 완료"
+        case "pending":
+            return "배경 제거 대기"
+        case "failed":
+            return "배경 제거 실패"
+        default:
+            return "배경 제거 안 함"
         }
     }
 

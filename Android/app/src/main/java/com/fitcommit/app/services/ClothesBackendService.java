@@ -136,6 +136,7 @@ public class ClothesBackendService {
         try (OutputStream output = connection.getOutputStream()) {
             writeFormField(output, boundary, "user_id", ApiClient.BACKEND_CLOTHES_USER_ID);
             writeFormField(output, boundary, "main_category", category);
+            writeFormField(output, boundary, "image_type", "original");
             writeFileField(output, boundary, "file", file);
             output.write(("--" + boundary + "--\r\n").getBytes(StandardCharsets.UTF_8));
         }

@@ -13,6 +13,10 @@ final class ClosetItem {
     var confidence: Double
     var imageURL: String?
     var localImagePath: String?
+    var backgroundRemovedImagePath: String?
+    var backgroundRemovedImageURL: String?
+    var backgroundRemovalStatus: String
+    var backgroundRemovalError: String?
     @Attribute(.externalStorage) var imageData: Data
     var timestamp: Date
     var remoteID: String?
@@ -34,6 +38,10 @@ final class ClosetItem {
         confidence: Double = 0,
         imageURL: String? = nil,
         localImagePath: String? = nil,
+        backgroundRemovedImagePath: String? = nil,
+        backgroundRemovedImageURL: String? = nil,
+        backgroundRemovalStatus: String = "not_requested",
+        backgroundRemovalError: String? = nil,
         imageData: Data,
         timestamp: Date = Date(),
         remoteID: String? = nil,
@@ -54,6 +62,10 @@ final class ClosetItem {
         self.confidence = confidence
         self.imageURL = imageURL
         self.localImagePath = localImagePath
+        self.backgroundRemovedImagePath = backgroundRemovedImagePath
+        self.backgroundRemovedImageURL = backgroundRemovedImageURL
+        self.backgroundRemovalStatus = backgroundRemovalStatus
+        self.backgroundRemovalError = backgroundRemovalError
         self.imageData = imageData
         self.timestamp = timestamp
         self.remoteID = remoteID

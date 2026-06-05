@@ -82,6 +82,7 @@ class SupabaseClothesService:
         content_type: str,
         user_id: UUID,
         main_category: str,
+        image_type: str = "original",
     ) -> dict[str, str]:
         if not self.is_configured:
             raise HTTPException(
@@ -91,7 +92,7 @@ class SupabaseClothesService:
         if not file_bytes:
             raise HTTPException(status_code=400, detail="Uploaded file is empty.")
 
-        object_path = self._build_storage_path(user_id, main_category)
+        object_path = self._build_storage_path(user_id, main_category, image_type=image_type)
         upload_headers = {
             "apikey": self.service_role_key,
             "Authorization": f"Bearer {self.service_role_key}",
@@ -233,14 +234,20 @@ class SupabaseClothesService:
 
         return response
 
-    def _build_storage_path(self, user_id: UUID, main_category: str) -> str:
+    def _build_storage_path(self, user_id: UUID, main_category: str, image_type: str = "original") -> str:
         safe_category = "".join(
             character for character in main_category.lower() if character.isalnum() or character in ("-", "_")
         )
         if not safe_category:
             safe_category = "unknown"
+        safe_image_type = image_type.strip().lower()
+        if safe_image_type not in {"original", "background_removed"}:
+            raise HTTPException(status_code=400, detail="image_type must be original or background_removed.")
         timestamp = datetime.now(timezone.utc).strftime("%Y%m%d%H%M%S")
-        return f"{user_id}/{safe_category}/{timestamp}-{uuid4().hex}.jpg"
+        extension = "png" if safe_image_type == "background_removed" else "jpg"
+        if safe_image_type == "background_removed":
+            return f"{user_id}/{safe_category}/background_removed/{timestamp}-{uuid4().hex}.{extension}"
+        return f"{user_id}/{safe_category}/{timestamp}-{uuid4().hex}.{extension}"
 
     def _normalize_image_fields(self, payload: dict[str, Any]) -> None:
         image_path = payload.get("image_path")

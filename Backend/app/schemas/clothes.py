@@ -9,6 +9,7 @@ from pydantic import BaseModel, Field
 
 AnalysisStatus = Literal["pending", "completed", "failed"]
 SyncStatus = Literal["local_only", "pending_sync", "synced", "sync_failed"]
+BackgroundRemovalStatus = Literal["not_requested", "pending", "completed", "failed"]
 
 
 class ClothesCreate(BaseModel):
@@ -22,6 +23,10 @@ class ClothesCreate(BaseModel):
     image_url: Optional[str] = Field(default=None, examples=["https://..."])
     image_path: Optional[str] = Field(default=None, examples=["user_id/file.jpg"])
     local_image_path: Optional[str] = Field(default=None, examples=["file:///local/path.jpg"])
+    background_removed_image_path: Optional[str] = None
+    background_removed_image_url: Optional[str] = None
+    background_removal_status: BackgroundRemovalStatus = "not_requested"
+    background_removal_error: Optional[str] = None
     confidence: Optional[float] = Field(default=None, ge=0, le=1, examples=[0.82])
     analysis_method: Optional[str] = Field(default=None, examples=["clip"])
     analysis_status: AnalysisStatus = "pending"
@@ -42,6 +47,10 @@ class ClothesUpdate(BaseModel):
     image_url: Optional[str] = None
     image_path: Optional[str] = None
     local_image_path: Optional[str] = None
+    background_removed_image_path: Optional[str] = None
+    background_removed_image_url: Optional[str] = None
+    background_removal_status: Optional[BackgroundRemovalStatus] = None
+    background_removal_error: Optional[str] = None
     confidence: Optional[float] = Field(default=None, ge=0, le=1)
     analysis_method: Optional[str] = None
     analysis_status: Optional[AnalysisStatus] = None

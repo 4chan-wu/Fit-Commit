@@ -27,6 +27,7 @@ async def upload_clothing_image(
     file: UploadFile = File(...),
     main_category: str = Form(...),
     user_id: Optional[UUID] = Form(default=None),
+    image_type: str = Form(default="original"),
 ):
     resolved_user_id = user_id or await user_resolver.resolve_user_id(request)
     content = await file.read()
@@ -35,6 +36,7 @@ async def upload_clothing_image(
         content_type=file.content_type or "image/jpeg",
         user_id=resolved_user_id,
         main_category=main_category,
+        image_type=image_type,
     )
 
 

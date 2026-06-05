@@ -10,6 +10,10 @@ struct BackendClothesPayload: Encodable {
     let imageURL: String?
     let imagePath: String?
     let localImagePath: String?
+    let backgroundRemovedImagePath: String?
+    let backgroundRemovedImageURL: String?
+    let backgroundRemovalStatus: String?
+    let backgroundRemovalError: String?
     let confidence: Double?
     let analysisMethod: String?
     let analysisStatus: String?
@@ -29,6 +33,10 @@ struct BackendClothesPayload: Encodable {
         case imageURL = "image_url"
         case imagePath = "image_path"
         case localImagePath = "local_image_path"
+        case backgroundRemovedImagePath = "background_removed_image_path"
+        case backgroundRemovedImageURL = "background_removed_image_url"
+        case backgroundRemovalStatus = "background_removal_status"
+        case backgroundRemovalError = "background_removal_error"
         case confidence
         case analysisMethod = "analysis_method"
         case analysisStatus = "analysis_status"
@@ -49,6 +57,10 @@ struct BackendClothesUpdatePayload: Encodable {
     let imageURL: String?
     let imagePath: String?
     let localImagePath: String?
+    let backgroundRemovedImagePath: String?
+    let backgroundRemovedImageURL: String?
+    let backgroundRemovalStatus: String?
+    let backgroundRemovalError: String?
     let confidence: Double?
     let analysisMethod: String?
     let analysisStatus: String?
@@ -67,6 +79,10 @@ struct BackendClothesUpdatePayload: Encodable {
         case imageURL = "image_url"
         case imagePath = "image_path"
         case localImagePath = "local_image_path"
+        case backgroundRemovedImagePath = "background_removed_image_path"
+        case backgroundRemovedImageURL = "background_removed_image_url"
+        case backgroundRemovalStatus = "background_removal_status"
+        case backgroundRemovalError = "background_removal_error"
         case confidence
         case analysisMethod = "analysis_method"
         case analysisStatus = "analysis_status"
@@ -171,7 +187,10 @@ enum BackendClothesService {
     static func uploadImage(
         imageData: Data,
         userID: String,
-        mainCategory: String
+        mainCategory: String,
+        imageType: String = "original",
+        fileName: String? = nil,
+        mimeType: String = "image/jpeg"
     ) async throws -> BackendClothesUploadResponse {
         guard let baseURL else {
             throw URLError(.badURL)
@@ -188,11 +207,12 @@ enum BackendClothesService {
             boundary: boundary,
             fields: [
                 "user_id": userID,
-                "main_category": mainCategory
+                "main_category": mainCategory,
+                "image_type": imageType
             ],
             fileField: "file",
-            fileName: "clothing-\(UUID().uuidString).jpg",
-            mimeType: "image/jpeg",
+            fileName: fileName ?? "clothing-\(UUID().uuidString).jpg",
+            mimeType: mimeType,
             fileData: imageData
         )
 
@@ -395,6 +415,10 @@ struct BackendClothesRow: Decodable {
     let imageURL: String?
     let imagePath: String?
     let localImagePath: String?
+    let backgroundRemovedImagePath: String?
+    let backgroundRemovedImageURL: String?
+    let backgroundRemovalStatus: String?
+    let backgroundRemovalError: String?
     let confidence: Double?
     let analysisMethod: String?
     let analysisStatus: String?
@@ -415,6 +439,10 @@ struct BackendClothesRow: Decodable {
         case imageURL = "image_url"
         case imagePath = "image_path"
         case localImagePath = "local_image_path"
+        case backgroundRemovedImagePath = "background_removed_image_path"
+        case backgroundRemovedImageURL = "background_removed_image_url"
+        case backgroundRemovalStatus = "background_removal_status"
+        case backgroundRemovalError = "background_removal_error"
         case confidence
         case analysisMethod = "analysis_method"
         case analysisStatus = "analysis_status"
@@ -443,6 +471,10 @@ struct BackendClothesRow: Decodable {
         imageURL = try container.decodeIfPresent(String.self, forKey: .imageURL)
         imagePath = try container.decodeIfPresent(String.self, forKey: .imagePath)
         localImagePath = try container.decodeIfPresent(String.self, forKey: .localImagePath)
+        backgroundRemovedImagePath = try container.decodeIfPresent(String.self, forKey: .backgroundRemovedImagePath)
+        backgroundRemovedImageURL = try container.decodeIfPresent(String.self, forKey: .backgroundRemovedImageURL)
+        backgroundRemovalStatus = try container.decodeIfPresent(String.self, forKey: .backgroundRemovalStatus)
+        backgroundRemovalError = try container.decodeIfPresent(String.self, forKey: .backgroundRemovalError)
         confidence = try container.decodeIfPresent(Double.self, forKey: .confidence)
         analysisMethod = try container.decodeIfPresent(String.self, forKey: .analysisMethod)
         analysisStatus = try container.decodeIfPresent(String.self, forKey: .analysisStatus)
@@ -468,6 +500,10 @@ struct BackendClothesRow: Decodable {
             confidence: confidence ?? 0,
             imageURL: imageURL,
             localImagePath: localImagePath ?? imagePath,
+            backgroundRemovedImagePath: backgroundRemovedImagePath,
+            backgroundRemovedImageURL: backgroundRemovedImageURL,
+            backgroundRemovalStatus: backgroundRemovalStatus ?? "not_requested",
+            backgroundRemovalError: backgroundRemovalError,
             imageData: Data(),
             timestamp: parseDate(createdAt) ?? Date(),
             remoteID: id,
