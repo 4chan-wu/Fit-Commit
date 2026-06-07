@@ -38,6 +38,9 @@ class SupabaseWardrobeService:
     def _table_url(self) -> str:
         return f"{self.supabase_url}/rest/v1/wardrobes"
 
+    def _clothes_table_url(self) -> str:
+        return f"{self.supabase_url}/rest/v1/clothes"
+
     async def list_by_user(self, user_id: UUID) -> list[dict[str, Any]]:
         response = await self._request(
             "GET",
@@ -83,6 +86,10 @@ class SupabaseWardrobeService:
             if existing_default is not None:
                 return existing_default
 
+        existing_named = await self._find_by_name(user_id, body.name)
+        if existing_named is not None:
+            raise HTTPException(status_code=409, detail="Wardrobe name already exists for this user.")
+
         payload = body.model_dump(mode="json", exclude_none=True)
         payload["user_id"] = str(user_id)
         payload.setdefault("name", "기본 옷장" if body.is_default else "새 옷장")
@@ -115,6 +122,10 @@ class SupabaseWardrobeService:
             current_default = await self._find_default(user_id)
             if current_default is not None and str(current_default.get("id")) != str(wardrobe_id):
                 raise HTTPException(status_code=409, detail="User already has a default wardrobe.")
+        if "name" in payload:
+            existing_named = await self._find_by_name(user_id, payload["name"])
+            if existing_named is not None and str(existing_named.get("id")) != str(wardrobe_id):
+                raise HTTPException(status_code=409, detail="Wardrobe name already exists for this user.")
 
         response = await self._request(
             "PATCH",
@@ -131,6 +142,14 @@ class SupabaseWardrobeService:
         existing = await self.get_owned(wardrobe_id, user_id)
         if existing.get("is_default") is True:
             raise HTTPException(status_code=400, detail="Default wardrobe cannot be deleted.")
+
+        default_wardrobe = await self.get_default(user_id, create_if_missing=True)
+        default_wardrobe_id = default_wardrobe.get("id")
+        await self._move_clothes_to_wardrobe(
+            from_wardrobe_id=wardrobe_id,
+            to_wardrobe_id=default_wardrobe_id,
+            user_id=user_id,
+        )
 
         response = await self._request(
             "DELETE",
@@ -151,6 +170,39 @@ class SupabaseWardrobeService:
         )
         rows = response.json()
         return rows[0] if rows else None
+
+    async def _find_by_name(self, user_id: UUID, name: str) -> Optional[dict[str, Any]]:
+        response = await self._request(
+            "GET",
+            self._table_url(),
+            headers=self._headers(),
+            params={"user_id": f"eq.{user_id}", "name": f"eq.{name}", "limit": "1"},
+        )
+        rows = response.json()
+        return rows[0] if rows else None
+
+    async def _move_clothes_to_wardrobe(
+        self,
+        from_wardrobe_id: UUID,
+        to_wardrobe_id: Any,
+        user_id: UUID,
+    ) -> None:
+        if to_wardrobe_id is None:
+            raise HTTPException(status_code=500, detail="Default wardrobe id is missing.")
+
+        await self._request(
+            "PATCH",
+            self._clothes_table_url(),
+            headers=self._headers(),
+            params={"wardrobe_id": f"eq.{from_wardrobe_id}", "user_id": f"eq.{user_id}"},
+            json={"wardrobe_id": str(to_wardrobe_id)},
+        )
+        logger.info(
+            "[Wardrobes] Moved clothes from wardrobe_id=%s to default_wardrobe_id=%s user_id=%s",
+            from_wardrobe_id,
+            to_wardrobe_id,
+            user_id,
+        )
 
     async def _request(self, method: str, url: str, **kwargs: Any) -> httpx.Response:
         try:

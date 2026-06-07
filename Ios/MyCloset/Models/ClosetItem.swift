@@ -5,6 +5,7 @@ import SwiftData
 final class ClosetItem {
     @Attribute(.unique) var id: UUID
     var name: String
+    var wardrobeID: String?
     var category: String
     var subcategory: String
     var color: String
@@ -31,6 +32,7 @@ final class ClosetItem {
         id: UUID = UUID(),
         name: String,
         category: String,
+        wardrobeID: String? = nil,
         subcategory: String = "",
         color: String,
         season: String,
@@ -54,6 +56,7 @@ final class ClosetItem {
     ) {
         self.id = id
         self.name = name
+        self.wardrobeID = wardrobeID
         self.category = category
         self.subcategory = subcategory
         self.color = color

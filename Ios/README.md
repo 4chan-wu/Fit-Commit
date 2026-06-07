@@ -191,6 +191,23 @@ dress
 ```
 
 AI 분석 결과는 기존 pending row에 먼저 업데이트되고, `AnalysisResultView`에서 사용자가 확인하고 수정한 최종값을 다시 Backend로 저장함.
+
+## 옷장 관리
+
+iOS 옷장 화면은 Backend wardrobes API를 사용해 사용자 옷장 목록을 불러옴.
+
+- 옷장 화면에서 “전체”, 기본 옷장, 추가 옷장 필터를 표시함
+- 특정 옷장을 선택하면 Backend `GET /clothes?user_id=...&wardrobe_id=...`로 해당 옷장 옷만 조회함
+- “옷장 관리” 화면에서 옷장 생성, 이름/설명 수정, 추가 옷장 삭제를 지원함
+- 기본 옷장은 “기본” 배지로 표시함
+- 기본 옷장은 삭제할 수 없음
+- 추가 옷장 삭제 시 Backend가 해당 옷장의 옷을 기본 옷장으로 이동함
+- 옷 등록 화면에서 저장할 옷장을 Picker로 선택할 수 있음
+- 옷장 목록을 불러오지 못하면 `wardrobe_id` 없이 저장하고 Backend가 기본 옷장을 자동 연결함
+- 의류 상세/수정 화면에서도 옷장을 변경할 수 있음
+- 기존 3D 공간 스캔, 신체 비율 측정, 대표색 선택, 계절 선택, 배경 제거 기능은 유지함
+- 현재는 테스트 user_id를 사용함
+- 실제 서비스에서는 Supabase Auth access token을 Backend에 보내고 Backend가 user_id를 결정해야 함
 AI 서버가 꺼져 있어도 로컬 옷장에는 pending/failed item이 남아야 함.
 현재 Supabase 저장 테스트 단계에서는 `ENABLE_AI_ANALYSIS=false`로 두고 AI 서버를 실행하지 않아도 됨.
 

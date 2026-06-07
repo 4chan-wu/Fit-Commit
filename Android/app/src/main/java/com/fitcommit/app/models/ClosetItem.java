@@ -7,6 +7,7 @@ package com.fitcommit.app.models;
 public class ClosetItem {
     public final String localId;
     public final String remoteId;
+    public final String wardrobeId;
     public final String name;
     public final String category;
     public final String color;
@@ -41,6 +42,7 @@ public class ClosetItem {
         this(
                 java.util.UUID.randomUUID().toString(),
                 "",
+                "",
                 name,
                 category,
                 color,
@@ -72,8 +74,45 @@ public class ClosetItem {
             String syncError,
             long createdAt
     ) {
+        this(
+                localId,
+                remoteId,
+                "",
+                name,
+                category,
+                color,
+                season,
+                note,
+                imagePath,
+                analysisStatus,
+                analysisError,
+                needsAnalysis,
+                syncStatus,
+                syncError,
+                createdAt
+        );
+    }
+
+    public ClosetItem(
+            String localId,
+            String remoteId,
+            String wardrobeId,
+            String name,
+            String category,
+            String color,
+            String season,
+            String note,
+            String imagePath,
+            String analysisStatus,
+            String analysisError,
+            boolean needsAnalysis,
+            String syncStatus,
+            String syncError,
+            long createdAt
+    ) {
         this.localId = localId == null || localId.trim().isEmpty() ? java.util.UUID.randomUUID().toString() : localId;
         this.remoteId = remoteId == null ? "" : remoteId;
+        this.wardrobeId = wardrobeId == null ? "" : wardrobeId;
         this.name = name;
         this.category = category;
         this.color = color;

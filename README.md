@@ -661,3 +661,23 @@ curl -X PUT "http://54.180.79.90:8000/clothes/{clothing_id}?user_id=45482f0f-42d
 - 웹은 아직 구현하지 않았지만 프로필 조회, 옷장 목록 조회, 기본 옷장 조회, 옷 등록 시 `wardrobe_id` 선택 흐름을 같은 Backend API로 사용해야 함
 - Elastic IP 또는 도메인 연결을 적용해야 함
 - YOLO 기반 전신 사진 자동 분리는 1차 프로토타입 범위 밖이며, 필요하면 향후 고도화 기능으로 다시 검토함
+
+## 옷장 관리 최신 상태
+
+사용자별 옷장 관리는 Backend wardrobes API를 중심으로 구성됨. iOS/Android/추후 웹은 같은 API를 사용해야 함.
+
+- 사용자는 여러 옷장을 만들 수 있음
+- 기본 옷장은 `is_default=true`로 표시하며 사용자당 1개만 가능함
+- 기본 옷장은 삭제할 수 없음
+- 추가 옷장은 여러 개 만들 수 있음
+- 같은 사용자 안에서 같은 옷장 이름은 중복 생성하지 않음
+- 옷 등록 시 `wardrobe_id`를 선택할 수 있음
+- `wardrobe_id`가 없으면 Backend가 기본 옷장을 자동 생성 또는 조회해서 `clothes.wardrobe_id`에 연결함
+- 옷 수정 시 `wardrobe_id`를 바꿀 수 있음
+- 추가 옷장 삭제 시 해당 옷장에 있던 clothes는 기본 옷장으로 이동함
+- 옷장별 필터에서 특정 옷장을 선택하면 `GET /clothes?user_id=...&wardrobe_id=...`로 조회함
+- “전체”를 선택하면 `GET /clothes?user_id=...`로 전체 옷을 조회함
+- 현재는 테스트 `user_id`를 사용함
+- 실제 서비스에서는 Supabase Auth access token을 Backend에 전달하고 Backend가 token에서 user_id를 추출해야 함
+
+웹은 아직 구현하지 않음. 웹에서 필요한 흐름은 옷장 목록 조회, 옷장 생성, 옷장 수정, 옷장 삭제, 옷장별 clothes 조회, 옷 등록 시 `wardrobe_id` 지정으로 구성됨.

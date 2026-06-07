@@ -2,6 +2,7 @@ import Foundation
 
 struct BackendClothesPayload: Encodable {
     let userID: String
+    let wardrobeID: String?
     let mainCategory: String
     let subcategory: String?
     let mainColor: String?
@@ -25,6 +26,7 @@ struct BackendClothesPayload: Encodable {
 
     private enum CodingKeys: String, CodingKey {
         case userID = "user_id"
+        case wardrobeID = "wardrobe_id"
         case mainCategory = "main_category"
         case subcategory
         case mainColor = "main_color"
@@ -49,6 +51,7 @@ struct BackendClothesPayload: Encodable {
 }
 
 struct BackendClothesUpdatePayload: Encodable {
+    let wardrobeID: String?
     let mainCategory: String?
     let subcategory: String?
     let mainColor: String?
@@ -71,6 +74,7 @@ struct BackendClothesUpdatePayload: Encodable {
     let memo: String?
 
     private enum CodingKeys: String, CodingKey {
+        case wardrobeID = "wardrobe_id"
         case mainCategory = "main_category"
         case subcategory
         case mainColor = "main_color"
@@ -130,7 +134,7 @@ enum BackendClothesService {
     private static let defaultBackendBaseURL = "http://54.180.79.90:8000"
     private static let defaultSupabaseUserID = "45482f0f-42d0-401e-a18a-77abeb0492cc"
 
-    private static var baseURL: URL? {
+    static var configuredBaseURL: URL? {
         if let value = ProcessInfo.processInfo.environment["FITCOMMIT_BACKEND_BASE_URL"],
            value.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false {
             return URL(string: value)
@@ -140,6 +144,10 @@ enum BackendClothesService {
             return URL(string: value)
         }
         return URL(string: defaultBackendBaseURL)
+    }
+
+    private static var baseURL: URL? {
+        configuredBaseURL
     }
 
     static var configuredUserID: String? {
@@ -319,14 +327,18 @@ enum BackendClothesService {
         return try JSONDecoder().decode(BackendWardrobeRow.self, from: data)
     }
 
-    static func fetchClothes() async throws -> [ClosetItem] {
+    static func fetchClothes(wardrobeID: String? = nil) async throws -> [ClosetItem] {
         guard let baseURL,
               let userID = configuredUserID else {
             throw URLError(.badURL)
         }
 
         var components = URLComponents(url: baseURL.appending(path: "clothes"), resolvingAgainstBaseURL: false)
-        components?.queryItems = [URLQueryItem(name: "user_id", value: userID)]
+        var queryItems = [URLQueryItem(name: "user_id", value: userID)]
+        if let wardrobeID, wardrobeID.isEmpty == false {
+            queryItems.append(URLQueryItem(name: "wardrobe_id", value: wardrobeID))
+        }
+        components?.queryItems = queryItems
 
         guard let url = components?.url else {
             throw URLError(.badURL)
@@ -407,6 +419,7 @@ private extension Data {
 
 struct BackendClothesRow: Decodable {
     let id: String?
+    let wardrobeID: String?
     let mainCategory: String
     let subcategory: String?
     let mainColor: String?
@@ -431,6 +444,7 @@ struct BackendClothesRow: Decodable {
 
     private enum CodingKeys: String, CodingKey {
         case id
+        case wardrobeID = "wardrobe_id"
         case mainCategory = "main_category"
         case subcategory
         case mainColor = "main_color"
@@ -463,6 +477,7 @@ struct BackendClothesRow: Decodable {
         } else {
             id = nil
         }
+        wardrobeID = try container.decodeIfPresent(String.self, forKey: .wardrobeID)
         mainCategory = try container.decode(String.self, forKey: .mainCategory)
         subcategory = try container.decodeIfPresent(String.self, forKey: .subcategory)
         mainColor = try container.decodeIfPresent(String.self, forKey: .mainColor)
@@ -493,6 +508,7 @@ struct BackendClothesRow: Decodable {
         return ClosetItem(
             name: displayName,
             category: mainCategory,
+            wardrobeID: wardrobeID,
             subcategory: subcategory ?? "",
             color: mainColor ?? "#CCCCCC",
             season: displaySeason,

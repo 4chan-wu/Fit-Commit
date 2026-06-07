@@ -2,6 +2,7 @@ package com.fitcommit.app.services;
 
 import com.fitcommit.app.models.AnalysisResult;
 import com.fitcommit.app.models.ClosetItem;
+import com.fitcommit.app.models.Wardrobe;
 
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
@@ -42,6 +43,10 @@ public class ClothesBackendService {
     }
 
     public JSONObject createPending(String category, String imagePath) throws Exception {
+        return createPending(category, imagePath, "");
+    }
+
+    public JSONObject createPending(String category, String imagePath, String wardrobeId) throws Exception {
         String storageImagePath = localImageReference(imagePath);
         String storageImageUrl = "";
         try {
@@ -56,6 +61,9 @@ public class ClothesBackendService {
 
         JSONObject payload = new JSONObject();
         payload.put("user_id", ApiClient.BACKEND_CLOTHES_USER_ID);
+        if (wardrobeId != null && !wardrobeId.trim().isEmpty()) {
+            payload.put("wardrobe_id", wardrobeId);
+        }
         payload.put("main_category", category);
         payload.put("main_color", dominantColorName(imagePath));
         payload.put("analysis_method", "manual");
@@ -158,7 +166,20 @@ public class ClothesBackendService {
             String imagePath,
             AnalysisResult result
     ) throws Exception {
-        JSONObject payload = completedPayload(category, subcategory, color, season, styleTags, imagePath, result);
+        return createCompleted(category, subcategory, color, season, styleTags, imagePath, result, "");
+    }
+
+    public JSONObject createCompleted(
+            String category,
+            String subcategory,
+            String color,
+            String season,
+            String styleTags,
+            String imagePath,
+            AnalysisResult result,
+            String wardrobeId
+    ) throws Exception {
+        JSONObject payload = completedPayload(category, subcategory, color, season, styleTags, imagePath, result, wardrobeId);
         payload.put("user_id", ApiClient.BACKEND_CLOTHES_USER_ID);
         return requestJson("POST", ApiClient.BASE_URL + "/clothes", payload);
     }
@@ -173,7 +194,21 @@ public class ClothesBackendService {
             String imagePath,
             AnalysisResult result
     ) throws Exception {
-        JSONObject payload = completedPayload(category, subcategory, color, season, styleTags, imagePath, result);
+        return updateCompleted(clothingId, category, subcategory, color, season, styleTags, imagePath, result, "");
+    }
+
+    public JSONObject updateCompleted(
+            String clothingId,
+            String category,
+            String subcategory,
+            String color,
+            String season,
+            String styleTags,
+            String imagePath,
+            AnalysisResult result,
+            String wardrobeId
+    ) throws Exception {
+        JSONObject payload = completedPayload(category, subcategory, color, season, styleTags, imagePath, result, wardrobeId);
         return requestJson("PUT", ApiClient.BASE_URL + "/clothes/" + clothingId, payload);
     }
 
@@ -190,7 +225,14 @@ public class ClothesBackendService {
     }
 
     public List<ClosetItem> fetchClothes() throws Exception {
+        return fetchClothes("");
+    }
+
+    public List<ClosetItem> fetchClothes(String wardrobeId) throws Exception {
         String url = ApiClient.BASE_URL + "/clothes?user_id=" + ApiClient.BACKEND_CLOTHES_USER_ID;
+        if (wardrobeId != null && !wardrobeId.trim().isEmpty()) {
+            url += "&wardrobe_id=" + wardrobeId;
+        }
         HttpURLConnection connection = (HttpURLConnection) new URL(url).openConnection();
         connection.setRequestMethod("GET");
         connection.setConnectTimeout(10_000);
@@ -217,6 +259,7 @@ public class ClothesBackendService {
             String localImagePath = row.optString("local_image_path", imagePath);
             String status = row.optString("analysis_status", "completed");
             String syncStatus = row.optString("sync_status", "synced");
+            String wardrobeIdValue = row.optString("wardrobe_id", "");
             boolean needsAnalysis = row.optBoolean("needs_analysis", !"completed".equals(status));
             String name = subcategory.isEmpty() ? category : subcategory;
             String note = "source=backend; status=" + status + "; style_tags=" + styleTags;
@@ -229,6 +272,7 @@ public class ClothesBackendService {
             items.add(new ClosetItem(
                     "",
                     String.valueOf(row.opt("id")),
+                    wardrobeIdValue,
                     name,
                     category,
                     color,
@@ -280,6 +324,52 @@ public class ClothesBackendService {
         return new JSONObject(body);
     }
 
+    public List<Wardrobe> fetchWardrobeModels() throws Exception {
+        JSONArray rows = fetchWardrobes();
+        List<Wardrobe> wardrobes = new ArrayList<>();
+        for (int i = 0; i < rows.length(); i++) {
+            JSONObject row = rows.getJSONObject(i);
+            wardrobes.add(new Wardrobe(
+                    row.optString("id", ""),
+                    row.optString("user_id", ""),
+                    row.optString("name", "기본 옷장"),
+                    row.optString("description", ""),
+                    row.optBoolean("is_default", false)
+            ));
+        }
+        return wardrobes;
+    }
+
+    public JSONObject createWardrobe(String name, String description) throws Exception {
+        JSONObject payload = new JSONObject();
+        payload.put("user_id", ApiClient.BACKEND_CLOTHES_USER_ID);
+        payload.put("name", name);
+        payload.put("description", description == null ? "" : description);
+        payload.put("is_default", false);
+        return requestJson("POST", ApiClient.BASE_URL + "/wardrobes", payload);
+    }
+
+    public JSONObject updateWardrobe(String wardrobeId, String name, String description) throws Exception {
+        JSONObject payload = new JSONObject();
+        payload.put("name", name);
+        payload.put("description", description == null ? "" : description);
+        return requestJson("PUT", ApiClient.BASE_URL + "/wardrobes/" + wardrobeId + "?user_id=" + ApiClient.BACKEND_CLOTHES_USER_ID, payload);
+    }
+
+    public void deleteWardrobe(String wardrobeId) throws Exception {
+        HttpURLConnection connection = (HttpURLConnection) new URL(ApiClient.BASE_URL + "/wardrobes/" + wardrobeId + "?user_id=" + ApiClient.BACKEND_CLOTHES_USER_ID).openConnection();
+        connection.setRequestMethod("DELETE");
+        connection.setConnectTimeout(10_000);
+        connection.setReadTimeout(15_000);
+        connection.setRequestProperty("Accept", "application/json");
+        applyAuthHeaders(connection);
+        int statusCode = connection.getResponseCode();
+        String body = readResponse(connection, statusCode);
+        if (statusCode < 200 || statusCode >= 300) {
+            throw new IllegalStateException("Backend wardrobe delete failed: " + statusCode + " " + body);
+        }
+    }
+
     private JSONObject completedPayload(
             String category,
             String subcategory,
@@ -287,9 +377,13 @@ public class ClothesBackendService {
             String season,
             String styleTags,
             String imagePath,
-            AnalysisResult result
+            AnalysisResult result,
+            String wardrobeId
     ) throws Exception {
         JSONObject payload = new JSONObject();
+        if (wardrobeId != null && !wardrobeId.trim().isEmpty()) {
+            payload.put("wardrobe_id", wardrobeId);
+        }
         payload.put("main_category", category);
         payload.put("subcategory", subcategory);
         payload.put("main_color", color);

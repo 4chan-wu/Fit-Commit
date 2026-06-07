@@ -254,6 +254,7 @@ struct AnalysisResultView: View {
                     _ = try await BackendClothesService.update(
                         clothingID: serverClothingID,
                         payload: BackendClothesUpdatePayload(
+                            wardrobeID: nil,
                             mainCategory: category,
                             subcategory: finalSubcategory.isEmpty ? nil : finalSubcategory,
                             mainColor: color,
@@ -287,6 +288,7 @@ struct AnalysisResultView: View {
                     try await BackendClothesService.save(
                         BackendClothesPayload(
                             userID: userID,
+                            wardrobeID: nil,
                             mainCategory: category,
                             subcategory: finalSubcategory.isEmpty ? nil : finalSubcategory,
                             mainColor: color,

@@ -57,6 +57,7 @@ public final class ClothingStorage {
         saveOrReplace(context, new ClosetItem(
                 item.localId,
                 remoteId == null ? item.remoteId : remoteId,
+                item.wardrobeId,
                 item.name,
                 item.category,
                 item.color,
@@ -87,6 +88,7 @@ public final class ClothingStorage {
                 items.add(new ClosetItem(
                         object.optString("localId"),
                         object.optString("remoteId"),
+                        object.optString("wardrobeId"),
                         object.optString("name"),
                         object.optString("category"),
                         object.optString("color"),
@@ -114,6 +116,7 @@ public final class ClothingStorage {
                 object.put("name", item.name);
                 object.put("localId", item.localId);
                 object.put("remoteId", item.remoteId);
+                object.put("wardrobeId", item.wardrobeId);
                 object.put("category", item.category);
                 object.put("color", item.color);
                 object.put("season", item.season);

@@ -88,8 +88,15 @@ Android 앱은 현재 `wardrobe_id`를 몰라도 옷 등록이 가능함. Backen
 - 기본 옷장은 사용자당 1개만 가능함
 - 추가 옷장은 여러 개 가능함
 - 같은 사용자 안에서 같은 옷장 이름은 중복될 수 없음
-- 향후 옷장 선택 UI는 Backend `/wardrobes` API를 사용해야 함
-- `ClothesBackendService`에는 옷장 목록 조회와 기본 옷장 조회 구조를 준비함
+- 옷장 화면에서 “전체”와 서버 옷장 목록을 필터 버튼으로 표시함
+- 특정 옷장을 선택하면 Backend `GET /clothes?user_id=...&wardrobe_id=...`로 해당 옷장 옷만 조회함
+- “옷장 관리” 버튼으로 추가 옷장을 생성할 수 있음
+- 옷장 필터 버튼을 길게 누르면 해당 옷장 수정/삭제 액션을 열 수 있음
+- `ClothesBackendService`에는 옷장 목록 조회, 생성, 수정, 삭제 API 호출 구조를 준비함
+- 등록/수정 화면의 `wardrobeSpinner`에서 저장할 옷장을 선택할 수 있음
+- 선택값이 없으면 `wardrobe_id` 없이 저장하고 Backend가 기본 옷장을 자동 연결함
+- 기본 옷장은 삭제할 수 없음
+- 추가 옷장 삭제 시 Backend가 해당 옷장의 clothes를 기본 옷장으로 이동함
 - 웹도 같은 Backend wardrobe API를 사용해야 함
 
 Android 에뮬레이터에서 로컬 Mac Backend를 테스트할 때는 `10.0.2.2`를 사용해야 함.

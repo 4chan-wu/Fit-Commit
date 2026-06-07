@@ -99,6 +99,14 @@
                 android:background="@drawable/bg_input"
                 android:paddingHorizontal="14dp" />
 
+            <Spinner
+                android:id="@+id/wardrobeSpinner"
+                android:layout_width="match_parent"
+                android:layout_height="52dp"
+                android:layout_marginTop="12dp"
+                android:background="@drawable/bg_input"
+                android:paddingHorizontal="14dp" />
+
             <EditText
                 android:id="@+id/subcategoryEditText"
                 android:layout_width="match_parent"

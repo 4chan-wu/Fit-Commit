@@ -671,3 +671,43 @@ curl -X POST http://54.180.79.90:8000/clothes/upload \
 - 웹은 아직 구현하지 않았지만 프로필 조회, 옷장 목록 조회, 기본 옷장 조회, 옷 등록 시 `wardrobe_id` 선택 흐름을 같은 Backend API로 사용해야 함
 - Elastic IP 또는 도메인 연결을 적용해야 함
 - 운영 배포 환경에서는 service role key 관리와 CORS 정책을 다시 점검해야 함
+
+## Wardrobes API 최신 정책
+
+`public.wardrobes`는 사용자별 옷장 목록을 관리함. Backend는 service role key를 사용하므로 RLS를 우회할 수 있고, API 레이어에서 `wardrobe_id` 소유권 검증을 수행해야 함.
+
+- `GET /wardrobes?user_id={uuid}`는 사용자의 옷장 목록을 반환함
+- `GET /wardrobes/default?user_id={uuid}`는 기본 옷장을 반환하고, 없으면 생성할 수 있음
+- `POST /wardrobes`는 추가 옷장을 생성함
+- `PUT /wardrobes/{wardrobe_id}`는 옷장 이름/설명을 수정함
+- `DELETE /wardrobes/{wardrobe_id}`는 추가 옷장을 삭제함
+- 기본 옷장은 삭제할 수 없음
+- 추가 옷장 삭제 시 해당 옷장의 clothes는 기본 옷장으로 이동함
+- 같은 사용자 안에서 같은 옷장 이름은 중복 생성하지 않음
+- `POST /clothes`에서 `wardrobe_id`가 없으면 기본 옷장을 자동 연결함
+- `POST /clothes`, `PUT /clothes/{id}`에서 `wardrobe_id`가 있으면 해당 user_id 소유 옷장인지 검증함
+- `GET /clothes?user_id=...&wardrobe_id=...`로 특정 옷장 기준 조회를 사용함
+
+```bash
+curl "http://54.180.79.90:8000/wardrobes?user_id=45482f0f-42d0-401e-a18a-77abeb0492cc"
+
+curl "http://54.180.79.90:8000/wardrobes/default?user_id=45482f0f-42d0-401e-a18a-77abeb0492cc"
+
+curl -X POST "http://54.180.79.90:8000/wardrobes" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "user_id": "45482f0f-42d0-401e-a18a-77abeb0492cc",
+    "name": "여름 옷장",
+    "description": "여름 옷 모음",
+    "is_default": false
+  }'
+
+curl -X PUT "http://54.180.79.90:8000/wardrobes/{wardrobe_id}?user_id=45482f0f-42d0-401e-a18a-77abeb0492cc" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "여름 옷장 수정",
+    "description": "수정된 설명"
+  }'
+
+curl "http://54.180.79.90:8000/clothes?user_id=45482f0f-42d0-401e-a18a-77abeb0492cc&wardrobe_id={wardrobe_id}"
+```

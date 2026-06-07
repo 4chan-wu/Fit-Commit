@@ -54,6 +54,7 @@ public class ClosetCardAdapter {
             intent.putExtra(AnalysisResultActivity.EXTRA_EDIT_MODE, true);
             intent.putExtra(AnalysisResultActivity.EXTRA_LOCAL_ID, item.localId);
             intent.putExtra(AnalysisResultActivity.EXTRA_REMOTE_ID, item.remoteId);
+            intent.putExtra(AnalysisResultActivity.EXTRA_WARDROBE_ID, item.wardrobeId);
             intent.putExtra(AnalysisResultActivity.EXTRA_IMAGE_PATH, item.imagePath);
             intent.putExtra(AnalysisResultActivity.EXTRA_CATEGORY_HINT, item.category);
             intent.putExtra(AnalysisResultActivity.EXTRA_NAME, item.name);

@@ -172,8 +172,16 @@ class SupabaseClothesService:
         self._normalize_image_fields(payload)
         if not payload:
             raise HTTPException(status_code=400, detail="No update fields provided.")
-        if body.wardrobe_id is not None and user_id is not None:
-            await wardrobe_service.get_owned(body.wardrobe_id, user_id)
+        if body.wardrobe_id is not None:
+            owner_user_id = user_id
+            if owner_user_id is None:
+                existing = await self.get(clothing_id)
+                existing_user_id = existing.get("user_id")
+                if existing_user_id is not None:
+                    owner_user_id = UUID(str(existing_user_id))
+            if owner_user_id is None:
+                raise HTTPException(status_code=400, detail="user_id is required to update wardrobe_id.")
+            await wardrobe_service.get_owned(body.wardrobe_id, owner_user_id)
         payload["updated_at"] = datetime.now(timezone.utc).isoformat()
 
         params = {"id": f"eq.{clothing_id}"}

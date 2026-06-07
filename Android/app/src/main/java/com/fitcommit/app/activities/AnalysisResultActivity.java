@@ -16,6 +16,7 @@ import com.fitcommit.app.R;
 import com.fitcommit.app.models.AnalysisResult;
 import com.fitcommit.app.services.ApiClient;
 import com.fitcommit.app.models.ClosetItem;
+import com.fitcommit.app.models.Wardrobe;
 import com.fitcommit.app.services.ClothesBackendService;
 import com.fitcommit.app.services.ClothingStorage;
 import com.fitcommit.app.services.FashionAiService;
@@ -23,6 +24,8 @@ import com.fitcommit.app.utils.UiUtils;
 
 import java.io.File;
 import java.util.Arrays;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * CLIP/FashionCLIP 분석 결과를 확정 전 확인하고 수정하는 화면입니다.
@@ -37,6 +40,7 @@ public class AnalysisResultActivity extends Activity {
     public static final String EXTRA_COLOR = "color";
     public static final String EXTRA_SEASON = "season";
     public static final String EXTRA_NOTE = "note";
+    public static final String EXTRA_WARDROBE_ID = "wardrobeId";
 
     private static final String[] CATEGORIES = {"top", "bottom", "outer", "shoes", "hat", "bag", "dress"};
     private static final String[] COLORS = {"black", "white", "gray", "navy", "blue", "brown", "beige", "red", "pink", "green", "yellow", "purple"};
@@ -47,6 +51,8 @@ public class AnalysisResultActivity extends Activity {
     private String categoryHint;
     private String localItemId;
     private String serverClothingId;
+    private String selectedWardrobeId = "";
+    private final List<Wardrobe> wardrobes = new ArrayList<>();
     private AnalysisResult result;
 
     @Override
@@ -58,6 +64,7 @@ public class AnalysisResultActivity extends Activity {
         categoryHint = valueOrDefault(getIntent().getStringExtra(EXTRA_CATEGORY_HINT), "top");
         localItemId = getIntent().getStringExtra(EXTRA_LOCAL_ID);
         serverClothingId = getIntent().getStringExtra(EXTRA_REMOTE_ID);
+        selectedWardrobeId = valueOrDefault(getIntent().getStringExtra(EXTRA_WARDROBE_ID), "");
         if (localItemId == null || localItemId.trim().isEmpty()) {
             localItemId = java.util.UUID.randomUUID().toString();
         }
@@ -69,6 +76,7 @@ public class AnalysisResultActivity extends Activity {
         }
 
         setupStaticForm();
+        loadWardrobes();
         if (getIntent().getBooleanExtra(EXTRA_EDIT_MODE, false)) {
             setupEditMode();
         } else {
@@ -100,6 +108,53 @@ public class AnalysisResultActivity extends Activity {
 
         findViewById(R.id.editResultButton).setOnClickListener(v -> resetFields());
         findViewById(R.id.saveResultButton).setOnClickListener(v -> saveConfirmedResult());
+        Spinner wardrobeSpinner = findViewById(R.id.wardrobeSpinner);
+        ArrayAdapter<String> wardrobeAdapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_dropdown_item, new String[]{"기본 옷장"});
+        wardrobeSpinner.setAdapter(wardrobeAdapter);
+        wardrobeSpinner.setOnItemSelectedListener(new android.widget.AdapterView.OnItemSelectedListener() {
+            @Override
+            public void onItemSelected(android.widget.AdapterView<?> parent, View view, int position, long id) {
+                if (position <= 0 || position - 1 >= wardrobes.size()) {
+                    selectedWardrobeId = "";
+                    return;
+                }
+                selectedWardrobeId = wardrobes.get(position - 1).id;
+            }
+
+            @Override
+            public void onNothingSelected(android.widget.AdapterView<?> parent) {
+            }
+        });
+    }
+
+    private void loadWardrobes() {
+        if (!clothesBackendService.isConfigured()) {
+            return;
+        }
+        new Thread(() -> {
+            try {
+                List<Wardrobe> fetched = clothesBackendService.fetchWardrobeModels();
+                runOnUiThread(() -> {
+                    wardrobes.clear();
+                    wardrobes.addAll(fetched);
+                    List<String> labels = new ArrayList<>();
+                    labels.add("기본 옷장");
+                    int selectedIndex = 0;
+                    for (int i = 0; i < wardrobes.size(); i++) {
+                        Wardrobe wardrobe = wardrobes.get(i);
+                        labels.add(wardrobe.toString());
+                        if (!selectedWardrobeId.trim().isEmpty() && selectedWardrobeId.equals(wardrobe.id)) {
+                            selectedIndex = i + 1;
+                        }
+                    }
+                    Spinner spinner = findViewById(R.id.wardrobeSpinner);
+                    spinner.setAdapter(new ArrayAdapter<>(this, android.R.layout.simple_spinner_dropdown_item, labels));
+                    spinner.setSelection(selectedIndex);
+                });
+            } catch (Exception error) {
+                System.out.println("[AnalysisResultActivity] Backend wardrobes fetch failed: " + error.getMessage());
+            }
+        }).start();
     }
 
     private void setupEditMode() {
@@ -210,11 +265,11 @@ public class AnalysisResultActivity extends Activity {
             new Thread(() -> {
                 try {
                     if (serverClothingId == null || serverClothingId.trim().isEmpty()) {
-                        org.json.JSONObject row = clothesBackendService.createCompleted(category, subcategory, color, season, styleTags, imagePath, result);
+                        org.json.JSONObject row = clothesBackendService.createCompleted(category, subcategory, color, season, styleTags, imagePath, result, selectedWardrobeId);
                         Object id = row.opt("id");
                         serverClothingId = id == null ? null : String.valueOf(id);
                     } else {
-                        clothesBackendService.updateCompleted(serverClothingId, category, subcategory, color, season, styleTags, imagePath, result);
+                        clothesBackendService.updateCompleted(serverClothingId, category, subcategory, color, season, styleTags, imagePath, result, selectedWardrobeId);
                     }
                     ClothingStorage.updateSync(this, localItemId, serverClothingId, "synced", "");
                     runOnUiThread(() -> {
@@ -267,6 +322,7 @@ public class AnalysisResultActivity extends Activity {
         ClothingStorage.saveOrReplace(this, new ClosetItem(
                 localItemId,
                 serverClothingId,
+                selectedWardrobeId,
                 name,
                 category,
                 color,
@@ -290,6 +346,7 @@ public class AnalysisResultActivity extends Activity {
         ClosetItem item = new ClosetItem(
                 java.util.UUID.randomUUID().toString(),
                 "",
+                selectedWardrobeId,
                 defaultNameFor(categoryHint),
                 categoryHint,
                 dominantColorName(),
@@ -319,9 +376,10 @@ public class AnalysisResultActivity extends Activity {
         }
         try {
             System.out.println("[AnalysisResultActivity] Backend /clothes request started");
-            org.json.JSONObject row = clothesBackendService.createPending(categoryHint, imagePath);
+            org.json.JSONObject row = clothesBackendService.createPending(categoryHint, imagePath, selectedWardrobeId);
             Object id = row.opt("id");
             serverClothingId = id == null ? null : String.valueOf(id);
+            selectedWardrobeId = row.optString("wardrobe_id", selectedWardrobeId);
             ClothingStorage.updateSync(this, localItemId, serverClothingId, "synced", "");
             System.out.println("[AnalysisResultActivity] Backend save succeeded id=" + serverClothingId);
         } catch (Exception error) {
@@ -341,6 +399,7 @@ public class AnalysisResultActivity extends Activity {
         ClothingStorage.updateAnalysis(this, localItemId, new ClosetItem(
                 localItemId,
                 serverClothingId,
+                selectedWardrobeId,
                 analyzed.subcategory == null || analyzed.subcategory.isEmpty() ? analyzed.mainCategory : analyzed.subcategory,
                 analyzed.mainCategory,
                 analyzed.mainColor,
@@ -363,6 +422,7 @@ public class AnalysisResultActivity extends Activity {
         ClothingStorage.updateAnalysis(this, localItemId, new ClosetItem(
                 localItemId,
                 serverClothingId,
+                selectedWardrobeId,
                 defaultNameFor(categoryHint),
                 categoryHint,
                 "#CCCCCC",
@@ -464,7 +524,8 @@ public class AnalysisResultActivity extends Activity {
                     analyzed.season,
                     joinTags(analyzed.styleTags),
                     imagePath,
-                    analyzed
+                    analyzed,
+                    selectedWardrobeId
             );
         } catch (Exception error) {
             System.out.println("[AnalysisResultActivity] Failed to mark completed: " + error.getMessage());

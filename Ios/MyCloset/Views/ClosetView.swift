@@ -20,6 +20,9 @@ struct ClosetView: View {
     @State private var navigationPath: [ClosetDestination] = []
     @State private var backendItems: [ClosetItem] = []
     @State private var isUsingBackendItems = false
+    @State private var wardrobes: [BackendWardrobeRow] = []
+    @State private var selectedWardrobeID: String?
+    @State private var wardrobeErrorMessage: String?
     private let initialFilter: ClosetInitialFilter
 
     init(initialFilter: ClosetInitialFilter = .all) {
@@ -36,6 +39,8 @@ struct ClosetView: View {
                     arFeatureHub
 
                     closetInventoryHeader
+
+                    wardrobeFilterBar
 
                     AddClothingListRow(
                         onCameraTap: presentCamera,
@@ -111,9 +116,20 @@ struct ClosetView: View {
                     }
                     .ignoresSafeArea()
                 case .upload(let uploadImage):
-                    ClothesUploadView(image: uploadImage.image)
+                    ClothesUploadView(
+                        image: uploadImage.image,
+                        selectedWardrobeID: selectedWardrobeID,
+                        wardrobes: wardrobes
+                    )
                 case .detail(let item):
-                    ClothingDetailView(item: item)
+                    ClothingDetailView(item: item, wardrobes: wardrobes)
+                case .wardrobes:
+                    WardrobeManagementView(wardrobes: wardrobes) {
+                        Task {
+                            await refreshWardrobes()
+                            await refreshBackendClothes()
+                        }
+                    }
                 }
             }
             .alert("의류를 삭제할까요?", isPresented: deleteConfirmationBinding) {
@@ -132,6 +148,7 @@ struct ClosetView: View {
             .onAppear {
                 setTabBarVisible(true)
                 Task {
+                    await refreshWardrobes()
                     await refreshBackendClothes()
                 }
             }
@@ -233,19 +250,78 @@ struct ClosetView: View {
     }
 
     private var closetInventoryHeader: some View {
-        HStack {
-            Text(initialFilter == .unworn ? "안 입는 옷" : "내 옷 목록")
-                .font(.headline)
-                .foregroundStyle(.primary)
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Text(initialFilter == .unworn ? "안 입는 옷" : "내 옷 목록")
+                    .font(.headline)
+                    .foregroundStyle(.primary)
 
-            Spacer()
+                Spacer()
 
-            Text("\(displayedItems.count)개")
-                .font(.subheadline.weight(.semibold))
-                .foregroundStyle(.secondary)
+                Text("\(displayedItems.count)개")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(.secondary)
+            }
+
+            Button {
+                activeSheet = .wardrobes
+            } label: {
+                Label("옷장 관리", systemImage: "folder.badge.gearshape")
+                    .font(.subheadline.weight(.semibold))
+            }
+            .buttonStyle(.bordered)
+            .controlSize(.small)
         }
         .padding(16)
         .fitcommitCardStyle()
+    }
+
+    private var wardrobeFilterBar: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 8) {
+                    wardrobeFilterButton(title: "전체", id: nil, isDefault: false)
+                    ForEach(wardrobes) { wardrobe in
+                        wardrobeFilterButton(title: wardrobe.name, id: wardrobe.id, isDefault: wardrobe.isDefault)
+                    }
+                }
+                .padding(.vertical, 2)
+            }
+
+            if let wardrobeErrorMessage {
+                Text(wardrobeErrorMessage)
+                    .font(.caption)
+                    .foregroundStyle(.orange)
+            }
+        }
+    }
+
+    private func wardrobeFilterButton(title: String, id: String?, isDefault: Bool) -> some View {
+        Button {
+            selectedWardrobeID = id
+            Task {
+                await refreshBackendClothes()
+            }
+        } label: {
+            HStack(spacing: 6) {
+                Text(title)
+                if isDefault {
+                    Text("기본")
+                        .font(.caption2.weight(.bold))
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background(Color.accentColor.opacity(0.12), in: Capsule())
+                }
+            }
+            .font(.subheadline.weight(.semibold))
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
+            .background(
+                selectedWardrobeID == id ? Color.accentColor.opacity(0.16) : Color(uiColor: .secondarySystemBackground),
+                in: Capsule()
+            )
+        }
+        .buttonStyle(.plain)
     }
 
     private var closetItemsGrid: some View {
@@ -281,12 +357,18 @@ struct ClosetView: View {
 
     private var displayedItems: [ClosetItem] {
         let sourceItems = mergedClosetItems
+        let wardrobeFilteredItems: [ClosetItem]
+        if let selectedWardrobeID {
+            wardrobeFilteredItems = sourceItems.filter { $0.wardrobeID == selectedWardrobeID }
+        } else {
+            wardrobeFilteredItems = sourceItems
+        }
         switch initialFilter {
         case .all:
-            return sourceItems
+            return wardrobeFilteredItems
         case .unworn:
             let cutoffDate = Calendar.current.date(byAdding: .month, value: -3, to: Date()) ?? Date()
-            return sourceItems.filter { $0.timestamp < cutoffDate }
+            return wardrobeFilteredItems.filter { $0.timestamp < cutoffDate }
         }
     }
 
@@ -378,7 +460,7 @@ struct ClosetView: View {
     @MainActor
     private func refreshBackendClothes() async {
         do {
-            let fetchedItems = try await BackendClothesService.fetchClothes()
+            let fetchedItems = try await BackendClothesService.fetchClothes(wardrobeID: selectedWardrobeID)
             backendItems = fetchedItems
             isUsingBackendItems = true
         } catch {
@@ -388,12 +470,25 @@ struct ClosetView: View {
         }
     }
 
+    @MainActor
+    private func refreshWardrobes() async {
+        do {
+            wardrobes = try await WardrobeBackendService.fetchWardrobes()
+            wardrobeErrorMessage = nil
+        } catch {
+            print("[ClosetView] Backend wardrobes fetch failed: \(error.localizedDescription)")
+            wardrobes = []
+            wardrobeErrorMessage = "옷장 목록을 불러오지 못했습니다. 저장 시 기본 옷장으로 연결됩니다."
+        }
+    }
+
 }
 
 private enum ClosetActiveSheet: Identifiable {
     case camera
     case upload(UploadImage)
     case detail(ClosetItem)
+    case wardrobes
 
     var id: String {
         switch self {
@@ -403,6 +498,8 @@ private enum ClosetActiveSheet: Identifiable {
             return uploadImage.id.uuidString
         case .detail(let item):
             return item.id.uuidString
+        case .wardrobes:
+            return "wardrobes"
         }
     }
 }
@@ -732,17 +829,21 @@ private struct ClothesUploadView: View {
     @State private var processedImage: UIImage?
     @State private var imageDataForSaving: Data
     @State private var selectedCategoryHint = "top"
+    @State private var selectedWardrobeSelection = ""
     @State private var serverClothingID: String?
     @State private var backendImagePath: String?
     @State private var backendImageURL: String?
     @State private var localItem: ClosetItem?
 
     let image: UIImage
+    let wardrobes: [BackendWardrobeRow]
     private let analysisService = AnalysisService()
     private let categoryOptions = ClosetItemEditOptions.categories
 
-    init(image: UIImage) {
+    init(image: UIImage, selectedWardrobeID: String?, wardrobes: [BackendWardrobeRow]) {
         self.image = image
+        self.wardrobes = wardrobes
+        _selectedWardrobeSelection = State(initialValue: selectedWardrobeID ?? wardrobes.first(where: \.isDefault)?.id ?? "")
         _imageDataForSaving = State(initialValue: image.jpegData(compressionQuality: 0.82) ?? Data())
     }
 
@@ -832,6 +933,23 @@ private struct ClothesUploadView: View {
             Text("선택한 카테고리는 서버 저장 시 main_category로 저장됩니다.")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
+
+            if wardrobes.isEmpty == false {
+                Text("저장할 옷장")
+                    .font(.headline)
+
+                Picker("저장할 옷장", selection: $selectedWardrobeSelection) {
+                    Text("기본 옷장").tag("")
+                    ForEach(wardrobes) { wardrobe in
+                        Text(wardrobe.isDefault ? "\(wardrobe.name) · 기본" : wardrobe.name).tag(wardrobe.id)
+                    }
+                }
+                .pickerStyle(.menu)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 11)
+                .background(Color(uiColor: .tertiarySystemBackground), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+            }
 
             Text("AI 서버가 꺼져 있어도 Backend 저장은 먼저 진행됩니다.")
                 .font(.subheadline)
@@ -1050,6 +1168,10 @@ private struct ClothesUploadView: View {
         return "local://\(item.id.uuidString)"
     }
 
+    private var normalizedWardrobeID: String? {
+        selectedWardrobeSelection.isEmpty ? nil : selectedWardrobeSelection
+    }
+
     @MainActor
     private func saveLocalPendingItem() throws {
         guard localItem == nil else { return }
@@ -1057,6 +1179,7 @@ private struct ClothesUploadView: View {
             id: UUID(),
             name: Self.defaultName(for: selectedCategoryHint),
             category: selectedCategoryHint,
+            wardrobeID: normalizedWardrobeID,
             subcategory: "",
             color: activeImage.fitcommitDominantColorName(),
             season: "분석 대기",
@@ -1123,6 +1246,7 @@ private struct ClothesUploadView: View {
             let row = try await BackendClothesService.create(
                 BackendClothesPayload(
                     userID: userID,
+                    wardrobeID: normalizedWardrobeID,
                     mainCategory: selectedCategoryHint,
                     subcategory: nil,
                     mainColor: localItem?.color,
@@ -1147,6 +1271,7 @@ private struct ClothesUploadView: View {
             )
             serverClothingID = row.id
             localItem?.remoteID = row.id
+            localItem?.wardrobeID = row.wardrobeID ?? normalizedWardrobeID
             localItem?.imageURL = row.imageURL ?? backendImageURL
             localItem?.syncStatus = "synced"
             localItem?.syncError = nil
@@ -1180,6 +1305,7 @@ private struct ClothesUploadView: View {
             _ = try await BackendClothesService.update(
                 clothingID: serverClothingID,
                 payload: BackendClothesUpdatePayload(
+                    wardrobeID: nil,
                     mainCategory: result.mainCategory,
                     subcategory: result.subcategory.isEmpty ? nil : result.subcategory,
                     mainColor: result.mainColor,
@@ -1219,6 +1345,7 @@ private struct ClothesUploadView: View {
             _ = try await BackendClothesService.update(
                 clothingID: serverClothingID,
                 payload: BackendClothesUpdatePayload(
+                    wardrobeID: nil,
                     mainCategory: nil,
                     subcategory: nil,
                     mainColor: nil,
@@ -1309,9 +1436,11 @@ private struct ClothingDetailView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
     @Bindable var item: ClosetItem
+    let wardrobes: [BackendWardrobeRow]
     @State private var isShowingDeleteAlert = false
     @State private var selectedPhotoItem: PhotosPickerItem?
     @State private var selectedSeasonValues: Set<String> = []
+    @State private var selectedWardrobeSelection = ""
     @State private var isSaving = false
     @State private var isRemovingBackground = false
     @State private var saveMessage: String?
@@ -1340,6 +1469,15 @@ private struct ClothingDetailView: View {
 
                 Section("기본 정보") {
                     TextField("옷 이름", text: $item.name)
+
+                    if wardrobes.isEmpty == false {
+                        Picker("옷장", selection: $selectedWardrobeSelection) {
+                            Text("기본 옷장").tag("")
+                            ForEach(wardrobes) { wardrobe in
+                                Text(wardrobe.isDefault ? "\(wardrobe.name) · 기본" : wardrobe.name).tag(wardrobe.id)
+                            }
+                        }
+                    }
 
                     Picker("카테고리", selection: $item.category) {
                         ForEach(ClosetItemEditOptions.categories, id: \.self) { category in
@@ -1431,6 +1569,7 @@ private struct ClothingDetailView: View {
             .navigationBarTitleDisplayMode(.inline)
             .onAppear {
                 selectedSeasonValues = seasonValues(from: item.season)
+                selectedWardrobeSelection = item.wardrobeID ?? wardrobes.first(where: \.isDefault)?.id ?? ""
             }
             .onChange(of: selectedPhotoItem) { _, newItem in
                 loadChangedPhoto(newItem)
@@ -1474,6 +1613,7 @@ private struct ClothingDetailView: View {
         item.subcategory = normalizedValue(item.subcategory, fallback: "")
         item.color = normalizedValue(item.color, fallback: "gray")
         item.season = seasonDisplayValue(from: selectedSeasonValues)
+        item.wardrobeID = normalizedWardrobeID
         item.analysisMethod = "manual"
         item.syncStatus = item.remoteID == nil ? "local_only" : "pending_sync"
         try? modelContext.save()
@@ -1509,6 +1649,7 @@ private struct ClothingDetailView: View {
             let row = try await BackendClothesService.update(
                 clothingID: remoteID,
                 payload: BackendClothesUpdatePayload(
+                    wardrobeID: normalizedWardrobeID,
                     mainCategory: item.category,
                     subcategory: item.subcategory.isEmpty ? nil : item.subcategory,
                     mainColor: item.color,
@@ -1603,6 +1744,7 @@ private struct ClothingDetailView: View {
 
     private func apply(row: BackendClothesRow) {
         item.remoteID = row.id ?? item.remoteID
+        item.wardrobeID = row.wardrobeID ?? item.wardrobeID
         item.category = row.mainCategory
         item.subcategory = row.subcategory ?? item.subcategory
         item.color = row.mainColor ?? item.color
@@ -1659,6 +1801,7 @@ private struct ClothingDetailView: View {
             let row = try await BackendClothesService.update(
                 clothingID: remoteID,
                 payload: BackendClothesUpdatePayload(
+                    wardrobeID: nil,
                     mainCategory: nil,
                     subcategory: nil,
                     mainColor: nil,
@@ -1692,6 +1835,7 @@ private struct ClothingDetailView: View {
                 _ = try await BackendClothesService.update(
                     clothingID: remoteID,
                     payload: BackendClothesUpdatePayload(
+                        wardrobeID: nil,
                         mainCategory: nil,
                         subcategory: nil,
                         mainColor: nil,
@@ -1740,6 +1884,10 @@ private struct ClothingDetailView: View {
                 .map(String.init)
                 .filter { ClosetItemEditOptions.seasons.contains($0) }
         )
+    }
+
+    private var normalizedWardrobeID: String? {
+        selectedWardrobeSelection.isEmpty ? nil : selectedWardrobeSelection
     }
 
     private func seasonDisplayValue(from values: Set<String>) -> String {
@@ -1830,6 +1978,186 @@ private struct CameraImagePicker: UIViewControllerRepresentable {
         func imagePickerControllerDidCancel(_ picker: UIImagePickerController) {
             picker.dismiss(animated: true)
         }
+    }
+}
+
+private struct WardrobeManagementView: View {
+    @Environment(\.dismiss) private var dismiss
+    @State private var wardrobes: [BackendWardrobeRow]
+    @State private var newName = ""
+    @State private var newDescription = ""
+    @State private var editingWardrobe: BackendWardrobeRow?
+    @State private var editingName = ""
+    @State private var editingDescription = ""
+    @State private var statusMessage: String?
+    @State private var isSaving = false
+    let onChanged: () -> Void
+
+    init(wardrobes: [BackendWardrobeRow], onChanged: @escaping () -> Void) {
+        _wardrobes = State(initialValue: wardrobes)
+        self.onChanged = onChanged
+    }
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section("새 옷장 만들기") {
+                    TextField("옷장 이름", text: $newName)
+                    TextField("설명", text: $newDescription)
+
+                    Button {
+                        Task {
+                            await createWardrobe()
+                        }
+                    } label: {
+                        Label("옷장 생성", systemImage: "plus")
+                    }
+                    .disabled(isSaving || newName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                }
+
+                Section("옷장 목록") {
+                    if wardrobes.isEmpty {
+                        Text("옷장 목록을 불러오지 못했습니다.")
+                            .foregroundStyle(.secondary)
+                    } else {
+                        ForEach(wardrobes) { wardrobe in
+                            VStack(alignment: .leading, spacing: 8) {
+                                HStack {
+                                    Text(wardrobe.name)
+                                        .font(.headline)
+                                    if wardrobe.isDefault {
+                                        Text("기본")
+                                            .font(.caption2.weight(.bold))
+                                            .padding(.horizontal, 6)
+                                            .padding(.vertical, 2)
+                                            .background(Color.accentColor.opacity(0.12), in: Capsule())
+                                    }
+                                    Spacer()
+                                }
+
+                                if let description = wardrobe.description, description.isEmpty == false {
+                                    Text(description)
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                }
+
+                                HStack {
+                                    Button("수정") {
+                                        editingWardrobe = wardrobe
+                                        editingName = wardrobe.name
+                                        editingDescription = wardrobe.description ?? ""
+                                    }
+                                    .buttonStyle(.bordered)
+                                    .controlSize(.small)
+
+                                    Button("삭제", role: .destructive) {
+                                        Task {
+                                            await deleteWardrobe(wardrobe)
+                                        }
+                                    }
+                                    .buttonStyle(.bordered)
+                                    .controlSize(.small)
+                                    .disabled(wardrobe.isDefault)
+                                }
+                            }
+                            .padding(.vertical, 4)
+                        }
+                    }
+                }
+
+                if let statusMessage {
+                    Section {
+                        Text(statusMessage)
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
+            .navigationTitle("옷장 관리")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("닫기") {
+                        dismiss()
+                    }
+                }
+            }
+            .alert("옷장 수정", isPresented: Binding(get: {
+                editingWardrobe != nil
+            }, set: { isPresented in
+                if isPresented == false {
+                    editingWardrobe = nil
+                }
+            })) {
+                TextField("옷장 이름", text: $editingName)
+                TextField("설명", text: $editingDescription)
+                Button("저장") {
+                    Task {
+                        await updateWardrobe()
+                    }
+                }
+                Button("취소", role: .cancel) {}
+            }
+        }
+    }
+
+    @MainActor
+    private func createWardrobe() async {
+        isSaving = true
+        defer { isSaving = false }
+        do {
+            let wardrobe = try await WardrobeBackendService.create(
+                name: newName.trimmingCharacters(in: .whitespacesAndNewlines),
+                description: newDescription.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty
+            )
+            wardrobes.append(wardrobe)
+            newName = ""
+            newDescription = ""
+            statusMessage = "옷장이 생성되었습니다."
+            onChanged()
+        } catch {
+            statusMessage = "옷장 생성 실패: \(error.localizedDescription)"
+        }
+    }
+
+    @MainActor
+    private func updateWardrobe() async {
+        guard let editingWardrobe else { return }
+        do {
+            let updated = try await WardrobeBackendService.update(
+                wardrobeID: editingWardrobe.id,
+                name: editingName.trimmingCharacters(in: .whitespacesAndNewlines),
+                description: editingDescription.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty
+            )
+            wardrobes = wardrobes.map { $0.id == updated.id ? updated : $0 }
+            self.editingWardrobe = nil
+            statusMessage = "옷장이 수정되었습니다."
+            onChanged()
+        } catch {
+            statusMessage = "옷장 수정 실패: \(error.localizedDescription)"
+        }
+    }
+
+    @MainActor
+    private func deleteWardrobe(_ wardrobe: BackendWardrobeRow) async {
+        guard wardrobe.isDefault == false else {
+            statusMessage = "기본 옷장은 삭제할 수 없습니다."
+            return
+        }
+        do {
+            try await WardrobeBackendService.delete(wardrobeID: wardrobe.id)
+            wardrobes.removeAll { $0.id == wardrobe.id }
+            statusMessage = "옷장이 삭제되었습니다. 포함된 옷은 기본 옷장으로 이동됩니다."
+            onChanged()
+        } catch {
+            statusMessage = "옷장 삭제 실패: \(error.localizedDescription)"
+        }
+    }
+}
+
+private extension String {
+    var nilIfEmpty: String? {
+        isEmpty ? nil : self
     }
 }
 

@@ -92,6 +92,30 @@
             android:textColor="#FFFFFF"
             android:textStyle="bold" />
 
+        <HorizontalScrollView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:scrollbars="none">
+
+            <LinearLayout
+                android:id="@+id/wardrobeFilterRow"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal" />
+        </HorizontalScrollView>
+
+        <Button
+            android:id="@+id/manageWardrobesButton"
+            android:layout_width="match_parent"
+            android:layout_height="48dp"
+            android:layout_marginTop="10dp"
+            android:background="@drawable/bg_soft_button"
+            android:text="옷장 관리"
+            android:textAllCaps="false"
+            android:textColor="@color/fit_primary"
+            android:textStyle="bold" />
+
         <GridLayout
             android:id="@+id/closetGrid"
             android:layout_width="match_parent"
