@@ -644,7 +644,7 @@ curl -X PUT "http://54.180.79.90:8000/clothes/{clothing_id}?user_id=45482f0f-42d
 8. 로컬 Android 에뮬레이터 테스트 시 Backend 주소는 `http://10.0.2.2:8000`을 사용할 수 있음
 
 ## 앞으로 남은 작업
-
+- AI관련 스택 전부 고민중
 - 실제 AI 서버를 배포해야 함
 - 실제 Storage 업로드 end-to-end를 앱에서 검증해야 함
 - MobileNetV3/CLIP/FashionCLIP 분석을 운영 서버와 앱 후처리 흐름에 실제 연결하고 성능 검증해야 함
