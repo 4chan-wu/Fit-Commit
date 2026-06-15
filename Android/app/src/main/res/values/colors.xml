@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <color name="fit_accent">#FF6B6B</color>
     <color name="fit_bg">#F8F9FD</color>
     <color name="fit_surface">#FFFFFFFF</color>
     <color name="fit_surface_soft">#F1F3F8</color>
