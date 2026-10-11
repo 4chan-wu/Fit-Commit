@@ -1,103 +1,146 @@
 <?xml version="1.0" encoding="utf-8"?>
-<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent">
 
     <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
+        android:layout_height="match_parent"
         android:orientation="vertical"
-        android:padding="20dp">
-
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="AI 패트리와 함께"
-            android:textColor="@color/fit_text_secondary"
-            android:textSize="14sp"
-            android:textStyle="bold" />
-
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:text="오늘의 핏을 준비해봐요."
-            android:textColor="@color/fit_text"
-            android:textSize="28sp"
-            android:textStyle="bold" />
-
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="26dp"
-            android:text="나의 공간 &amp; 신체"
-            android:textColor="@color/fit_text"
-            android:textSize="18sp"
-            android:textStyle="bold" />
-
-        <Button
-            android:id="@+id/spaceScanButton"
-            android:layout_width="match_parent"
-            android:layout_height="72dp"
-            android:layout_marginTop="14dp"
-            android:background="@drawable/bg_card"
-            android:text="3D 공간 스캔 (Beta)\n방 구조를 스캔해 가상 피팅 공간을 준비합니다."
-            android:textAllCaps="false"
-            android:textColor="@color/fit_text" />
-
-        <Button
-            android:id="@+id/bodyMeasureButton"
-            android:layout_width="match_parent"
-            android:layout_height="72dp"
-            android:layout_marginTop="12dp"
-            android:background="@drawable/bg_card"
-            android:text="신체 비율 측정\n키와 어깨 비율을 측정해 코디 추천 정확도를 높입니다."
-            android:textAllCaps="false"
-            android:textColor="@color/fit_text" />
+        android:paddingStart="16dp"
+        android:paddingTop="16dp"
+        android:paddingEnd="16dp">
 
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="58dp"
-            android:layout_marginTop="24dp"
-            android:background="@drawable/bg_card"
             android:gravity="center_vertical"
             android:orientation="horizontal">
 
-            <TextView
+            <LinearLayout
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:text="내 옷 목록"
-                android:textColor="@color/fit_text"
-                android:textSize="18sp"
-                android:textStyle="bold" />
+                android:orientation="vertical">
 
-            <TextView
-                android:id="@+id/closetCountText"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="4개"
-                android:textColor="@color/fit_text_secondary"
-                android:textStyle="bold" />
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:includeFontPadding="false"
+                    android:text="내 옷장"
+                    android:textColor="@color/fit_text"
+                    android:textSize="28sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/closetCountText"
+                    style="@style/FitCaption"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:text="불러오는 중" />
+            </LinearLayout>
+
+            <ImageView
+                android:id="@+id/searchClosetButton"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:background="@drawable/bg_chip"
+                android:contentDescription="옷 검색"
+                android:padding="12dp"
+                android:src="@drawable/ic_search" />
+
+            <ImageView
+                android:id="@+id/filterClosetButton"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:layout_marginStart="6dp"
+                android:background="@drawable/bg_chip"
+                android:contentDescription="계절 필터"
+                android:padding="12dp"
+                android:src="@drawable/ic_filter" />
+
+            <ImageView
+                android:id="@+id/closetMoreButton"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:layout_marginStart="6dp"
+                android:background="@drawable/bg_chip"
+                android:contentDescription="옷장 도구"
+                android:padding="12dp"
+                android:src="@drawable/ic_more" />
         </LinearLayout>
 
-        <Button
-            android:id="@+id/addClothingButton"
+        <LinearLayout
             android:layout_width="match_parent"
-            android:layout_height="56dp"
-            android:layout_marginTop="12dp"
-            android:background="@drawable/bg_primary_button"
-            android:text="의류 추가하기"
-            android:textAllCaps="false"
-            android:textColor="#FFFFFF"
-            android:textStyle="bold" />
+            android:layout_height="76dp"
+            android:layout_marginTop="14dp"
+            android:orientation="horizontal">
+
+            <LinearLayout
+                android:id="@+id/bodyMeasureButton"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1.55"
+                android:background="@drawable/bg_measure_cta"
+                android:gravity="center_vertical"
+                android:orientation="vertical"
+                android:paddingHorizontal="16dp">
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:includeFontPadding="false"
+                    android:text="신체 비율 측정  →"
+                    android:textColor="@color/fit_on_dark"
+                    android:textSize="16sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="5dp"
+                    android:text="내 체형에 맞는 핏 찾기"
+                    android:textColor="#DDE5FF"
+                    android:textSize="12sp" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:id="@+id/spaceScanButton"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_marginStart="10dp"
+                android:layout_weight="1"
+                android:background="@drawable/bg_scan_cta"
+                android:gravity="center_vertical"
+                android:orientation="vertical"
+                android:paddingHorizontal="14dp">
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:includeFontPadding="false"
+                    android:text="공간 스캔"
+                    android:textColor="@color/fit_text"
+                    android:textSize="14sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="5dp"
+                    android:text="3D BETA"
+                    android:textColor="@color/fit_primary"
+                    android:textSize="11sp"
+                    android:textStyle="bold" />
+            </LinearLayout>
+        </LinearLayout>
 
         <HorizontalScrollView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="12dp"
+            android:layout_marginTop="16dp"
             android:scrollbars="none">
-
             <LinearLayout
                 android:id="@+id/wardrobeFilterRow"
                 android:layout_width="wrap_content"
@@ -105,22 +148,83 @@
                 android:orientation="horizontal" />
         </HorizontalScrollView>
 
-        <Button
-            android:id="@+id/manageWardrobesButton"
-            android:layout_width="match_parent"
-            android:layout_height="48dp"
-            android:layout_marginTop="10dp"
-            android:background="@drawable/bg_soft_button"
-            android:text="옷장 관리"
-            android:textAllCaps="false"
-            android:textColor="@color/fit_primary"
-            android:textStyle="bold" />
-
-        <GridLayout
-            android:id="@+id/closetGrid"
+        <HorizontalScrollView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="14dp"
-            android:columnCount="2" />
+            android:layout_marginTop="10dp"
+            android:scrollbars="none">
+            <LinearLayout
+                android:id="@+id/categoryFilterRow"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal" />
+        </HorizontalScrollView>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="52dp"
+            android:layout_marginTop="10dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <TextView
+                style="@style/FitSectionTitle"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="아이템" />
+
+            <TextView
+                android:id="@+id/closetSortButton"
+                android:layout_width="wrap_content"
+                android:layout_height="48dp"
+                android:gravity="center"
+                android:paddingStart="14dp"
+                android:paddingEnd="4dp"
+                android:text="최근 추가순 ⌄"
+                android:textColor="@color/fit_text_secondary"
+                android:textSize="13sp" />
+        </LinearLayout>
+
+        <FrameLayout
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1">
+
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/closetGrid"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:clipToPadding="false"
+                android:paddingBottom="88dp"
+                android:scrollbars="none" />
+
+            <TextView
+                android:id="@+id/closetEmptyText"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:gravity="center"
+                android:lineSpacingExtra="5dp"
+                android:text="조건에 맞는 옷이 없어요.\n필터를 바꾸거나 새 옷을 추가해보세요."
+                android:textColor="@color/fit_text_secondary"
+                android:textSize="14sp"
+                android:visibility="gone" />
+        </FrameLayout>
     </LinearLayout>
-</ScrollView>
+
+    <TextView
+        android:id="@+id/addClothingButton"
+        android:layout_width="58dp"
+        android:layout_height="58dp"
+        android:layout_gravity="bottom|end"
+        android:layout_marginEnd="22dp"
+        android:layout_marginBottom="22dp"
+        android:background="@drawable/bg_fab"
+        android:contentDescription="의류 추가"
+        android:elevation="10dp"
+        android:gravity="center"
+        android:text="+"
+        android:textColor="@color/fit_on_dark"
+        android:textSize="28sp"
+        android:textStyle="bold" />
+</FrameLayout>

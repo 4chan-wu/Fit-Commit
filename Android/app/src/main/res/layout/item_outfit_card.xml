@@ -1,36 +1,41 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    android:layout_width="190dp"
-    android:layout_height="150dp"
-    android:layout_marginEnd="14dp"
+    android:layout_width="164dp"
+    android:layout_height="226dp"
+    android:layout_marginEnd="12dp"
     android:background="@drawable/bg_card"
-    android:orientation="vertical">
+    android:orientation="vertical"
+    android:padding="10dp">
 
-    <TextView
-        android:layout_width="44dp"
-        android:layout_height="44dp"
-        android:background="@drawable/bg_soft_button"
-        android:gravity="center"
-        android:text="✦"
-        android:textColor="@color/fit_primary"
-        android:textSize="20sp" />
+    <ImageView
+        android:id="@+id/outfitImage"
+        android:layout_width="match_parent"
+        android:layout_height="136dp"
+        android:background="@drawable/bg_image_tile"
+        android:contentDescription="추천 코디"
+        android:padding="24dp"
+        android:src="@drawable/ic_garment" />
 
     <TextView
         android:id="@+id/outfitTitle"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="16dp"
+        android:layout_marginTop="12dp"
+        android:ellipsize="end"
+        android:maxLines="1"
         android:text="오피스 캐주얼"
         android:textColor="@color/fit_text"
-        android:textSize="16sp"
+        android:textSize="15sp"
         android:textStyle="bold" />
 
     <TextView
         android:id="@+id/outfitSubtitle"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="6dp"
-        android:text="네이비 리넨 셔츠\n그레이 슬랙스"
+        android:layout_marginTop="5dp"
+        android:ellipsize="end"
+        android:maxLines="1"
+        android:text="내 옷 3개 조합"
         android:textColor="@color/fit_text_secondary"
-        android:textSize="13sp" />
+        android:textSize="12sp" />
 </LinearLayout>

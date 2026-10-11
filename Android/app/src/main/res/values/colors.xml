@@ -1,15 +1,20 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="fit_accent">#FF6B6B</color>
-    <color name="fit_bg">#F8F9FD</color>
+    <color name="fit_accent">#FF5C66</color>
+    <color name="fit_bg">#F7F7F4</color>
     <color name="fit_surface">#FFFFFFFF</color>
-    <color name="fit_surface_soft">#F1F3F8</color>
-    <color name="fit_text">#151821</color>
-    <color name="fit_text_secondary">#6D7280</color>
-    <color name="fit_primary">#4F7BFF</color>
-    <color name="fit_primary_dark">#335BD6</color>
+    <color name="fit_surface_soft">#EFEFEB</color>
+    <color name="fit_surface_warm">#E8E4DB</color>
+    <color name="fit_text">#171717</color>
+    <color name="fit_text_secondary">#737373</color>
+    <color name="fit_primary">#315EFF</color>
+    <color name="fit_primary_dark">#2145C7</color>
+    <color name="fit_primary_soft">#E9EEFF</color>
+    <color name="fit_ai_soft">#EEEAFE</color>
     <color name="fit_pink">#F37BB5</color>
     <color name="fit_green">#38B66A</color>
-    <color name="fit_border">#1A151821</color>
+    <color name="fit_border">#E7E7E2</color>
     <color name="fit_danger">#E65353</color>
+    <color name="fit_on_dark">#FFFFFFFF</color>
+    <color name="fit_dark_surface">#1C1D20</color>
 </resources>
