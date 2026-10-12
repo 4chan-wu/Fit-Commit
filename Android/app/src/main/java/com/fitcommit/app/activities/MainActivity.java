@@ -146,6 +146,8 @@ public class MainActivity extends Activity {
         TextView countText = view.findViewById(R.id.closetCountText);
         TextView emptyText = view.findViewById(R.id.closetEmptyText);
         TextView sortButton = view.findViewById(R.id.closetSortButton);
+        TextView backendSyncStatusText = view.findViewById(R.id.backendSyncStatusText);
+        TextView backendRefreshButton = view.findViewById(R.id.backendRefreshButton);
         LinearLayout wardrobeRow = view.findViewById(R.id.wardrobeFilterRow);
         LinearLayout categoryRow = view.findViewById(R.id.categoryFilterRow);
         List<ClosetItem> sourceItems = new ArrayList<>();
@@ -155,6 +157,9 @@ public class MainActivity extends Activity {
         String[] sortMode = {"recent"};
 
         countText.setText("불러오는 중");
+        backendSyncStatusText.setText("● 서버 연결 확인 중");
+        backendSyncStatusText.setTextColor(getColor(R.color.fit_text_secondary));
+        backendRefreshButton.setOnClickListener(v -> showCloset());
         bindWardrobeFilters(wardrobeRow, Collections.emptyList());
 
         Runnable refresh = () -> applyClosetFilters(
@@ -199,25 +204,52 @@ public class MainActivity extends Activity {
         if (clothesBackendService.isConfigured()) {
             new Thread(() -> {
                 try {
-                    List<Wardrobe> wardrobes = clothesBackendService.fetchWardrobeModels();
                     List<ClosetItem> backendItems = clothesBackendService.fetchClothes(selectedWardrobeId);
+                    List<Wardrobe> wardrobes = Collections.emptyList();
+                    boolean wardrobeFetchSucceeded = true;
+                    try {
+                        wardrobes = clothesBackendService.fetchWardrobeModels();
+                    } catch (Exception wardrobeError) {
+                        wardrobeFetchSucceeded = false;
+                        System.out.println("[MainActivity] Backend wardrobes fetch failed: " + wardrobeError.getMessage());
+                    }
+                    List<Wardrobe> fetchedWardrobes = wardrobes;
+                    boolean fetchedWardrobesSuccessfully = wardrobeFetchSucceeded;
                     runOnUiThread(() -> {
-                        bindWardrobeFilters(wardrobeRow, wardrobes);
+                        if (!"closet".equals(currentScreen)) {
+                            return;
+                        }
+                        bindWardrobeFilters(wardrobeRow, fetchedWardrobes);
                         sourceItems.clear();
                         sourceItems.addAll(mergeBackendAndLocalItems(backendItems));
+                        String status = "● 서버 연결됨 · 서버 의류 " + backendItems.size() + "개";
+                        if (!fetchedWardrobesSuccessfully) {
+                            status += " · 옷장 목록 오류";
+                        }
+                        backendSyncStatusText.setText(status);
+                        backendSyncStatusText.setTextColor(getColor(
+                                fetchedWardrobesSuccessfully ? R.color.fit_green : R.color.fit_accent
+                        ));
                         refresh.run();
                     });
                 } catch (Exception error) {
                     System.out.println("[MainActivity] Backend clothes fetch failed, using local fallback: " + error.getMessage());
                     runOnUiThread(() -> {
+                        if (!"closet".equals(currentScreen)) {
+                            return;
+                        }
                         sourceItems.clear();
                         sourceItems.addAll(loadLocalClosetItems());
+                        backendSyncStatusText.setText("● 서버 조회 실패 · 로컬/샘플 데이터 표시 중");
+                        backendSyncStatusText.setTextColor(getColor(R.color.fit_danger));
                         refresh.run();
                     });
                 }
             }).start();
         } else {
             sourceItems.addAll(loadLocalClosetItems());
+            backendSyncStatusText.setText("● 서버 설정 없음 · 로컬/샘플 데이터 표시 중");
+            backendSyncStatusText.setTextColor(getColor(R.color.fit_danger));
             refresh.run();
         }
     }
