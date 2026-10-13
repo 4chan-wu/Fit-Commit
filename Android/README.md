@@ -70,14 +70,13 @@ Android 앱의 Backend base URL은 `app/src/main/java/com/fitcommit/app/services
 
 ```text
 BASE_URL=http://54.180.79.90:8000
-BACKEND_CLOTHES_USER_ID=45482f0f-42d0-401e-a18a-77abeb0492cc
-SUPABASE_ACCESS_TOKEN=
+BACKEND_CLOTHES_USER_ID=45482f0f-42d0-401e-a18a-77abeb0492cc (Debug 빌드 전용)
 ENABLE_AI_ANALYSIS=false
 ```
 
 `ENABLE_AI_ANALYSIS=false`이면 AI 서버 `/predict`를 호출하지 않고 Backend `/clothes` 저장까지만 진행함.
-개발 단계에서는 `BACKEND_CLOTHES_USER_ID`를 `X-Test-User-Id` 헤더로 함께 보내며, `SUPABASE_ACCESS_TOKEN` 값이 있으면 `Authorization: Bearer <token>` 헤더도 보낼 수 있게 준비함.
-실제 서비스에서는 테스트 user_id 직접 입력 방식이 아니라 Supabase Auth access token 기반 인증으로 바꿔야 함.
+개발 단계에서는 Debug 빌드만 `BACKEND_CLOTHES_USER_ID`를 `X-Test-User-Id` 헤더로 함께 보냄. Release 빌드에서는 테스트 user_id가 비활성화됨.
+Supabase 로그인 세션이 저장되면 테스트 ID 대신 `Authorization: Bearer <token>`을 보내고 `/clothes/me`, `/wardrobes/me`를 사용함.
 팀원들이 같은 테스트 user_id를 쓰면 Supabase `clothes` 데이터가 같은 사용자 옷장에 섞일 수 있음.
 
 ## 사용자별 옷장 구조
@@ -89,7 +88,8 @@ Android 앱은 현재 `wardrobe_id`를 몰라도 옷 등록이 가능함. Backen
 - 추가 옷장은 여러 개 가능함
 - 같은 사용자 안에서 같은 옷장 이름은 중복될 수 없음
 - 옷장 화면에서 “전체”와 서버 옷장 목록을 필터 버튼으로 표시함
-- 특정 옷장을 선택하면 Backend `GET /clothes?user_id=...&wardrobe_id=...`로 해당 옷장 옷만 조회함
+- 로그인 사용자가 특정 옷장을 선택하면 Backend `GET /clothes/me?wardrobe_id=...`로 해당 옷장 옷만 조회함
+- Debug 테스트 사용자는 기존 `GET /clothes?user_id=...&wardrobe_id=...` 경로를 사용함
 - “옷장 관리” 버튼으로 추가 옷장을 생성할 수 있음
 - 옷장 필터 버튼을 길게 누르면 해당 옷장 수정/삭제 액션을 열 수 있음
 - `ClothesBackendService`에는 옷장 목록 조회, 생성, 수정, 삭제 API 호출 구조를 준비함
@@ -149,7 +149,8 @@ AnalysisResultActivity
 Closet 화면
   -> ClothingStorage 로컬 데이터 조회
   -> ClothesBackendService.fetchClothes()
-  -> GET /clothes?user_id=...
+  -> Supabase 세션이 있으면 GET /clothes/me
+  -> 세션이 없고 Debug 빌드이면 GET /clothes?user_id=...
   -> 성공 시 Supabase 데이터와 로컬 데이터를 중복 없이 병합
   -> 실패 시 ClothingStorage 로컬 데이터만 표시
 ```
@@ -214,8 +215,7 @@ POST /clothes/{clothing_id}/analyze
 
 ## 남은 작업
 
-- Android JDK 환경에서 Gradle 빌드를 검증해야 함
 - 실제 AI 서버를 배포하고 Android 후처리 흐름과 연결해야 함
 - 업로드된 이미지 기반 AI 재분석과 벡터화를 연결해야 함
-- 임시 user_id 대신 Supabase Auth access token 기반 인증으로 전환해야 함
+- Google/Kakao/Naver OAuth 결과를 `TokenManager.saveSupabaseSession(...)`에 연결하고 refresh token 갱신을 구현해야 함
 - 재분석 버튼에서 Backend `POST /clothes/{clothing_id}/analyze`를 호출하는 UI를 완성해야 함

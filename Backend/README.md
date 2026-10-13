@@ -354,6 +354,15 @@ tmux는 더 이상 기본 운영 방식으로 사용하지 않음.
 
 ## `/clothes` API
 
+모든 `/clothes`, `/wardrobes` 요청은 사용자 인증이 필요함. 운영에서는
+`Authorization: Bearer <supabase_access_token>`을 사용하고, 개발용 호출에서는
+요청의 `user_id`와 동일한 `X-Test-User-Id` 헤더를 함께 보내야 함. 본문이나 쿼리의
+`user_id`가 인증 사용자와 다르면 Backend가 403을 반환함.
+
+```bash
+-H "X-Test-User-Id: 45482f0f-42d0-401e-a18a-77abeb0492cc"
+```
+
 ### `GET /health`
 
 Backend 상태를 확인함.

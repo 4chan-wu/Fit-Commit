@@ -14,6 +14,7 @@ struct LoginView: View {
     @State private var failedLoginCount = 0
     @State private var lockoutEndDate: Date?
     @State private var now = Date()
+    @State private var pendingSocialProvider: String?
 
     private let lockoutDuration: TimeInterval = 60
 
@@ -176,6 +177,19 @@ struct LoginView: View {
                 }
             }
         }
+        .alert(
+            "\(pendingSocialProvider ?? "소셜") 로그인 준비 중",
+            isPresented: Binding(
+                get: { pendingSocialProvider != nil },
+                set: { if !$0 { pendingSocialProvider = nil } }
+            )
+        ) {
+            Button("확인", role: .cancel) {
+                pendingSocialProvider = nil
+            }
+        } message: {
+            Text("개발자 앱과 Supabase OAuth 설정이 완료되면 사용할 수 있습니다. 계정 인증 없이 앱에 진입하는 테스트 동작은 제거했습니다.")
+        }
     }
 
     private var header: some View {
@@ -252,11 +266,11 @@ struct LoginView: View {
 
             VStack(spacing: 10) {
                 SocialAuthButton(title: "Apple로 시작하기", systemImage: "apple.logo") {
-                    performDummySocialLogin()
+                    beginSocialLogin("Apple")
                 }
 
                 SocialAuthButton(title: "Google로 시작하기", systemImage: "g.circle") {
-                    performDummySocialLogin()
+                    beginSocialLogin("Google")
                 }
 
                 SocialAuthButton(
@@ -265,7 +279,16 @@ struct LoginView: View {
                     backgroundColor: Color(hex: 0xFEE500),
                     foregroundColor: .black
                 ) {
-                    performDummySocialLogin()
+                    beginSocialLogin("카카오톡")
+                }
+
+                SocialAuthButton(
+                    title: "네이버로 시작하기",
+                    systemImage: "n.circle",
+                    backgroundColor: Color(hex: 0x03C75A),
+                    foregroundColor: .white
+                ) {
+                    beginSocialLogin("네이버")
                 }
             }
         }
@@ -296,8 +319,8 @@ struct LoginView: View {
         }
     }
 
-    private func performDummySocialLogin() {
-        authenticationManager.login()
+    private func beginSocialLogin(_ provider: String) {
+        pendingSocialProvider = provider
     }
 
     private func formatPhoneNumber(_ value: String) -> String {

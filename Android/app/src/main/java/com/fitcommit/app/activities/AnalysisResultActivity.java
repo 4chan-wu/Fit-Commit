@@ -45,7 +45,7 @@ public class AnalysisResultActivity extends Activity {
     private static final String[] CATEGORIES = {"top", "bottom", "outer", "shoes", "hat", "bag", "dress"};
     private static final String[] COLORS = {"black", "white", "gray", "navy", "blue", "brown", "beige", "red", "pink", "green", "yellow", "purple"};
     private final FashionAiService fashionAiService = new FashionAiService();
-    private final ClothesBackendService clothesBackendService = new ClothesBackendService();
+    private ClothesBackendService clothesBackendService;
 
     private String imagePath;
     private String categoryHint;
@@ -59,6 +59,7 @@ public class AnalysisResultActivity extends Activity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_analysis_result);
+        clothesBackendService = new ClothesBackendService(this);
 
         imagePath = getIntent().getStringExtra(EXTRA_IMAGE_PATH);
         categoryHint = valueOrDefault(getIntent().getStringExtra(EXTRA_CATEGORY_HINT), "top");

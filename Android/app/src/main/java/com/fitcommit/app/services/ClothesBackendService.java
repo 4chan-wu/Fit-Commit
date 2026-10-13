@@ -4,6 +4,7 @@ import com.fitcommit.app.models.AnalysisResult;
 import com.fitcommit.app.models.ClosetItem;
 import com.fitcommit.app.models.Wardrobe;
 
+import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 
@@ -22,11 +23,20 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class ClothesBackendService {
+    private final TokenManager tokenManager;
+
+    public ClothesBackendService(Context context) {
+        tokenManager = new TokenManager(context);
+    }
+
     public boolean isConfigured() {
         return ApiClient.BASE_URL != null
                 && !ApiClient.BASE_URL.trim().isEmpty()
-                && ApiClient.BACKEND_CLOTHES_USER_ID != null
-                && !ApiClient.BACKEND_CLOTHES_USER_ID.trim().isEmpty();
+                && (tokenManager.hasSupabaseSession() || hasTestUser());
+    }
+
+    public boolean isUsingAuthenticatedUser() {
+        return tokenManager.hasSupabaseSession();
     }
 
     public void save(
@@ -60,7 +70,7 @@ public class ClothesBackendService {
         }
 
         JSONObject payload = new JSONObject();
-        payload.put("user_id", ApiClient.BACKEND_CLOTHES_USER_ID);
+        putTestUserIdIfNeeded(payload);
         if (wardrobeId != null && !wardrobeId.trim().isEmpty()) {
             payload.put("wardrobe_id", wardrobeId);
         }
@@ -142,7 +152,9 @@ public class ClothesBackendService {
         applyAuthHeaders(connection);
 
         try (OutputStream output = connection.getOutputStream()) {
-            writeFormField(output, boundary, "user_id", ApiClient.BACKEND_CLOTHES_USER_ID);
+            if (!tokenManager.hasSupabaseSession()) {
+                writeFormField(output, boundary, "user_id", ApiClient.BACKEND_CLOTHES_USER_ID);
+            }
             writeFormField(output, boundary, "main_category", category);
             writeFormField(output, boundary, "image_type", "original");
             writeFileField(output, boundary, "file", file);
@@ -180,7 +192,7 @@ public class ClothesBackendService {
             String wardrobeId
     ) throws Exception {
         JSONObject payload = completedPayload(category, subcategory, color, season, styleTags, imagePath, result, wardrobeId);
-        payload.put("user_id", ApiClient.BACKEND_CLOTHES_USER_ID);
+        putTestUserIdIfNeeded(payload);
         return requestJson("POST", ApiClient.BASE_URL + "/clothes", payload);
     }
 
@@ -229,9 +241,11 @@ public class ClothesBackendService {
     }
 
     public List<ClosetItem> fetchClothes(String wardrobeId) throws Exception {
-        String url = ApiClient.BASE_URL + "/clothes?user_id=" + ApiClient.BACKEND_CLOTHES_USER_ID;
+        String url = tokenManager.hasSupabaseSession()
+                ? ApiClient.BASE_URL + "/clothes/me"
+                : ApiClient.BASE_URL + "/clothes?user_id=" + ApiClient.BACKEND_CLOTHES_USER_ID;
         if (wardrobeId != null && !wardrobeId.trim().isEmpty()) {
-            url += "&wardrobe_id=" + wardrobeId;
+            url += (url.contains("?") ? "&" : "?") + "wardrobe_id=" + wardrobeId;
         }
         HttpURLConnection connection = (HttpURLConnection) new URL(url).openConnection();
         connection.setRequestMethod("GET");
@@ -291,7 +305,9 @@ public class ClothesBackendService {
     }
 
     public JSONArray fetchWardrobes() throws Exception {
-        String url = ApiClient.BASE_URL + "/wardrobes?user_id=" + ApiClient.BACKEND_CLOTHES_USER_ID;
+        String url = tokenManager.hasSupabaseSession()
+                ? ApiClient.BASE_URL + "/wardrobes/me"
+                : ApiClient.BASE_URL + "/wardrobes?user_id=" + ApiClient.BACKEND_CLOTHES_USER_ID;
         HttpURLConnection connection = (HttpURLConnection) new URL(url).openConnection();
         connection.setRequestMethod("GET");
         connection.setConnectTimeout(10_000);
@@ -308,7 +324,9 @@ public class ClothesBackendService {
     }
 
     public JSONObject fetchDefaultWardrobe() throws Exception {
-        String url = ApiClient.BASE_URL + "/wardrobes/default?user_id=" + ApiClient.BACKEND_CLOTHES_USER_ID;
+        String url = tokenManager.hasSupabaseSession()
+                ? ApiClient.BASE_URL + "/wardrobes/me/default"
+                : ApiClient.BASE_URL + "/wardrobes/default?user_id=" + ApiClient.BACKEND_CLOTHES_USER_ID;
         HttpURLConnection connection = (HttpURLConnection) new URL(url).openConnection();
         connection.setRequestMethod("GET");
         connection.setConnectTimeout(10_000);
@@ -342,22 +360,25 @@ public class ClothesBackendService {
 
     public JSONObject createWardrobe(String name, String description) throws Exception {
         JSONObject payload = new JSONObject();
-        payload.put("user_id", ApiClient.BACKEND_CLOTHES_USER_ID);
+        putTestUserIdIfNeeded(payload);
         payload.put("name", name);
         payload.put("description", description == null ? "" : description);
         payload.put("is_default", false);
-        return requestJson("POST", ApiClient.BASE_URL + "/wardrobes", payload);
+        String url = tokenManager.hasSupabaseSession()
+                ? ApiClient.BASE_URL + "/wardrobes/me"
+                : ApiClient.BASE_URL + "/wardrobes";
+        return requestJson("POST", url, payload);
     }
 
     public JSONObject updateWardrobe(String wardrobeId, String name, String description) throws Exception {
         JSONObject payload = new JSONObject();
         payload.put("name", name);
         payload.put("description", description == null ? "" : description);
-        return requestJson("PUT", ApiClient.BASE_URL + "/wardrobes/" + wardrobeId + "?user_id=" + ApiClient.BACKEND_CLOTHES_USER_ID, payload);
+        return requestJson("PUT", wardrobeMutationUrl(wardrobeId), payload);
     }
 
     public void deleteWardrobe(String wardrobeId) throws Exception {
-        HttpURLConnection connection = (HttpURLConnection) new URL(ApiClient.BASE_URL + "/wardrobes/" + wardrobeId + "?user_id=" + ApiClient.BACKEND_CLOTHES_USER_ID).openConnection();
+        HttpURLConnection connection = (HttpURLConnection) new URL(wardrobeMutationUrl(wardrobeId)).openConnection();
         connection.setRequestMethod("DELETE");
         connection.setConnectTimeout(10_000);
         connection.setReadTimeout(15_000);
@@ -550,11 +571,29 @@ public class ClothesBackendService {
     }
 
     private void applyAuthHeaders(HttpURLConnection connection) {
-        if (ApiClient.SUPABASE_ACCESS_TOKEN != null && !ApiClient.SUPABASE_ACCESS_TOKEN.trim().isEmpty()) {
-            connection.setRequestProperty("Authorization", "Bearer " + ApiClient.SUPABASE_ACCESS_TOKEN);
-        }
-        if (ApiClient.BACKEND_CLOTHES_USER_ID != null && !ApiClient.BACKEND_CLOTHES_USER_ID.trim().isEmpty()) {
+        if (tokenManager.hasSupabaseSession()) {
+            connection.setRequestProperty("Authorization", "Bearer " + tokenManager.getAccessToken());
+        } else if (hasTestUser()) {
             connection.setRequestProperty("X-Test-User-Id", ApiClient.BACKEND_CLOTHES_USER_ID);
         }
+    }
+
+    private boolean hasTestUser() {
+        return ApiClient.BACKEND_CLOTHES_USER_ID != null
+                && !ApiClient.BACKEND_CLOTHES_USER_ID.trim().isEmpty();
+    }
+
+    private void putTestUserIdIfNeeded(JSONObject payload) throws Exception {
+        if (!tokenManager.hasSupabaseSession() && hasTestUser()) {
+            payload.put("user_id", ApiClient.BACKEND_CLOTHES_USER_ID);
+        }
+    }
+
+    private String wardrobeMutationUrl(String wardrobeId) {
+        String url = ApiClient.BASE_URL + "/wardrobes/" + wardrobeId;
+        if (!tokenManager.hasSupabaseSession() && hasTestUser()) {
+            url += "?user_id=" + ApiClient.BACKEND_CLOTHES_USER_ID;
+        }
+        return url;
     }
 }

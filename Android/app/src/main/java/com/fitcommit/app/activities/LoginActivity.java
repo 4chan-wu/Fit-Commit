@@ -3,7 +3,6 @@ package com.fitcommit.app.activities;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.Intent;
-import android.content.pm.ApplicationInfo;
 import android.os.Bundle;
 import android.view.View;
 import android.widget.Button;
@@ -150,16 +149,10 @@ public class LoginActivity extends Activity {
     }
 
     private void startSocialLogin(String provider) {
-        boolean isDebugBuild = (getApplicationInfo().flags & ApplicationInfo.FLAG_DEBUGGABLE) != 0;
-        if (isDebugBuild) {
-            UiUtils.toast(this, provider + " 테스트 로그인으로 시작합니다.");
-            openMain();
-            return;
-        }
         new AlertDialog.Builder(this)
-                .setTitle(provider + " 로그인")
-                .setMessage(provider + " 개발자 앱 키와 서버 OAuth 콜백 설정이 필요합니다. "
-                        + "설정 전에는 계정 인증 없이 앱에 진입하지 않도록 차단되어 있습니다.")
+                .setTitle(provider + " 로그인 준비 중")
+                .setMessage(provider + " 개발자 앱과 Supabase OAuth 설정이 완료되면 사용할 수 있습니다. "
+                        + "계정 인증 없이 홈으로 이동하던 테스트 동작은 안전을 위해 제거했습니다.")
                 .setPositiveButton("확인", null)
                 .show();
     }

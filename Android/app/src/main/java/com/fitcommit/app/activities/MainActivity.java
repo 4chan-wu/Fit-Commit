@@ -52,12 +52,13 @@ public class MainActivity extends Activity {
     private TextView tabProfile;
     private String currentScreen = "";
     private String selectedWardrobeId = "";
-    private final ClothesBackendService clothesBackendService = new ClothesBackendService();
+    private ClothesBackendService clothesBackendService;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+        clothesBackendService = new ClothesBackendService(this);
 
         contentFrame = findViewById(R.id.contentFrame);
         tabHome = findViewById(R.id.tabHome);

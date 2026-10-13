@@ -1,12 +1,15 @@
 package com.fitcommit.app.services;
 
+import com.fitcommit.app.BuildConfig;
+
 import retrofit2.Retrofit;
 import retrofit2.converter.gson.GsonConverterFactory;
 
 public final class ApiClient {
     public static final String BASE_URL = "http://54.180.79.90:8000";
-    public static final String BACKEND_CLOTHES_USER_ID = "45482f0f-42d0-401e-a18a-77abeb0492cc";
-    public static final String SUPABASE_ACCESS_TOKEN = "";
+    public static final String BACKEND_CLOTHES_USER_ID = BuildConfig.DEBUG
+            ? "45482f0f-42d0-401e-a18a-77abeb0492cc"
+            : "";
     public static final boolean ENABLE_AI_ANALYSIS = false;
 
     private static Retrofit retrofit;
