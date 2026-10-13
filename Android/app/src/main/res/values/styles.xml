@@ -4,7 +4,7 @@
         <item name="android:fontFamily">sans</item>
         <item name="android:windowLightStatusBar">true</item>
         <item name="android:windowLightNavigationBar">true</item>
-        <item name="android:windowBackground">@drawable/bg_app_gradient</item>
+        <item name="android:windowBackground">@color/fit_bg</item>
         <item name="android:statusBarColor">@color/fit_bg</item>
         <item name="android:navigationBarColor">@android:color/transparent</item>
         <item name="android:enforceNavigationBarContrast">false</item>
@@ -13,11 +13,25 @@
 
     <style name="FitTabText">
         <item name="android:layout_width">0dp</item>
-        <item name="android:layout_height">52dp</item>
+        <item name="android:layout_height">60dp</item>
         <item name="android:layout_weight">1</item>
         <item name="android:gravity">center</item>
+        <item name="android:drawablePadding">4dp</item>
         <item name="android:textColor">@color/fit_text_secondary</item>
-        <item name="android:textSize">12sp</item>
+        <item name="android:textSize">11sp</item>
         <item name="android:textStyle">bold</item>
+    </style>
+
+    <style name="FitSectionTitle">
+        <item name="android:textColor">@color/fit_text</item>
+        <item name="android:textSize">20sp</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:includeFontPadding">false</item>
+    </style>
+
+    <style name="FitCaption">
+        <item name="android:textColor">@color/fit_text_secondary</item>
+        <item name="android:textSize">13sp</item>
+        <item name="android:includeFontPadding">false</item>
     </style>
 </resources>

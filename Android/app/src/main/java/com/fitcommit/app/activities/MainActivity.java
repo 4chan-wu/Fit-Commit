@@ -1,23 +1,20 @@
 package com.fitcommit.app.activities;
 
-import android.animation.LayoutTransition;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.Intent;
 import android.graphics.drawable.Drawable;
 import android.os.Bundle;
 import android.view.Gravity;
-import android.text.SpannableString;
-import android.text.Spanned;
-import android.text.style.ImageSpan;
 import android.view.LayoutInflater;
 import android.view.View;
-import android.widget.Button;
 import android.widget.EditText;
 import android.widget.FrameLayout;
-import android.widget.GridLayout;
 import android.widget.LinearLayout;
 import android.widget.TextView;
+
+import androidx.recyclerview.widget.GridLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
 
 import com.fitcommit.app.R;
 import com.fitcommit.app.adapters.ClosetCardAdapter;
@@ -29,11 +26,15 @@ import com.fitcommit.app.utils.UiUtils;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
+import java.util.Locale;
+import java.util.function.Consumer;
 
 /**
  * iOS MainTabView에 대응하는 메인 화면입니다.
- * 하단 캡슐형 탭 바를 유지하고, 선택된 탭의 XML 화면을 contentFrame에 교체합니다.
+ * 고정형 하단 탭을 유지하고, 선택된 탭의 XML 화면을 contentFrame에 교체합니다.
  */
 public class MainActivity extends Activity {
     private static final int TAB_ANIMATION_DURATION_MS = 180;
@@ -45,7 +46,6 @@ public class MainActivity extends Activity {
             R.drawable.ic_tab_user
     };
     private FrameLayout contentFrame;
-    private LinearLayout bottomTabBar;
     private TextView tabHome;
     private TextView tabCloset;
     private TextView tabAi;
@@ -60,15 +60,10 @@ public class MainActivity extends Activity {
         setContentView(R.layout.activity_main);
 
         contentFrame = findViewById(R.id.contentFrame);
-        bottomTabBar = findViewById(R.id.bottomTabBar);
         tabHome = findViewById(R.id.tabHome);
         tabCloset = findViewById(R.id.tabCloset);
         tabAi = findViewById(R.id.tabAi);
         tabProfile = findViewById(R.id.tabProfile);
-
-        LayoutTransition tabTransition = new LayoutTransition();
-        tabTransition.setDuration(TAB_ANIMATION_DURATION_MS);
-        bottomTabBar.setLayoutTransition(tabTransition);
 
         tabHome.setOnClickListener(v -> showHome());
         tabCloset.setOnClickListener(v -> showCloset());
@@ -91,40 +86,29 @@ public class MainActivity extends Activity {
         for (int i = 0; i < tabs.size(); i++) {
             TextView tab = tabs.get(i);
             boolean isSelected = tab == selected;
-            int tabColor = getColor(isSelected ? R.color.fit_text : R.color.fit_text_secondary);
+            int tabColor = getColor(isSelected ? R.color.fit_primary : R.color.fit_text_secondary);
             tab.setBackgroundResource(isSelected ? R.drawable.bg_tab_selected : 0);
             tab.setTextColor(tabColor);
-            tab.setText(createTabText(tabIconResIds[i], isSelected ? tabLabels[i] : "", tabColor));
-            tab.setCompoundDrawables(null, null, null, null);
+            tab.setText(tabLabels[i]);
+            Drawable icon = getDrawable(tabIconResIds[i]);
+            if (icon != null) {
+                icon = icon.mutate();
+                icon.setTint(tabColor);
+                int iconSize = dpToPx(21);
+                icon.setBounds(0, 0, iconSize, iconSize);
+            }
+            tab.setCompoundDrawables(null, icon, null, null);
             tab.setContentDescription(tabLabels[i]);
             tab.setGravity(Gravity.CENTER);
             tab.setIncludeFontPadding(false);
-            tab.setTextSize(12);
-            tab.setAlpha(isSelected ? 1f : 0.72f);
-            LinearLayout.LayoutParams params = (LinearLayout.LayoutParams) tab.getLayoutParams();
-            params.weight = isSelected ? 1.35f : 0.88f;
-            tab.setLayoutParams(params);
+            tab.setTextSize(11);
+            tab.setAlpha(isSelected ? 1f : 0.78f);
             tab.animate()
-                    .scaleX(isSelected ? 1f : 0.94f)
-                    .scaleY(isSelected ? 1f : 0.94f)
+                    .scaleX(isSelected ? 1f : 0.97f)
+                    .scaleY(isSelected ? 1f : 0.97f)
                     .setDuration(TAB_ANIMATION_DURATION_MS)
                     .start();
         }
-    }
-
-    private SpannableString createTabText(int iconResId, String label, int tintColor) {
-        String value = label.isEmpty() ? " " : "  " + label;
-        SpannableString text = new SpannableString(value);
-        Drawable icon = getDrawable(iconResId);
-        if (icon == null) {
-            return text;
-        }
-        icon = icon.mutate();
-        icon.setTint(tintColor);
-        int iconSize = dpToPx(16);
-        icon.setBounds(0, 0, iconSize, iconSize);
-        text.setSpan(new ImageSpan(icon, ImageSpan.ALIGN_CENTER), 0, 1, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
-        return text;
     }
 
     private int dpToPx(int dp) {
@@ -141,7 +125,8 @@ public class MainActivity extends Activity {
     private void showHome() {
         currentScreen = "home";
         setSelectedTab(tabHome);
-        inflate(R.layout.screen_home);
+        View view = inflate(R.layout.screen_home);
+        view.findViewById(R.id.viewDailyOutfitButton).setOnClickListener(v -> showAiLanding());
     }
 
     /**
@@ -152,44 +137,302 @@ public class MainActivity extends Activity {
         setSelectedTab(tabCloset);
         View view = inflate(R.layout.screen_closet);
 
-        Button addButton = view.findViewById(R.id.addClothingButton);
-        addButton.setOnClickListener(v -> startActivity(new Intent(this, AddClothingActivity.class)));
-        view.findViewById(R.id.manageWardrobesButton).setOnClickListener(v -> showCreateWardrobeDialog());
+        RecyclerView grid = view.findViewById(R.id.closetGrid);
+        grid.setLayoutManager(new GridLayoutManager(this, 2));
+        grid.setHasFixedSize(false);
+        ClosetCardAdapter adapter = new ClosetCardAdapter(this);
+        grid.setAdapter(adapter);
 
-        view.findViewById(R.id.spaceScanButton).setOnClickListener(v -> startActivity(new Intent(this, SpaceScanActivity.class)));
-        view.findViewById(R.id.bodyMeasureButton).setOnClickListener(v -> startActivity(new Intent(this, BodyMeasureActivity.class)));
-
-        GridLayout grid = view.findViewById(R.id.closetGrid);
         TextView countText = view.findViewById(R.id.closetCountText);
+        TextView emptyText = view.findViewById(R.id.closetEmptyText);
+        TextView sortButton = view.findViewById(R.id.closetSortButton);
+        TextView backendSyncStatusText = view.findViewById(R.id.backendSyncStatusText);
+        TextView backendRefreshButton = view.findViewById(R.id.backendRefreshButton);
+        LinearLayout wardrobeRow = view.findViewById(R.id.wardrobeFilterRow);
+        LinearLayout categoryRow = view.findViewById(R.id.categoryFilterRow);
+        List<ClosetItem> sourceItems = new ArrayList<>();
+        String[] selectedCategory = {"all"};
+        String[] selectedSeason = {"all"};
+        String[] searchQuery = {""};
+        String[] sortMode = {"recent"};
+
         countText.setText("불러오는 중");
+        backendSyncStatusText.setText("● 서버 연결 확인 중");
+        backendSyncStatusText.setTextColor(getColor(R.color.fit_text_secondary));
+        backendRefreshButton.setOnClickListener(v -> showCloset());
+        bindWardrobeFilters(wardrobeRow, Collections.emptyList());
+
+        Runnable refresh = () -> applyClosetFilters(
+                sourceItems,
+                adapter,
+                countText,
+                emptyText,
+                selectedCategory[0],
+                selectedSeason[0],
+                searchQuery[0],
+                sortMode[0]
+        );
+        bindCategoryFilters(categoryRow, selectedCategory, refresh);
+
+        view.findViewById(R.id.addClothingButton)
+                .setOnClickListener(v -> startActivity(new Intent(this, AddClothingActivity.class)));
+        view.findViewById(R.id.bodyMeasureButton)
+                .setOnClickListener(v -> startActivity(new Intent(this, BodyMeasureActivity.class)));
+        view.findViewById(R.id.spaceScanButton)
+                .setOnClickListener(v -> startActivity(new Intent(this, SpaceScanActivity.class)));
+        view.findViewById(R.id.searchClosetButton).setOnClickListener(v -> showClosetSearchDialog(
+                searchQuery[0],
+                query -> {
+                    searchQuery[0] = query;
+                    refresh.run();
+                }
+        ));
+        view.findViewById(R.id.filterClosetButton).setOnClickListener(v -> showSeasonFilterDialog(
+                selectedSeason[0],
+                season -> {
+                    selectedSeason[0] = season;
+                    refresh.run();
+                }
+        ));
+        view.findViewById(R.id.closetMoreButton).setOnClickListener(v -> showClosetToolsDialog());
+        sortButton.setOnClickListener(v -> showClosetSortDialog(sortMode[0], mode -> {
+            sortMode[0] = mode;
+            sortButton.setText("name".equals(mode) ? "이름순 ⌄" : "최근 추가순 ⌄");
+            refresh.run();
+        }));
 
         if (clothesBackendService.isConfigured()) {
             new Thread(() -> {
                 try {
-                    List<Wardrobe> wardrobes = clothesBackendService.fetchWardrobeModels();
                     List<ClosetItem> backendItems = clothesBackendService.fetchClothes(selectedWardrobeId);
+                    List<Wardrobe> wardrobes = Collections.emptyList();
+                    boolean wardrobeFetchSucceeded = true;
+                    try {
+                        wardrobes = clothesBackendService.fetchWardrobeModels();
+                    } catch (Exception wardrobeError) {
+                        wardrobeFetchSucceeded = false;
+                        System.out.println("[MainActivity] Backend wardrobes fetch failed: " + wardrobeError.getMessage());
+                    }
+                    List<Wardrobe> fetchedWardrobes = wardrobes;
+                    boolean fetchedWardrobesSuccessfully = wardrobeFetchSucceeded;
                     runOnUiThread(() -> {
-                        bindWardrobeFilters(view.findViewById(R.id.wardrobeFilterRow), wardrobes);
-                        List<ClosetItem> mergedItems = mergeBackendAndLocalItems(backendItems);
-                        countText.setText(mergedItems.size() + "개");
-                        new ClosetCardAdapter(this).bind(grid, mergedItems);
+                        if (!"closet".equals(currentScreen)) {
+                            return;
+                        }
+                        bindWardrobeFilters(wardrobeRow, fetchedWardrobes);
+                        sourceItems.clear();
+                        sourceItems.addAll(mergeBackendAndLocalItems(backendItems));
+                        String status = "● 서버 연결됨 · 서버 의류 " + backendItems.size() + "개";
+                        if (!fetchedWardrobesSuccessfully) {
+                            status += " · 옷장 목록 오류";
+                        }
+                        backendSyncStatusText.setText(status);
+                        backendSyncStatusText.setTextColor(getColor(
+                                fetchedWardrobesSuccessfully ? R.color.fit_green : R.color.fit_accent
+                        ));
+                        refresh.run();
                     });
                 } catch (Exception error) {
                     System.out.println("[MainActivity] Backend clothes fetch failed, using local fallback: " + error.getMessage());
-                    runOnUiThread(() -> bindLocalCloset(grid, countText));
+                    runOnUiThread(() -> {
+                        if (!"closet".equals(currentScreen)) {
+                            return;
+                        }
+                        sourceItems.clear();
+                        sourceItems.addAll(loadLocalClosetItems());
+                        backendSyncStatusText.setText("● 서버 조회 실패 · 로컬/샘플 데이터 표시 중");
+                        backendSyncStatusText.setTextColor(getColor(R.color.fit_danger));
+                        refresh.run();
+                    });
                 }
             }).start();
         } else {
-            bindLocalCloset(grid, countText);
+            sourceItems.addAll(loadLocalClosetItems());
+            backendSyncStatusText.setText("● 서버 설정 없음 · 로컬/샘플 데이터 표시 중");
+            backendSyncStatusText.setTextColor(getColor(R.color.fit_danger));
+            refresh.run();
         }
     }
 
-    private void bindLocalCloset(GridLayout grid, TextView countText) {
+    private List<ClosetItem> loadLocalClosetItems() {
         List<ClosetItem> items = new ArrayList<>();
         items.addAll(ClothingStorage.load(this));
-        items.addAll(sampleClosetItems());
-        countText.setText(items.size() + "개");
-        new ClosetCardAdapter(this).bind(grid, items);
+        if (items.isEmpty()) {
+            items.addAll(sampleClosetItems());
+        }
+        return items;
+    }
+
+    private void applyClosetFilters(
+            List<ClosetItem> sourceItems,
+            ClosetCardAdapter adapter,
+            TextView countText,
+            TextView emptyText,
+            String category,
+            String season,
+            String query,
+            String sortMode
+    ) {
+        List<ClosetItem> visibleItems = new ArrayList<>();
+        String normalizedQuery = query == null ? "" : query.trim().toLowerCase(Locale.ROOT);
+        for (ClosetItem item : sourceItems) {
+            if (!matchesClosetCategory(item, category) || !matchesClosetSeason(item, season)) {
+                continue;
+            }
+            String searchable = (safe(item.name) + " " + safe(item.category) + " "
+                    + safe(item.color) + " " + safe(item.season)).toLowerCase(Locale.ROOT);
+            if (normalizedQuery.isEmpty() || searchable.contains(normalizedQuery)) {
+                visibleItems.add(item);
+            }
+        }
+
+        if ("name".equals(sortMode)) {
+            visibleItems.sort(Comparator.comparing(item -> safe(item.name), String.CASE_INSENSITIVE_ORDER));
+        } else {
+            visibleItems.sort((left, right) -> Long.compare(right.createdAt, left.createdAt));
+        }
+
+        adapter.submitList(visibleItems);
+        countText.setText(visibleItems.size() == sourceItems.size()
+                ? visibleItems.size() + "개 아이템"
+                : visibleItems.size() + " / " + sourceItems.size() + "개 아이템");
+        emptyText.setVisibility(visibleItems.isEmpty() ? View.VISIBLE : View.GONE);
+    }
+
+    private boolean matchesClosetCategory(ClosetItem item, String selected) {
+        if ("all".equals(selected)) return true;
+        String category = safe(item.category).toLowerCase(Locale.ROOT);
+        if ("top".equals(selected)) {
+            return category.contains("top") || category.contains("shirt") || category.contains("hoodie")
+                    || category.contains("상의") || category.contains("티셔츠") || category.contains("셔츠");
+        }
+        if ("bottom".equals(selected)) {
+            return category.contains("bottom") || category.contains("pants") || category.contains("skirt")
+                    || category.contains("하의") || category.contains("바지") || category.contains("스커트");
+        }
+        if ("outer".equals(selected)) {
+            return category.contains("outer") || category.contains("jacket") || category.contains("coat")
+                    || category.contains("아우터") || category.contains("재킷") || category.contains("코트");
+        }
+        if ("shoes".equals(selected)) {
+            return category.contains("shoe") || category.contains("sneaker") || category.contains("신발");
+        }
+        if ("accessory".equals(selected)) {
+            return category.contains("bag") || category.contains("hat") || category.contains("access")
+                    || category.contains("가방") || category.contains("모자") || category.contains("소품");
+        }
+        return category.contains("dress") || category.contains("원피스");
+    }
+
+    private boolean matchesClosetSeason(ClosetItem item, String selected) {
+        if ("all".equals(selected)) return true;
+        String season = safe(item.season).toLowerCase(Locale.ROOT);
+        if ("spring".equals(selected)) return season.contains("spring") || season.contains("봄") || season.contains("all");
+        if ("summer".equals(selected)) return season.contains("summer") || season.contains("여름") || season.contains("all");
+        if ("fall".equals(selected)) return season.contains("fall") || season.contains("autumn") || season.contains("가을") || season.contains("all");
+        return season.contains("winter") || season.contains("겨울") || season.contains("all");
+    }
+
+    private String safe(String value) {
+        return value == null ? "" : value;
+    }
+
+    private void bindCategoryFilters(LinearLayout row, String[] selectedCategory, Runnable refresh) {
+        String[] labels = {"전체", "상의", "하의", "아우터", "신발", "가방·소품", "원피스"};
+        String[] values = {"all", "top", "bottom", "outer", "shoes", "accessory", "dress"};
+        row.removeAllViews();
+        for (int i = 0; i < labels.length; i++) {
+            String value = values[i];
+            TextView chip = createClosetChip(labels[i], value.equals(selectedCategory[0]));
+            chip.setOnClickListener(v -> {
+                selectedCategory[0] = value;
+                bindCategoryFilters(row, selectedCategory, refresh);
+                refresh.run();
+            });
+            row.addView(chip);
+        }
+    }
+
+    private TextView createClosetChip(String label, boolean selected) {
+        TextView chip = new TextView(this);
+        chip.setText(label);
+        chip.setGravity(Gravity.CENTER);
+        chip.setTextSize(13);
+        chip.setTextColor(getColor(selected ? R.color.fit_on_dark : R.color.fit_text));
+        chip.setBackgroundResource(selected ? R.drawable.bg_chip_selected : R.drawable.bg_chip);
+        chip.setPadding(dpToPx(16), 0, dpToPx(16), 0);
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+                dpToPx(40)
+        );
+        params.setMargins(0, 0, dpToPx(8), 0);
+        chip.setLayoutParams(params);
+        return chip;
+    }
+
+    private void showClosetSearchDialog(String currentQuery, Consumer<String> onApply) {
+        EditText input = new EditText(this);
+        input.setSingleLine(true);
+        input.setHint("이름, 카테고리, 색상 검색");
+        input.setText(currentQuery);
+        input.setSelectAllOnFocus(true);
+        int horizontalPadding = dpToPx(20);
+        LinearLayout container = new LinearLayout(this);
+        container.setPadding(horizontalPadding, 0, horizontalPadding, 0);
+        container.addView(input, new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+        ));
+        new AlertDialog.Builder(this)
+                .setTitle("옷 검색")
+                .setView(container)
+                .setPositiveButton("검색", (dialog, which) -> onApply.accept(input.getText().toString()))
+                .setNeutralButton("초기화", (dialog, which) -> onApply.accept(""))
+                .setNegativeButton("취소", null)
+                .show();
+    }
+
+    private void showSeasonFilterDialog(String currentSeason, Consumer<String> onApply) {
+        String[] labels = {"전체 계절", "봄", "여름", "가을", "겨울"};
+        String[] values = {"all", "spring", "summer", "fall", "winter"};
+        int checked = Math.max(0, Arrays.asList(values).indexOf(currentSeason));
+        new AlertDialog.Builder(this)
+                .setTitle("계절 필터")
+                .setSingleChoiceItems(labels, checked, (dialog, which) -> {
+                    onApply.accept(values[which]);
+                    dialog.dismiss();
+                })
+                .setNegativeButton("취소", null)
+                .show();
+    }
+
+    private void showClosetSortDialog(String currentMode, Consumer<String> onApply) {
+        String[] labels = {"최근 추가순", "이름순"};
+        int checked = "name".equals(currentMode) ? 1 : 0;
+        new AlertDialog.Builder(this)
+                .setTitle("정렬")
+                .setSingleChoiceItems(labels, checked, (dialog, which) -> {
+                    onApply.accept(which == 1 ? "name" : "recent");
+                    dialog.dismiss();
+                })
+                .setNegativeButton("취소", null)
+                .show();
+    }
+
+    private void showClosetToolsDialog() {
+        String[] actions = {"3D 공간 스캔", "신체 비율 측정", "새 옷장 만들기"};
+        new AlertDialog.Builder(this)
+                .setTitle("옷장 도구")
+                .setItems(actions, (dialog, which) -> {
+                    if (which == 0) {
+                        startActivity(new Intent(this, SpaceScanActivity.class));
+                    } else if (which == 1) {
+                        startActivity(new Intent(this, BodyMeasureActivity.class));
+                    } else {
+                        showCreateWardrobeDialog();
+                    }
+                })
+                .show();
     }
 
     private List<ClosetItem> mergeBackendAndLocalItems(List<ClosetItem> backendItems) {
@@ -220,18 +463,19 @@ public class MainActivity extends Activity {
     }
 
     private void addWardrobeFilterButton(LinearLayout row, String label, String wardrobeId, Wardrobe wardrobe) {
-        Button button = new Button(this);
+        TextView button = new TextView(this);
         button.setText(label);
-        button.setAllCaps(false);
-        button.setTextColor(getColor(R.color.fit_text));
+        button.setGravity(Gravity.CENTER);
+        boolean isSelected = wardrobeId.equals(selectedWardrobeId == null ? "" : selectedWardrobeId);
+        button.setTextColor(getColor(isSelected ? R.color.fit_on_dark : R.color.fit_text));
         button.setBackgroundResource(
-                wardrobeId.equals(selectedWardrobeId == null ? "" : selectedWardrobeId)
-                        ? R.drawable.bg_primary_button
-                        : R.drawable.bg_soft_button
+                isSelected ? R.drawable.bg_chip_selected : R.drawable.bg_chip
         );
+        button.setPadding(dpToPx(16), 0, dpToPx(16), 0);
+        button.setTextSize(13);
         LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.WRAP_CONTENT,
-                dpToPx(42)
+                dpToPx(40)
         );
         params.setMargins(0, 0, dpToPx(8), 0);
         button.setLayoutParams(params);

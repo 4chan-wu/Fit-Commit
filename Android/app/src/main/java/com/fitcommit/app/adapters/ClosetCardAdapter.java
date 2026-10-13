@@ -5,11 +5,15 @@ import android.content.Intent;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Color;
+import android.graphics.drawable.GradientDrawable;
+import android.view.LayoutInflater;
+import android.view.View;
 import android.view.ViewGroup;
-import android.widget.GridLayout;
 import android.widget.ImageView;
-import android.widget.LinearLayout;
 import android.widget.TextView;
+
+import androidx.annotation.NonNull;
+import androidx.recyclerview.widget.RecyclerView;
 
 import com.fitcommit.app.R;
 import com.fitcommit.app.activities.AnalysisResultActivity;
@@ -17,103 +21,126 @@ import com.fitcommit.app.models.ClosetItem;
 import com.fitcommit.app.utils.UiUtils;
 
 import java.io.File;
+import java.util.ArrayList;
 import java.util.List;
 
 /**
- * RecyclerView 없이도 XML 기반 GridLayout에 의류 카드를 채우기 위한 간단한 어댑터입니다.
- * 추후 아이템 수가 많아지면 RecyclerView.Adapter로 교체할 수 있습니다.
+ * 실제 의류 사진을 중심으로 보여주는 2열 옷장 어댑터입니다.
  */
-public class ClosetCardAdapter {
+public class ClosetCardAdapter extends RecyclerView.Adapter<ClosetCardAdapter.ClothingViewHolder> {
     private final Context context;
+    private final List<ClosetItem> items = new ArrayList<>();
 
     public ClosetCardAdapter(Context context) {
         this.context = context;
     }
 
-    public void bind(GridLayout gridLayout, List<ClosetItem> items) {
-        gridLayout.removeAllViews();
-        for (ClosetItem item : items) {
-            gridLayout.addView(createCard(item));
-        }
+    public void submitList(List<ClosetItem> newItems) {
+        items.clear();
+        items.addAll(newItems);
+        notifyDataSetChanged();
     }
 
-    private LinearLayout createCard(ClosetItem item) {
-        LinearLayout card = new LinearLayout(context);
-        card.setOrientation(LinearLayout.VERTICAL);
-        card.setBackgroundResource(R.drawable.bg_card);
-        card.setPadding(UiUtils.dp(context, 14), UiUtils.dp(context, 14), UiUtils.dp(context, 14), UiUtils.dp(context, 14));
+    @NonNull
+    @Override
+    public ClothingViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
+        View view = LayoutInflater.from(parent.getContext())
+                .inflate(R.layout.item_closet_card, parent, false);
+        return new ClothingViewHolder(view);
+    }
 
-        GridLayout.LayoutParams params = new GridLayout.LayoutParams();
-        params.width = 0;
-        params.height = UiUtils.dp(context, 168);
-        params.columnSpec = GridLayout.spec(GridLayout.UNDEFINED, 1f);
-        params.setMargins(UiUtils.dp(context, 5), UiUtils.dp(context, 5), UiUtils.dp(context, 5), UiUtils.dp(context, 5));
-        card.setLayoutParams(params);
-        card.setOnClickListener(v -> {
-            Intent intent = new Intent(context, AnalysisResultActivity.class);
-            intent.putExtra(AnalysisResultActivity.EXTRA_EDIT_MODE, true);
-            intent.putExtra(AnalysisResultActivity.EXTRA_LOCAL_ID, item.localId);
-            intent.putExtra(AnalysisResultActivity.EXTRA_REMOTE_ID, item.remoteId);
-            intent.putExtra(AnalysisResultActivity.EXTRA_WARDROBE_ID, item.wardrobeId);
-            intent.putExtra(AnalysisResultActivity.EXTRA_IMAGE_PATH, item.imagePath);
-            intent.putExtra(AnalysisResultActivity.EXTRA_CATEGORY_HINT, item.category);
-            intent.putExtra(AnalysisResultActivity.EXTRA_NAME, item.name);
-            intent.putExtra(AnalysisResultActivity.EXTRA_COLOR, item.color);
-            intent.putExtra(AnalysisResultActivity.EXTRA_SEASON, item.season);
-            intent.putExtra(AnalysisResultActivity.EXTRA_NOTE, item.note);
-            context.startActivity(intent);
-        });
+    @Override
+    public void onBindViewHolder(@NonNull ClothingViewHolder holder, int position) {
+        ClosetItem item = items.get(position);
+        holder.name.setText(item.name);
+        holder.meta.setText(item.category + " · " + item.season);
 
-        if (item.imagePath != null && !item.imagePath.isEmpty() && new File(item.imagePath).exists()) {
-            ImageView image = new ImageView(context);
-            Bitmap bitmap = BitmapFactory.decodeFile(item.imagePath);
-            image.setImageBitmap(bitmap);
-            image.setScaleType(ImageView.ScaleType.CENTER_CROP);
-            card.addView(image, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, UiUtils.dp(context, 70)));
+        int itemColor = UiUtils.parseColorOrDefault(item.color, Color.LTGRAY);
+        GradientDrawable colorDot = new GradientDrawable();
+        colorDot.setShape(GradientDrawable.OVAL);
+        colorDot.setColor(itemColor);
+        holder.color.setBackground(colorDot);
+
+        File imageFile = item.imagePath == null ? null : new File(item.imagePath);
+        if (imageFile != null && imageFile.exists()) {
+            Bitmap bitmap = BitmapFactory.decodeFile(imageFile.getAbsolutePath());
+            holder.image.clearColorFilter();
+            holder.image.setPadding(
+                    UiUtils.dp(context, 10),
+                    UiUtils.dp(context, 10),
+                    UiUtils.dp(context, 10),
+                    UiUtils.dp(context, 10)
+            );
+            holder.image.setScaleType(ImageView.ScaleType.FIT_CENTER);
+            holder.image.setImageBitmap(bitmap);
+            holder.image.setBackgroundResource(R.drawable.bg_image_tile);
         } else {
-            TextView swatch = new TextView(context);
-            swatch.setText(" ");
-            swatch.setBackgroundColor(UiUtils.parseColorOrDefault(item.color, Color.LTGRAY));
-            card.addView(swatch, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, UiUtils.dp(context, 70)));
+            holder.image.setColorFilter(context.getColor(R.color.fit_text_secondary));
+            holder.image.setPadding(
+                    UiUtils.dp(context, 38),
+                    UiUtils.dp(context, 38),
+                    UiUtils.dp(context, 38),
+                    UiUtils.dp(context, 38)
+            );
+            holder.image.setScaleType(ImageView.ScaleType.FIT_CENTER);
+            holder.image.setImageResource(R.drawable.ic_garment);
+            GradientDrawable placeholder = new GradientDrawable();
+            placeholder.setColor(withSoftAlpha(itemColor));
+            placeholder.setCornerRadius(UiUtils.dp(context, 14));
+            holder.image.setBackground(placeholder);
         }
 
-        TextView name = new TextView(context);
-        name.setText(item.name);
-        name.setTextColor(context.getColor(R.color.fit_text));
-        name.setTextSize(16);
-        name.setTypeface(null, android.graphics.Typeface.BOLD);
-        LinearLayout.LayoutParams nameParams = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        nameParams.topMargin = UiUtils.dp(context, 12);
-        card.addView(name, nameParams);
-
-        TextView meta = new TextView(context);
-        meta.setText(item.category + " · " + item.season);
-        meta.setTextColor(context.getColor(R.color.fit_text_secondary));
-        meta.setTextSize(12);
-        LinearLayout.LayoutParams metaParams = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        metaParams.topMargin = UiUtils.dp(context, 5);
-        card.addView(meta, metaParams);
-
-        if ("pending".equals(item.analysisStatus) || "failed".equals(item.analysisStatus)) {
-            TextView status = new TextView(context);
-            status.setText("failed".equals(item.analysisStatus) ? "분석 실패 · 다시 분석 가능" : "AI 분석 대기");
-            status.setTextColor(context.getColor(R.color.fit_accent));
-            status.setTextSize(11);
-            LinearLayout.LayoutParams statusParams = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-            statusParams.topMargin = UiUtils.dp(context, 4);
-            card.addView(status, statusParams);
+        boolean analysisFailed = "failed".equals(item.analysisStatus);
+        boolean analysisPending = "pending".equals(item.analysisStatus);
+        boolean syncFailed = "sync_failed".equals(item.syncStatus);
+        if (analysisFailed || analysisPending || syncFailed) {
+            holder.status.setVisibility(View.VISIBLE);
+            holder.status.setText(syncFailed ? "동기화 필요" : analysisFailed ? "재분석 필요" : "AI 분석 중");
+        } else {
+            holder.status.setVisibility(View.GONE);
         }
 
-        if ("sync_failed".equals(item.syncStatus)) {
-            TextView sync = new TextView(context);
-            sync.setText("서버 동기화 실패");
-            sync.setTextColor(Color.RED);
-            sync.setTextSize(11);
-            LinearLayout.LayoutParams syncParams = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-            syncParams.topMargin = UiUtils.dp(context, 4);
-            card.addView(sync, syncParams);
-        }
+        holder.itemView.setOnClickListener(v -> openItem(item));
+    }
 
-        return card;
+    private int withSoftAlpha(int color) {
+        return Color.argb(54, Color.red(color), Color.green(color), Color.blue(color));
+    }
+
+    private void openItem(ClosetItem item) {
+        Intent intent = new Intent(context, AnalysisResultActivity.class);
+        intent.putExtra(AnalysisResultActivity.EXTRA_EDIT_MODE, true);
+        intent.putExtra(AnalysisResultActivity.EXTRA_LOCAL_ID, item.localId);
+        intent.putExtra(AnalysisResultActivity.EXTRA_REMOTE_ID, item.remoteId);
+        intent.putExtra(AnalysisResultActivity.EXTRA_WARDROBE_ID, item.wardrobeId);
+        intent.putExtra(AnalysisResultActivity.EXTRA_IMAGE_PATH, item.imagePath);
+        intent.putExtra(AnalysisResultActivity.EXTRA_CATEGORY_HINT, item.category);
+        intent.putExtra(AnalysisResultActivity.EXTRA_NAME, item.name);
+        intent.putExtra(AnalysisResultActivity.EXTRA_COLOR, item.color);
+        intent.putExtra(AnalysisResultActivity.EXTRA_SEASON, item.season);
+        intent.putExtra(AnalysisResultActivity.EXTRA_NOTE, item.note);
+        context.startActivity(intent);
+    }
+
+    @Override
+    public int getItemCount() {
+        return items.size();
+    }
+
+    static class ClothingViewHolder extends RecyclerView.ViewHolder {
+        final ImageView image;
+        final TextView status;
+        final TextView name;
+        final TextView meta;
+        final View color;
+
+        ClothingViewHolder(@NonNull View itemView) {
+            super(itemView);
+            image = itemView.findViewById(R.id.closetItemImage);
+            status = itemView.findViewById(R.id.closetItemStatus);
+            name = itemView.findViewById(R.id.closetItemName);
+            meta = itemView.findViewById(R.id.closetItemMeta);
+            color = itemView.findViewById(R.id.closetItemColor);
+        }
     }
 }
