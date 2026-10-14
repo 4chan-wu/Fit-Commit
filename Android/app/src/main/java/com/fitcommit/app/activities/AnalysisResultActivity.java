@@ -81,7 +81,9 @@ public class AnalysisResultActivity extends Activity {
         if (getIntent().getBooleanExtra(EXTRA_EDIT_MODE, false)) {
             setupEditMode();
         } else {
-            saveLocalPendingItem();
+            if (ApiClient.ENABLE_AI_ANALYSIS) {
+                saveLocalPendingItem();
+            }
             registerClothing();
         }
     }
@@ -179,6 +181,13 @@ public class AnalysisResultActivity extends Activity {
     }
 
     private void registerClothing() {
+        if (!ApiClient.ENABLE_AI_ANALYSIS) {
+            result = AnalysisResult.fallback(categoryHint);
+            bindResult(result);
+            findViewById(R.id.resultConfidenceText).setVisibility(View.GONE);
+            setLoading(false, "의류 정보를 확인하고 저장해주세요.");
+            return;
+        }
         setLoading(true, "Backend /clothes 저장을 먼저 진행 중입니다...");
 
         new Thread(() -> {
@@ -187,20 +196,6 @@ public class AnalysisResultActivity extends Activity {
                     throw new IllegalStateException("이미지 파일이 없습니다.");
                 }
                 ensurePendingClothingRow();
-
-                if (!ApiClient.ENABLE_AI_ANALYSIS) {
-                    System.out.println("[AnalysisResultActivity] AI analysis skipped ENABLE_AI_ANALYSIS=false");
-                    runOnUiThread(() -> {
-                        result = AnalysisResult.fallback(categoryHint);
-                        bindResult(result);
-                        setLoading(false, "저장 완료. AI 분석은 나중에 다시 분석하기로 진행할 수 있습니다.");
-                        UiUtils.toast(this, serverClothingId == null || serverClothingId.trim().isEmpty()
-                                ? "기기에 저장되었습니다."
-                                : "Backend에 의류가 저장되었습니다.");
-                        finish();
-                    });
-                    return;
-                }
 
                 System.out.println("[AnalysisResultActivity] AI analysis attempt started");
                 AnalysisResult analyzed = fashionAiService.analyze(new File(imagePath), categoryHint);
@@ -320,6 +315,7 @@ public class AnalysisResultActivity extends Activity {
             syncStatus = "synced";
             syncError = "";
         }
+        boolean manualEntry = !ApiClient.ENABLE_AI_ANALYSIS;
         ClothingStorage.saveOrReplace(this, new ClosetItem(
                 localItemId,
                 serverClothingId,
@@ -330,9 +326,9 @@ public class AnalysisResultActivity extends Activity {
                 season,
                 note,
                 imagePath,
-                result == null ? "pending" : result.confidence > 0 ? "completed" : "failed",
+                manualEntry ? "completed" : result == null ? "pending" : result.confidence > 0 ? "completed" : "failed",
                 result == null ? "" : "",
-                result == null || result.confidence <= 0,
+                !manualEntry && (result == null || result.confidence <= 0),
                 syncStatus,
                 syncError,
                 System.currentTimeMillis()

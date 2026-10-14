@@ -86,6 +86,31 @@ SUPABASE_CLOTHING_BUCKET=clothing-images
 
 로그인 세션의 `Authorization: Bearer <token>`과 RLS로 사용자 데이터를 분리함. 이미지는 최대 1600px, JPEG 품질 82로 줄인 후 사용자 UUID 폴더에 업로드함.
 
+## Google Play 출시 빌드
+
+첫 출시 화면에는 실제 동작하는 이메일 인증과 디지털 옷장 기능만 노출함. AI 코디, 소셜 로그인, 신체 비율 측정, 공간 스캔은 구현 완료 후 다시 노출함.
+
+출시 전 다음 작업이 필요함.
+
+1. `Backend/app/db/make_clothing_storage_private.sql`을 Supabase SQL Editor에서 실행함.
+2. 계정 삭제 Edge Function을 배포함.
+
+   ```bash
+   supabase functions deploy delete-account --project-ref iuplvspexcgvhonqgfag
+   ```
+
+3. GitHub Pages에서 `/docs` 폴더를 공개하고 Play Console에 아래 주소를 등록함.
+   - 개인정보처리방침: `https://4chan-wu.github.io/Fit-Commit/privacy-policy.html`
+   - 계정 삭제: `https://4chan-wu.github.io/Fit-Commit/account-deletion.html`
+4. 업로드 키를 준비함. 현재 로컬에서는 `fitcommit-upload.jks`와 `upload-key.password`를 자동으로 읽어 서명함. 두 파일은 Git에서 제외되며, 앱 업데이트에 계속 필요하므로 반드시 별도의 안전한 위치에 함께 백업함. 다른 환경에서는 `keystore.properties.example`을 `keystore.properties`로 복사해 기존 키를 연결할 수 있음.
+5. 다음 명령으로 lint와 서명된 AAB를 생성함.
+
+   ```bash
+   JAVA_HOME="/Applications/Android Studio.app/Contents/jbr/Contents/Home" bash gradlew :app:lintRelease :app:bundleRelease
+   ```
+
+로컬 업로드 키나 `keystore.properties`가 없으면 개발 확인용 unsigned AAB만 생성됨. Google Play 업로드 전 `jarsigner -verify`로 서명을 확인해야 함.
+
 ## 사용자별 옷장 구조
 
 Android 앱은 현재 `wardrobe_id`를 몰라도 옷 등록이 가능함. Backend가 `POST /clothes` 저장 시 사용자 기본 옷장을 자동 생성 또는 조회해서 `clothes.wardrobe_id`에 연결함.

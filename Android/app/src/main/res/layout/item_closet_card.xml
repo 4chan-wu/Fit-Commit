@@ -27,7 +27,7 @@
             android:layout_gravity="top|start"
             android:layout_margin="8dp"
             android:background="@drawable/bg_status_badge"
-            android:text="AI 분석 중"
+            android:text="저장 중"
             android:textColor="@color/fit_on_dark"
             android:textSize="11sp"
             android:textStyle="bold"

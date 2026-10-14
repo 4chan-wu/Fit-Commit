@@ -95,7 +95,7 @@ public class ClosetCardAdapter extends RecyclerView.Adapter<ClosetCardAdapter.Cl
         boolean syncFailed = "sync_failed".equals(item.syncStatus);
         if (analysisFailed || analysisPending || syncFailed) {
             holder.status.setVisibility(View.VISIBLE);
-            holder.status.setText(syncFailed ? "동기화 필요" : analysisFailed ? "재분석 필요" : "AI 분석 중");
+            holder.status.setText(syncFailed ? "동기화 필요" : analysisFailed ? "정보 확인 필요" : "저장 중");
         } else {
             holder.status.setVisibility(View.GONE);
         }

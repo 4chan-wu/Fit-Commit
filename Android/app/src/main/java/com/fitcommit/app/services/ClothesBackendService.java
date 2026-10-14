@@ -423,7 +423,7 @@ public class ClothesBackendService {
         payload.put("confidence", result == null ? 0 : result.confidence);
         boolean manual = result == null || result.confidence <= 0;
         payload.put("analysis_method", manual ? "manual" : result.method);
-        payload.put("analysis_status", manual ? "pending" : "completed");
+        payload.put("analysis_status", "completed");
         payload.put("analysis_error", "");
         if (!manual) {
             payload.put("analyzed_at", isoNow());

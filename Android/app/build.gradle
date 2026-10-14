@@ -30,6 +30,11 @@ def releaseKeystoreFile = rootProject.file("keystore.properties")
 if (releaseKeystoreFile.exists()) {
     releaseKeystoreFile.withInputStream { releaseKeystoreProperties.load(it) }
 }
+def generatedUploadKeystoreFile = rootProject.file("fitcommit-upload.jks")
+def generatedUploadPasswordFile = rootProject.file("upload-key.password")
+def hasGeneratedUploadKey = generatedUploadKeystoreFile.exists() && generatedUploadPasswordFile.exists()
+def hasReleaseSigning = releaseKeystoreFile.exists() || hasGeneratedUploadKey
+def generatedUploadPassword = hasGeneratedUploadKey ? generatedUploadPasswordFile.getText("UTF-8").trim() : ""
 
 android {
     namespace "com.fitcommit.app"
@@ -52,19 +57,27 @@ android {
     }
 
     signingConfigs {
-        if (releaseKeystoreFile.exists()) {
+        if (hasReleaseSigning) {
             release {
-                storeFile file(releaseKeystoreProperties.getProperty("storeFile"))
-                storePassword releaseKeystoreProperties.getProperty("storePassword")
-                keyAlias releaseKeystoreProperties.getProperty("keyAlias")
-                keyPassword releaseKeystoreProperties.getProperty("keyPassword")
+                storeFile releaseKeystoreFile.exists()
+                        ? file(releaseKeystoreProperties.getProperty("storeFile"))
+                        : generatedUploadKeystoreFile
+                storePassword releaseKeystoreFile.exists()
+                        ? releaseKeystoreProperties.getProperty("storePassword")
+                        : generatedUploadPassword
+                keyAlias releaseKeystoreFile.exists()
+                        ? releaseKeystoreProperties.getProperty("keyAlias")
+                        : "fitcommit-upload"
+                keyPassword releaseKeystoreFile.exists()
+                        ? releaseKeystoreProperties.getProperty("keyPassword")
+                        : generatedUploadPassword
             }
         }
     }
 
     buildTypes {
         release {
-            if (releaseKeystoreFile.exists()) {
+            if (hasReleaseSigning) {
                 signingConfig signingConfigs.release
             }
             minifyEnabled false

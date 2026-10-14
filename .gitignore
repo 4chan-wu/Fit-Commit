@@ -142,6 +142,8 @@ android/**/key.properties
 Android/.gradle/
 Android/local.properties
 Android/**/key.properties
+Android/keystore.properties
+Android/upload-key.password
 *.keystore
 *.jks
 

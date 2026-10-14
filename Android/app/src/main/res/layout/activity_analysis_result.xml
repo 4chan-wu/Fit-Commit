@@ -35,7 +35,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="12dp"
-            android:text="AI가 아이템 단독 사진을 분석 중입니다..."
+            android:text="의류 정보를 준비하고 있습니다..."
             android:textColor="@color/fit_text_secondary"
             android:textSize="13sp" />
 
@@ -49,7 +49,7 @@
             <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="AI 분석 결과 확인"
+                android:text="의류 정보 입력"
                 android:textColor="@color/fit_text"
                 android:textSize="20sp"
                 android:textStyle="bold" />
