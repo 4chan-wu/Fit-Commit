@@ -21,6 +21,14 @@ Fitcommit Backend는 AWS EC2에서 FastAPI와 AI/결제 처리를 실행하고, 
 
 마이그레이션은 기존 bigint `user_id` 테이블에 데이터가 있으면 중단되도록 작성되어 있음. 기존 `public.users`는 즉시 RLS 및 권한 회수로 잠그지만, 계정 복구가 끝날 때까지 삭제하지 않음.
 
+2026-10-14 적용 결과:
+
+- `fitcommit_backup_20261014` 비공개 스키마에 적용 전 23개 테이블/14행 백업 완료
+- bigint `user_id` 사용 테이블 12개를 Supabase Auth UUID로 전환 완료
+- 기존 옷 6개와 옷장 2개 보존 확인
+- `public.users`, `public.user_credentials`, `public.auth_accounts` 익명 REST 접근 차단 확인
+- 기존 계정 3개 중 1개는 Supabase Auth 이메일과 일치하며 2개는 비밀번호 재설정/초대 필요
+
 ## 역할
 
 - iOS/Android 앱에서 로컬 저장 후 보낸 기본 카테고리와 이미지 참조를 Supabase에 동기화함
