@@ -80,7 +80,7 @@ public class AuthService {
                 passwordConfirm
         );
 
-        authApi.signUp(request).enqueue(new Callback<SignUpResponse>() {
+        authApi.signUp(ApiClient.SIGN_UP_REDIRECT_URL, request).enqueue(new Callback<SignUpResponse>() {
             @Override
             public void onResponse(Call<SignUpResponse> call, Response<SignUpResponse> response) {
                 SignUpResponse body = response.body();

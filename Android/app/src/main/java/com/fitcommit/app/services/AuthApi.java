@@ -16,7 +16,10 @@ import retrofit2.http.Url;
 
 public interface AuthApi {
     @POST("signup")
-    Call<SignUpResponse> signUp(@Body SignUpRequest request);
+    Call<SignUpResponse> signUp(
+            @Query("redirect_to") String redirectTo,
+            @Body SignUpRequest request
+    );
 
     @POST("token")
     Call<LoginResponse> login(@Query("grant_type") String grantType, @Body LoginRequest request);

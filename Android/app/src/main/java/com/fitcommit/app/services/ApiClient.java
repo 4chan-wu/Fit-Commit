@@ -14,6 +14,8 @@ public final class ApiClient {
     public static final String AUTH_URL = SUPABASE_URL + "/auth/v1";
     public static final String STORAGE_URL = SUPABASE_URL + "/storage/v1";
     public static final String FUNCTIONS_URL = SUPABASE_URL + "/functions/v1";
+    public static final String SIGN_UP_REDIRECT_URL =
+            "https://4chan-wu.github.io/Fit-Commit/auth/callback.html";
     public static final boolean ENABLE_AI_ANALYSIS = false;
 
     private static Retrofit retrofit;

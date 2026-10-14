@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <title>이메일 인증 | Fitcommit</title>
+  <link rel="stylesheet" href="../assets/fitcommit-legal.css">
+</head>
+<body class="auth-page">
+  <main class="auth-shell">
+    <section class="auth-card" aria-labelledby="auth-title">
+      <a class="brand auth-brand" href="../">
+        <span class="brand-mark" aria-hidden="true">F</span>
+        <span>FITCOMMIT</span>
+      </a>
+      <div class="auth-visual" aria-hidden="true">
+        <span class="auth-check">✓</span>
+      </div>
+      <p class="eyebrow auth-eyebrow">EMAIL VERIFIED</p>
+      <h1 id="auth-title">이메일 인증이 완료됐어요</h1>
+      <p id="auth-message" class="auth-message">
+        Fitcommit 앱으로 돌아가 회원가입을 마무리해주세요.
+      </p>
+      <a id="open-app" class="primary-action" href="#">Fitcommit 앱에서 계속</a>
+      <p class="auth-help">앱이 자동으로 열리지 않으면 위 버튼을 눌러주세요.</p>
+    </section>
+  </main>
+  <script>
+    (() => {
+      const fragment = window.location.hash;
+      const button = document.getElementById("open-app");
+      const title = document.getElementById("auth-title");
+      const message = document.getElementById("auth-message");
+      const params = new URLSearchParams(fragment.startsWith("#") ? fragment.slice(1) : fragment);
+      const error = params.get("error_description") || params.get("error");
+
+      history.replaceState(null, "", window.location.pathname);
+
+      if (error) {
+        title.textContent = "이메일 인증을 완료하지 못했어요";
+        message.textContent = error;
+        button.textContent = "Fitcommit 앱으로 돌아가기";
+        button.href = "fitcommit://auth/callback#error=" + encodeURIComponent(error);
+        return;
+      }
+
+      if (!params.get("access_token") || !params.get("refresh_token")) {
+        title.textContent = "인증 정보가 만료됐어요";
+        message.textContent = "앱에서 인증 메일을 다시 요청해주세요.";
+        button.textContent = "Fitcommit 앱으로 돌아가기";
+        button.href = "fitcommit://auth/callback#error=" + encodeURIComponent("인증 정보가 없거나 만료되었습니다.");
+        return;
+      }
+
+      const appUrl = "fitcommit://auth/callback" + fragment;
+      button.href = appUrl;
+      window.setTimeout(() => window.location.assign(appUrl), 450);
+    })();
+  </script>
+</body>
+</html>

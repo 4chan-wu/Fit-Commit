@@ -3,6 +3,7 @@ package com.fitcommit.app.activities;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.Intent;
+import android.net.Uri;
 import android.os.Bundle;
 import android.view.View;
 import android.widget.Button;
@@ -11,6 +12,7 @@ import android.widget.TextView;
 
 import com.fitcommit.app.R;
 import com.fitcommit.app.services.AuthService;
+import com.fitcommit.app.services.TokenManager;
 import com.fitcommit.app.services.dto.LoginResponse;
 import com.fitcommit.app.services.dto.SignUpResponse;
 import com.fitcommit.app.utils.UiUtils;
@@ -39,6 +41,14 @@ public class LoginActivity extends Activity {
         bindViews();
         setupActions();
         updateMode();
+        handleAuthCallback(getIntent());
+    }
+
+    @Override
+    protected void onNewIntent(Intent intent) {
+        super.onNewIntent(intent);
+        setIntent(intent);
+        handleAuthCallback(intent);
     }
 
     private void bindViews() {
@@ -167,6 +177,57 @@ public class LoginActivity extends Activity {
     private void showFeedback(String message) {
         feedbackText.setText(message);
         feedbackText.setVisibility(View.VISIBLE);
+    }
+
+    private void handleAuthCallback(Intent intent) {
+        Uri callback = intent == null ? null : intent.getData();
+        if (callback == null
+                || !"fitcommit".equals(callback.getScheme())
+                || !"auth".equals(callback.getHost())
+                || !"/callback".equals(callback.getPath())) {
+            return;
+        }
+
+        Uri parameters = fragmentParameters(callback.getFragment());
+        String errorDescription = parameters.getQueryParameter("error_description");
+        if (errorDescription == null || errorDescription.trim().isEmpty()) {
+            errorDescription = parameters.getQueryParameter("error");
+        }
+        if (errorDescription != null && !errorDescription.trim().isEmpty()) {
+            showFeedback("이메일 인증에 실패했습니다. " + errorDescription);
+            return;
+        }
+
+        String accessToken = parameters.getQueryParameter("access_token");
+        String refreshToken = parameters.getQueryParameter("refresh_token");
+        if (accessToken == null || accessToken.trim().isEmpty()
+                || refreshToken == null || refreshToken.trim().isEmpty()) {
+            showFeedback("인증 정보를 확인할 수 없습니다. 인증 메일을 다시 요청해주세요.");
+            return;
+        }
+
+        long expiresAt = parseLong(parameters.getQueryParameter("expires_at"));
+        if (expiresAt <= 0L) {
+            long expiresIn = parseLong(parameters.getQueryParameter("expires_in"));
+            expiresAt = System.currentTimeMillis() / 1000L + Math.max(expiresIn, 3600L);
+        }
+
+        new TokenManager(this).saveSupabaseSession(accessToken, refreshToken, expiresAt, null);
+        UiUtils.toast(this, "이메일 인증이 완료되었습니다.");
+        openMain();
+    }
+
+    private Uri fragmentParameters(String fragment) {
+        String safeFragment = fragment == null ? "" : fragment;
+        return Uri.parse("https://fitcommit.invalid/?" + safeFragment);
+    }
+
+    private long parseLong(String value) {
+        try {
+            return Long.parseLong(value == null ? "" : value);
+        } catch (NumberFormatException ignored) {
+            return 0L;
+        }
     }
 
     private void openMain() {
