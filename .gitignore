@@ -15,6 +15,7 @@ Icon?
 Backend/.env
 AI/.env
 Frontend/.env
+supabase/functions/.env
 !.env.example
 !.env.sample
 *.pem

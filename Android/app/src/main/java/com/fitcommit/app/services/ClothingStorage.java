@@ -108,6 +108,13 @@ public final class ClothingStorage {
         return items;
     }
 
+    public static void clear(Context context) {
+        context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
+                .edit()
+                .clear()
+                .apply();
+    }
+
     private static void persist(Context context, List<ClosetItem> items) {
         JSONArray array = new JSONArray();
         for (ClosetItem item : items) {

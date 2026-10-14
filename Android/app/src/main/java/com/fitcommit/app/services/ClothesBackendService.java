@@ -18,9 +18,15 @@ import java.io.FileInputStream;
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
+
+import okhttp3.MediaType;
+import okhttp3.Request;
+import okhttp3.RequestBody;
+import okhttp3.Response;
 
 public class ClothesBackendService {
     private final TokenManager tokenManager;
@@ -30,9 +36,7 @@ public class ClothesBackendService {
     }
 
     public boolean isConfigured() {
-        return ApiClient.BASE_URL != null
-                && !ApiClient.BASE_URL.trim().isEmpty()
-                && (tokenManager.hasSupabaseSession() || hasTestUser());
+        return ApiClient.isConfigured() && tokenManager.hasSupabaseSession();
     }
 
     public boolean isUsingAuthenticatedUser() {
@@ -60,7 +64,7 @@ public class ClothesBackendService {
         String storageImagePath = localImageReference(imagePath);
         String storageImageUrl = "";
         try {
-            System.out.println("[ClothesBackendService] Backend /clothes/upload request started category=" + category);
+            System.out.println("[ClothesBackendService] Supabase Storage upload started category=" + category);
             JSONObject upload = uploadImage(category, imagePath);
             storageImagePath = upload.optString("image_path", storageImagePath);
             storageImageUrl = upload.optString("image_url", "");
@@ -70,7 +74,7 @@ public class ClothesBackendService {
         }
 
         JSONObject payload = new JSONObject();
-        putTestUserIdIfNeeded(payload);
+        putCurrentUserId(payload);
         if (wardrobeId != null && !wardrobeId.trim().isEmpty()) {
             payload.put("wardrobe_id", wardrobeId);
         }
@@ -141,32 +145,38 @@ public class ClothesBackendService {
             throw new IllegalArgumentException("Image file does not exist: " + imagePath);
         }
 
-        String boundary = "fitcommit-" + java.util.UUID.randomUUID();
-        HttpURLConnection connection = (HttpURLConnection) new URL(ApiClient.BASE_URL + "/clothes/upload").openConnection();
+        requireAuthenticatedUserId();
+        String objectPath = tokenManager.getUserId() + "/" + safePathSegment(category) + "/"
+                + java.util.UUID.randomUUID() + ".jpg";
+        String encodedPath = encodeStoragePath(objectPath);
+        HttpURLConnection connection = (HttpURLConnection) new URL(
+                ApiClient.STORAGE_URL + "/object/" + ApiClient.SUPABASE_CLOTHING_BUCKET + "/" + encodedPath
+        ).openConnection();
         connection.setRequestMethod("POST");
         connection.setConnectTimeout(15_000);
         connection.setReadTimeout(30_000);
         connection.setDoOutput(true);
-        connection.setRequestProperty("Content-Type", "multipart/form-data; boundary=" + boundary);
+        connection.setRequestProperty("Content-Type", "image/jpeg");
         connection.setRequestProperty("Accept", "application/json");
+        connection.setRequestProperty("x-upsert", "false");
         applyAuthHeaders(connection);
 
+        byte[] optimizedImage = optimizedJpeg(file);
+        connection.setFixedLengthStreamingMode(optimizedImage.length);
         try (OutputStream output = connection.getOutputStream()) {
-            if (!tokenManager.hasSupabaseSession()) {
-                writeFormField(output, boundary, "user_id", ApiClient.BACKEND_CLOTHES_USER_ID);
-            }
-            writeFormField(output, boundary, "main_category", category);
-            writeFormField(output, boundary, "image_type", "original");
-            writeFileField(output, boundary, "file", file);
-            output.write(("--" + boundary + "--\r\n").getBytes(StandardCharsets.UTF_8));
+            output.write(optimizedImage);
         }
 
         int statusCode = connection.getResponseCode();
         String body = readResponse(connection, statusCode);
         if (statusCode < 200 || statusCode >= 300) {
-            throw new IllegalStateException("Backend upload failed: " + statusCode + " " + body);
+            throw new IllegalStateException("Supabase Storage upload failed: " + statusCode + " " + body);
         }
-        return new JSONObject(body);
+        JSONObject result = new JSONObject();
+        result.put("image_path", objectPath);
+        result.put("image_url", "");
+        result.put("bucket", ApiClient.SUPABASE_CLOTHING_BUCKET);
+        return result;
     }
 
     public JSONObject createCompleted(
@@ -192,7 +202,7 @@ public class ClothesBackendService {
             String wardrobeId
     ) throws Exception {
         JSONObject payload = completedPayload(category, subcategory, color, season, styleTags, imagePath, result, wardrobeId);
-        putTestUserIdIfNeeded(payload);
+        putCurrentUserId(payload);
         return requestJson("POST", ApiClient.BASE_URL + "/clothes", payload);
     }
 
@@ -221,7 +231,7 @@ public class ClothesBackendService {
             String wardrobeId
     ) throws Exception {
         JSONObject payload = completedPayload(category, subcategory, color, season, styleTags, imagePath, result, wardrobeId);
-        return requestJson("PUT", ApiClient.BASE_URL + "/clothes/" + clothingId, payload);
+        return requestJson("PATCH", ApiClient.BASE_URL + "/clothes?id=eq." + urlEncode(clothingId), payload);
     }
 
     public JSONObject updateFailed(String clothingId, String imagePath, String errorMessage) throws Exception {
@@ -233,7 +243,7 @@ public class ClothesBackendService {
         payload.put("needs_analysis", true);
         payload.put("sync_status", "synced");
         payload.put("memo", "ai_analysis_failed");
-        return requestJson("PUT", ApiClient.BASE_URL + "/clothes/" + clothingId, payload);
+        return requestJson("PATCH", ApiClient.BASE_URL + "/clothes?id=eq." + urlEncode(clothingId), payload);
     }
 
     public List<ClosetItem> fetchClothes() throws Exception {
@@ -241,11 +251,10 @@ public class ClothesBackendService {
     }
 
     public List<ClosetItem> fetchClothes(String wardrobeId) throws Exception {
-        String url = tokenManager.hasSupabaseSession()
-                ? ApiClient.BASE_URL + "/clothes/me"
-                : ApiClient.BASE_URL + "/clothes?user_id=" + ApiClient.BACKEND_CLOTHES_USER_ID;
+        requireAuthenticatedUserId();
+        String url = ApiClient.BASE_URL + "/clothes?select=*&order=created_at.desc";
         if (wardrobeId != null && !wardrobeId.trim().isEmpty()) {
-            url += (url.contains("?") ? "&" : "?") + "wardrobe_id=" + wardrobeId;
+            url += "&wardrobe_id=eq." + urlEncode(wardrobeId);
         }
         HttpURLConnection connection = (HttpURLConnection) new URL(url).openConnection();
         connection.setRequestMethod("GET");
@@ -257,7 +266,7 @@ public class ClothesBackendService {
         int statusCode = connection.getResponseCode();
         String body = readResponse(connection, statusCode);
         if (statusCode < 200 || statusCode >= 300) {
-            throw new IllegalStateException("Backend clothes fetch failed: " + statusCode + " " + body);
+            throw new IllegalStateException("Supabase clothes fetch failed: " + statusCode + " " + body);
         }
 
         JSONArray rows = new JSONArray(body);
@@ -305,9 +314,8 @@ public class ClothesBackendService {
     }
 
     public JSONArray fetchWardrobes() throws Exception {
-        String url = tokenManager.hasSupabaseSession()
-                ? ApiClient.BASE_URL + "/wardrobes/me"
-                : ApiClient.BASE_URL + "/wardrobes?user_id=" + ApiClient.BACKEND_CLOTHES_USER_ID;
+        requireAuthenticatedUserId();
+        String url = ApiClient.BASE_URL + "/wardrobes?select=*&order=is_default.desc,created_at.asc";
         HttpURLConnection connection = (HttpURLConnection) new URL(url).openConnection();
         connection.setRequestMethod("GET");
         connection.setConnectTimeout(10_000);
@@ -318,15 +326,14 @@ public class ClothesBackendService {
         int statusCode = connection.getResponseCode();
         String body = readResponse(connection, statusCode);
         if (statusCode < 200 || statusCode >= 300) {
-            throw new IllegalStateException("Backend wardrobes fetch failed: " + statusCode + " " + body);
+            throw new IllegalStateException("Supabase wardrobes fetch failed: " + statusCode + " " + body);
         }
         return new JSONArray(body);
     }
 
     public JSONObject fetchDefaultWardrobe() throws Exception {
-        String url = tokenManager.hasSupabaseSession()
-                ? ApiClient.BASE_URL + "/wardrobes/me/default"
-                : ApiClient.BASE_URL + "/wardrobes/default?user_id=" + ApiClient.BACKEND_CLOTHES_USER_ID;
+        requireAuthenticatedUserId();
+        String url = ApiClient.BASE_URL + "/wardrobes?select=*&is_default=eq.true&limit=1";
         HttpURLConnection connection = (HttpURLConnection) new URL(url).openConnection();
         connection.setRequestMethod("GET");
         connection.setConnectTimeout(10_000);
@@ -339,7 +346,9 @@ public class ClothesBackendService {
         if (statusCode < 200 || statusCode >= 300) {
             throw new IllegalStateException("Backend default wardrobe fetch failed: " + statusCode + " " + body);
         }
-        return new JSONObject(body);
+        JSONArray rows = new JSONArray(body);
+        if (rows.length() == 0) throw new IllegalStateException("기본 옷장이 없습니다.");
+        return rows.getJSONObject(0);
     }
 
     public List<Wardrobe> fetchWardrobeModels() throws Exception {
@@ -360,21 +369,18 @@ public class ClothesBackendService {
 
     public JSONObject createWardrobe(String name, String description) throws Exception {
         JSONObject payload = new JSONObject();
-        putTestUserIdIfNeeded(payload);
+        putCurrentUserId(payload);
         payload.put("name", name);
         payload.put("description", description == null ? "" : description);
         payload.put("is_default", false);
-        String url = tokenManager.hasSupabaseSession()
-                ? ApiClient.BASE_URL + "/wardrobes/me"
-                : ApiClient.BASE_URL + "/wardrobes";
-        return requestJson("POST", url, payload);
+        return requestJson("POST", ApiClient.BASE_URL + "/wardrobes", payload);
     }
 
     public JSONObject updateWardrobe(String wardrobeId, String name, String description) throws Exception {
         JSONObject payload = new JSONObject();
         payload.put("name", name);
         payload.put("description", description == null ? "" : description);
-        return requestJson("PUT", wardrobeMutationUrl(wardrobeId), payload);
+        return requestJson("PATCH", wardrobeMutationUrl(wardrobeId), payload);
     }
 
     public void deleteWardrobe(String wardrobeId) throws Exception {
@@ -383,6 +389,7 @@ public class ClothesBackendService {
         connection.setConnectTimeout(10_000);
         connection.setReadTimeout(15_000);
         connection.setRequestProperty("Accept", "application/json");
+        connection.setRequestProperty("Prefer", "return=representation");
         applyAuthHeaders(connection);
         int statusCode = connection.getResponseCode();
         String body = readResponse(connection, statusCode);
@@ -428,24 +435,32 @@ public class ClothesBackendService {
     }
 
     private JSONObject requestJson(String method, String url, JSONObject payload) throws Exception {
-        byte[] bytes = payload.toString().getBytes(StandardCharsets.UTF_8);
-        HttpURLConnection connection = (HttpURLConnection) new URL(url).openConnection();
-        connection.setRequestMethod(method);
-        connection.setConnectTimeout(10_000);
-        connection.setReadTimeout(15_000);
-        connection.setDoOutput(true);
-        connection.setRequestProperty("Content-Type", "application/json");
-        connection.setRequestProperty("Accept", "application/json");
-        applyAuthHeaders(connection);
-
-        try (OutputStream output = connection.getOutputStream()) {
-            output.write(bytes);
+        refreshSessionIfNeeded();
+        RequestBody requestBody = RequestBody.create(
+                MediaType.get("application/json; charset=utf-8"),
+                payload.toString()
+        );
+        Request request = new Request.Builder()
+                .url(url)
+                .method(method, requestBody)
+                .header("Accept", "application/json")
+                .header("Prefer", "return=representation")
+                .header("Authorization", "Bearer " + tokenManager.getAccessToken())
+                .build();
+        int statusCode;
+        String body;
+        try (Response response = ApiClient.getHttpClient().newCall(request).execute()) {
+            statusCode = response.code();
+            body = response.body() == null ? "" : response.body().string();
         }
-
-        int statusCode = connection.getResponseCode();
-        String body = readResponse(connection, statusCode);
         if (statusCode < 200 || statusCode >= 300) {
-            throw new IllegalStateException("Backend clothes request failed: " + statusCode + " " + body);
+            throw new IllegalStateException("Supabase request failed: " + statusCode + " " + body);
+        }
+        if (body == null || body.trim().isEmpty()) return new JSONObject();
+        if (body.trim().startsWith("[")) {
+            JSONArray rows = new JSONArray(body);
+            if (rows.length() == 0) throw new IllegalStateException("Supabase 응답에 변경된 데이터가 없습니다.");
+            return rows.getJSONObject(0);
         }
         return new JSONObject(body);
     }
@@ -574,9 +589,8 @@ public class ClothesBackendService {
         if (tokenManager.hasSupabaseSession()) {
             refreshSessionIfNeeded();
             connection.setRequestProperty("Authorization", "Bearer " + tokenManager.getAccessToken());
-        } else if (hasTestUser()) {
-            connection.setRequestProperty("X-Test-User-Id", ApiClient.BACKEND_CLOTHES_USER_ID);
         }
+        connection.setRequestProperty("apikey", ApiClient.SUPABASE_ANON_KEY);
     }
 
     private void refreshSessionIfNeeded() throws Exception {
@@ -592,13 +606,14 @@ public class ClothesBackendService {
             throw new IllegalStateException("로그인 세션이 만료되었습니다. 다시 로그인해주세요.");
         }
 
-        HttpURLConnection connection = (HttpURLConnection) new URL(ApiClient.BASE_URL + "/users/refresh").openConnection();
+        HttpURLConnection connection = (HttpURLConnection) new URL(ApiClient.AUTH_URL + "/token?grant_type=refresh_token").openConnection();
         connection.setRequestMethod("POST");
         connection.setConnectTimeout(10_000);
         connection.setReadTimeout(15_000);
         connection.setDoOutput(true);
         connection.setRequestProperty("Content-Type", "application/json");
         connection.setRequestProperty("Accept", "application/json");
+        connection.setRequestProperty("apikey", ApiClient.SUPABASE_ANON_KEY);
 
         JSONObject payload = new JSONObject();
         payload.put("refresh_token", refreshToken);
@@ -617,26 +632,76 @@ public class ClothesBackendService {
         tokenManager.saveSupabaseSession(
                 session.getString("access_token"),
                 session.getString("refresh_token"),
-                session.optLong("expires_at", now + 3600L)
+                session.optLong("expires_at", now + 3600L),
+                session.optJSONObject("user") == null
+                        ? tokenManager.getUserId()
+                        : session.optJSONObject("user").optString("id", tokenManager.getUserId())
         );
     }
 
-    private boolean hasTestUser() {
-        return ApiClient.BACKEND_CLOTHES_USER_ID != null
-                && !ApiClient.BACKEND_CLOTHES_USER_ID.trim().isEmpty();
+    private String requireAuthenticatedUserId() {
+        String userId = tokenManager.getUserId();
+        if (!tokenManager.hasSupabaseSession() || userId == null || userId.trim().isEmpty()) {
+            throw new IllegalStateException("Supabase 로그인이 필요합니다.");
+        }
+        return userId;
     }
 
-    private void putTestUserIdIfNeeded(JSONObject payload) throws Exception {
-        if (!tokenManager.hasSupabaseSession() && hasTestUser()) {
-            payload.put("user_id", ApiClient.BACKEND_CLOTHES_USER_ID);
-        }
+    private void putCurrentUserId(JSONObject payload) throws Exception {
+        payload.put("user_id", requireAuthenticatedUserId());
     }
 
     private String wardrobeMutationUrl(String wardrobeId) {
-        String url = ApiClient.BASE_URL + "/wardrobes/" + wardrobeId;
-        if (!tokenManager.hasSupabaseSession() && hasTestUser()) {
-            url += "?user_id=" + ApiClient.BACKEND_CLOTHES_USER_ID;
+        return ApiClient.BASE_URL + "/wardrobes?id=eq." + urlEncode(wardrobeId);
+    }
+
+    private String urlEncode(String value) {
+        try {
+            return URLEncoder.encode(value, "UTF-8");
+        } catch (Exception ignored) {
+            return value;
         }
-        return url;
+    }
+
+    private String safePathSegment(String value) {
+        String normalized = value == null ? "uncategorized" : value.replaceAll("[^A-Za-z0-9_-]", "_");
+        return normalized.isEmpty() ? "uncategorized" : normalized;
+    }
+
+    private String encodeStoragePath(String path) {
+        String[] segments = path.split("/");
+        StringBuilder encoded = new StringBuilder();
+        for (String segment : segments) {
+            if (encoded.length() > 0) encoded.append('/');
+            encoded.append(urlEncode(segment).replace("+", "%20"));
+        }
+        return encoded.toString();
+    }
+
+    private byte[] optimizedJpeg(File file) throws Exception {
+        Bitmap source = BitmapFactory.decodeFile(file.getAbsolutePath());
+        if (source == null) throw new IllegalArgumentException("이미지를 읽을 수 없습니다.");
+        int width = source.getWidth();
+        int height = source.getHeight();
+        int longest = Math.max(width, height);
+        Bitmap outputBitmap = source;
+        if (longest > 1600) {
+            float ratio = 1600f / longest;
+            outputBitmap = Bitmap.createScaledBitmap(
+                    source,
+                    Math.max(1, Math.round(width * ratio)),
+                    Math.max(1, Math.round(height * ratio)),
+                    true
+            );
+        }
+        ByteArrayOutputStream output = new ByteArrayOutputStream();
+        outputBitmap.compress(Bitmap.CompressFormat.JPEG, 82, output);
+        if (outputBitmap != source) outputBitmap.recycle();
+        source.recycle();
+        byte[] bytes = output.toByteArray();
+        if (bytes.length > 2 * 1024 * 1024) {
+            throw new IllegalArgumentException("최적화된 이미지가 2MB를 초과합니다.");
+        }
+        return bytes;
     }
 }

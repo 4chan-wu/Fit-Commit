@@ -1,5 +1,7 @@
 # Fitcommit iOS
 
+> 2026-10-14부터 AWS/FastAPI 요청을 사용하지 않으며 Supabase Auth, PostgREST, Storage를 직접 사용함.
+
 Fitcommit iOS는 SwiftUI 기반 앱임. 현재 1차 프로토타입에서는 전신 사진 분석이나 체형 스캔 중심 흐름이 아니라, 사용자가 의류 카테고리를 먼저 선택하고 아이템 단독 사진을 업로드하는 흐름으로 구성됨.
 
 ## 역할
@@ -61,30 +63,17 @@ xcodebuild \
 
 현재 코드 기준으로 iOS Debug 빌드는 성공 확인됨.
 
-## Backend 설정
+## Supabase 설정
 
-iOS 앱은 아래 설정이 있으면 로컬 저장 후 Backend `/clothes` 동기화를 시도함.
-
-```text
-FITCOMMIT_BACKEND_BASE_URL
-FITCOMMIT_SUPABASE_USER_ID
-FITCOMMIT_SUPABASE_ACCESS_TOKEN
-ENABLE_AI_ANALYSIS
-```
-
-팀원 테스트용 기본값은 아래와 같음.
+iOS Scheme 환경변수 또는 Info.plist에 공개 가능한 Supabase 설정을 추가함.
 
 ```text
-FITCOMMIT_BACKEND_BASE_URL=http://54.180.79.90:8000
-FITCOMMIT_SUPABASE_USER_ID=45482f0f-42d0-401e-a18a-77abeb0492cc
-ENABLE_AI_ANALYSIS=false
+FITCOMMIT_SUPABASE_URL=https://iuplvspexcgvhonqgfag.supabase.co
+FITCOMMIT_SUPABASE_ANON_KEY=Supabase의_공개키
+FITCOMMIT_SUPABASE_CLOTHING_BUCKET=clothing-images
 ```
 
-`BackendClothesService.swift`는 Backend base URL과 테스트 user_id를 한 곳에서 관리함. 환경변수 또는 Info.plist 값이 있으면 그 값을 우선 사용하고, 값이 없으면 위 EC2 기본값을 사용함.
-개발 단계에서는 `FITCOMMIT_SUPABASE_USER_ID`를 `X-Test-User-Id` 헤더로 함께 보내며, `FITCOMMIT_SUPABASE_ACCESS_TOKEN`이 있으면 `Authorization: Bearer <token>` 헤더도 보낼 수 있게 준비함.
-`ENABLE_AI_ANALYSIS=false`이면 AI 서버 `/predict`를 호출하지 않고 Backend `/clothes` 저장까지만 진행함.
-실제 서비스에서는 `FITCOMMIT_SUPABASE_USER_ID` 직접 입력 방식이 아니라 Supabase Auth access token 기반 인증으로 바꿔야 함.
-팀원들이 같은 테스트 user_id를 쓰면 Supabase `clothes` 데이터가 같은 사용자 옷장에 섞일 수 있음.
+`service_role` 키는 절대 앱에 넣지 않음. 로그인 후 받은 access token과 RLS로 사용자별 데이터 접근을 제한함.
 
 ## 사용자별 옷장 구조
 

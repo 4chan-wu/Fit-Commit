@@ -63,6 +63,8 @@ public class LoginActivity extends Activity {
         findViewById(R.id.naverButton).setOnClickListener(v -> startSocialLogin("네이버"));
         findViewById(R.id.googleButton).setOnClickListener(v -> startSocialLogin("Google"));
         findViewById(R.id.appleButton).setOnClickListener(v -> startSocialLogin("Apple"));
+        findViewById(R.id.privacyPolicyLink).setOnClickListener(v ->
+                startActivity(new Intent(this, LegalActivity.class)));
     }
 
     private void updateMode() {

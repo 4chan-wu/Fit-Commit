@@ -1,13 +1,13 @@
-# Fitcommit Backend
+# Fitcommit Backend (전환 참고용)
 
-Fitcommit Backend는 AWS EC2에서 FastAPI와 AI/결제 처리를 실행하고, 영구 사용자 데이터는 Supabase Auth, PostgreSQL, Storage에 저장함. 현재 Backend는 AWS EC2의 `http://54.180.79.90:8000` 주소로 실행 중임.
+Android/iOS 운영 경로는 2026-10-14부터 AWS EC2/FastAPI를 사용하지 않고 Supabase Auth, PostgreSQL, PostgREST, Storage를 직접 사용함. 이 폴더는 기존 API 동작과 향후 Edge Function 변환을 위한 참고용이며 EC2에 배포하지 않음.
 
 ## Supabase 단일 데이터 저장소 전환
 
 - 이메일 계정과 향후 SNS 계정은 Supabase Auth를 단일 인증 원본으로 사용함
 - 프로필, 옷장, 의류, 채팅, AI 로그, 주문과 결제 기록은 같은 Supabase 프로젝트에 저장함
-- Android/iOS는 Supabase access/refresh token을 저장하고 FastAPI에는 Bearer token을 전송함
-- FastAPI는 AI 호출과 Toss 승인처럼 서버 secret이 필요한 작업만 담당함
+- Android/iOS는 Supabase access/refresh token을 저장하고 Supabase API에 Bearer token을 전송함
+- OpenAI/Toss처럼 secret이 필요한 기능은 Supabase Edge Functions로 이동함
 - 로컬 Docker PostgreSQL 서비스는 제거했으며 `DATABASE_URL`은 Supabase transaction pooler URI여야 함
 - `ALLOW_TEST_USER_ID`는 기본값 `false`이며 운영에서는 절대 활성화하지 않음
 
@@ -15,8 +15,8 @@ Fitcommit Backend는 AWS EC2에서 FastAPI와 AI/결제 처리를 실행하고, 
 
 1. Supabase Dashboard에서 데이터베이스 백업을 생성함
 2. SQL Editor에서 `app/db/supabase_unified_auth_migration.sql`을 실행함
-3. Supabase `Connect` 화면의 Transaction pooler URI를 AWS의 `DATABASE_URL`에 설정함
-4. AWS Backend를 재시작하고 `/db-check`가 `status: ok`인지 확인함
+3. `app/db/supabase_storage_direct_access_migration.sql`을 실행함
+4. Android/iOS에 Supabase URL과 공개키를 설정함
 5. 기존 `public.users` 계정은 Supabase Auth 회원가입 또는 비밀번호 재설정으로 전환함
 
 마이그레이션은 기존 bigint `user_id` 테이블에 데이터가 있으면 중단되도록 작성되어 있음. 기존 `public.users`는 즉시 RLS 및 권한 회수로 잠그지만, 계정 복구가 끝날 때까지 삭제하지 않음.

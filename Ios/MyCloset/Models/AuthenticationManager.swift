@@ -29,7 +29,7 @@ final class AuthenticationManager: ObservableObject {
 
     func signIn(email: String, password: String) async throws {
         let response: LoginResponse = try await request(
-            path: "users/login",
+            path: "token?grant_type=password",
             payload: LoginRequest(email: email, password: password)
         )
         guard !response.accessToken.isEmpty, !response.user.id.isEmpty else {
@@ -60,7 +60,7 @@ final class AuthenticationManager: ObservableObject {
             return nil
         }
         let response: LoginResponse = try await request(
-            path: "users/refresh",
+            path: "token?grant_type=refresh_token",
             payload: RefreshRequest(refreshToken: refreshToken)
         )
         KeychainStore.write(response.accessToken, key: Self.accessTokenKey)
@@ -79,17 +79,14 @@ final class AuthenticationManager: ObservableObject {
     ) async throws -> Bool {
         let nickname = email.split(separator: "@").first.map(String.init) ?? "user"
         let response: SignUpResponse = try await request(
-            path: "users/signup",
+            path: "signup",
             payload: SignUpRequest(
                 email: email,
-                name: name,
-                nickname: nickname,
-                phoneNumber: phoneNumber,
                 password: password,
-                passwordConfirm: password
+                data: SignUpMetadata(name: name, nickname: nickname, phoneNumber: phoneNumber)
             )
         )
-        return response.requiresEmailConfirmation
+        return response.accessToken == nil
     }
 
     func authenticate() {
@@ -143,7 +140,8 @@ final class AuthenticationManager: ObservableObject {
         path: String,
         payload: Payload
     ) async throws -> Response {
-        guard let baseURL = BackendClothesService.configuredBaseURL else {
+        guard let baseURL = SupabaseConfiguration.authURL,
+              let anonKey = SupabaseConfiguration.anonKey else {
             throw AuthenticationError.invalidBackendURL
         }
 
@@ -151,6 +149,7 @@ final class AuthenticationManager: ObservableObject {
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue("application/json", forHTTPHeaderField: "Accept")
+        request.setValue(anonKey, forHTTPHeaderField: "apikey")
         request.httpBody = try JSONEncoder().encode(payload)
 
         let (data, urlResponse) = try await URLSession.shared.data(for: request)
@@ -159,7 +158,7 @@ final class AuthenticationManager: ObservableObject {
         }
         guard (200..<300).contains(httpResponse.statusCode) else {
             let apiError = try? JSONDecoder().decode(APIError.self, from: data)
-            throw AuthenticationError.server(apiError?.detail ?? "로그인 서버 요청에 실패했습니다.")
+            throw AuthenticationError.server(apiError?.displayMessage ?? "Supabase 인증 요청에 실패했습니다.")
         }
         return try JSONDecoder().decode(Response.self, from: data)
     }
@@ -198,29 +197,43 @@ private struct RefreshRequest: Encodable {
 
 private struct SignUpRequest: Encodable {
     let email: String
+    let password: String
+    let data: SignUpMetadata
+}
+
+private struct SignUpMetadata: Encodable {
     let name: String
     let nickname: String
     let phoneNumber: String
-    let password: String
-    let passwordConfirm: String
 
     enum CodingKeys: String, CodingKey {
-        case email, name, nickname, password
+        case name, nickname
         case phoneNumber = "phone_number"
-        case passwordConfirm = "password_confirm"
     }
 }
 
 private struct SignUpResponse: Decodable {
-    let requiresEmailConfirmation: Bool
+    let accessToken: String?
+    let user: AuthUser?
 
     enum CodingKeys: String, CodingKey {
-        case requiresEmailConfirmation = "requires_email_confirmation"
+        case accessToken = "access_token"
+        case user
     }
 }
 
 private struct APIError: Decodable {
-    let detail: String
+    let detail: String?
+    let message: String?
+    let msg: String?
+    let errorDescription: String?
+
+    enum CodingKeys: String, CodingKey {
+        case detail, message, msg
+        case errorDescription = "error_description"
+    }
+
+    var displayMessage: String? { detail ?? message ?? msg ?? errorDescription }
 }
 
 enum AuthenticationError: LocalizedError {
@@ -231,9 +244,9 @@ enum AuthenticationError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .invalidBackendURL:
-            return "백엔드 주소가 올바르지 않습니다."
+            return "Supabase URL 또는 공개 키가 설정되지 않았습니다."
         case .invalidResponse:
-            return "로그인 서버 응답을 확인할 수 없습니다."
+            return "Supabase 인증 응답을 확인할 수 없습니다."
         case .server(let message):
             return message
         }

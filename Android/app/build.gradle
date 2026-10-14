@@ -2,9 +2,38 @@ plugins {
     id "com.android.application"
 }
 
+def localProperties = new Properties()
+def localPropertiesFile = rootProject.file("local.properties")
+if (localPropertiesFile.exists()) {
+    localPropertiesFile.withInputStream { localProperties.load(it) }
+}
+
+def backendEnv = new Properties()
+def backendEnvFile = rootProject.file("../Backend/.env")
+if (backendEnvFile.exists()) {
+    backendEnvFile.eachLine { line ->
+        def trimmed = line.trim()
+        if (trimmed && !trimmed.startsWith("#") && trimmed.contains("=")) {
+            def separator = trimmed.indexOf("=")
+            backendEnv.setProperty(trimmed.substring(0, separator), trimmed.substring(separator + 1))
+        }
+    }
+}
+
+def supabaseValue = { String name, String fallback = "" ->
+    def value = System.getenv(name) ?: localProperties.getProperty(name) ?: backendEnv.getProperty(name) ?: fallback
+    return value.replace("\\", "\\\\").replace('"', '\\"')
+}
+
+def releaseKeystoreProperties = new Properties()
+def releaseKeystoreFile = rootProject.file("keystore.properties")
+if (releaseKeystoreFile.exists()) {
+    releaseKeystoreFile.withInputStream { releaseKeystoreProperties.load(it) }
+}
+
 android {
     namespace "com.fitcommit.app"
-    compileSdk 35
+    compileSdk 36
 
     buildFeatures {
         buildConfig true
@@ -13,9 +42,33 @@ android {
     defaultConfig {
         applicationId "com.fitcommit.app"
         minSdk 24
-        targetSdk 35
+        targetSdk 36
         versionCode 1
         versionName "1.0"
+
+        buildConfigField "String", "SUPABASE_URL", "\"${supabaseValue('SUPABASE_URL', 'https://iuplvspexcgvhonqgfag.supabase.co')}\""
+        buildConfigField "String", "SUPABASE_ANON_KEY", "\"${supabaseValue('SUPABASE_ANON_KEY')}\""
+        buildConfigField "String", "SUPABASE_CLOTHING_BUCKET", "\"${supabaseValue('SUPABASE_CLOTHING_BUCKET', 'clothing-images')}\""
+    }
+
+    signingConfigs {
+        if (releaseKeystoreFile.exists()) {
+            release {
+                storeFile file(releaseKeystoreProperties.getProperty("storeFile"))
+                storePassword releaseKeystoreProperties.getProperty("storePassword")
+                keyAlias releaseKeystoreProperties.getProperty("keyAlias")
+                keyPassword releaseKeystoreProperties.getProperty("keyPassword")
+            }
+        }
+    }
+
+    buildTypes {
+        release {
+            if (releaseKeystoreFile.exists()) {
+                signingConfig signingConfigs.release
+            }
+            minifyEnabled false
+        }
     }
 }
 

@@ -13,6 +13,7 @@ import org.json.JSONObject;
 
 import java.io.IOException;
 
+import okhttp3.ResponseBody;
 import retrofit2.Call;
 import retrofit2.Callback;
 import retrofit2.Response;
@@ -33,7 +34,11 @@ public class AuthService {
     }
 
     public void login(String email, String password, AuthCallback<LoginResponse> callback) {
-        authApi.login(new LoginRequest(email, password)).enqueue(new Callback<LoginResponse>() {
+        if (!ApiClient.isConfigured()) {
+            callback.onError("Supabase URL 또는 공개 키가 설정되지 않았습니다.");
+            return;
+        }
+        authApi.login("password", new LoginRequest(email, password)).enqueue(new Callback<LoginResponse>() {
             @Override
             public void onResponse(Call<LoginResponse> call, Response<LoginResponse> response) {
                 LoginResponse body = response.body();
@@ -41,7 +46,8 @@ public class AuthService {
                     tokenManager.saveSupabaseSession(
                             body.getAccessToken(),
                             body.getRefreshToken(),
-                            body.getExpiresAt()
+                            body.getExpiresAt(),
+                            body.getUser() == null ? null : body.getUser().getId()
                     );
                     callback.onSuccess(body);
                     return;
@@ -99,7 +105,7 @@ public class AuthService {
             return;
         }
 
-        authApi.refresh(new RefreshTokenRequest(refreshToken)).enqueue(new Callback<LoginResponse>() {
+        authApi.refresh("refresh_token", new RefreshTokenRequest(refreshToken)).enqueue(new Callback<LoginResponse>() {
             @Override
             public void onResponse(Call<LoginResponse> call, Response<LoginResponse> response) {
                 LoginResponse body = response.body();
@@ -107,7 +113,8 @@ public class AuthService {
                     tokenManager.saveSupabaseSession(
                             body.getAccessToken(),
                             body.getRefreshToken(),
-                            body.getExpiresAt()
+                            body.getExpiresAt(),
+                            body.getUser() == null ? tokenManager.getUserId() : body.getUser().getId()
                     );
                     callback.onSuccess(body);
                     return;
@@ -125,6 +132,34 @@ public class AuthService {
 
     public String getAccessToken() {
         return tokenManager.getAccessToken();
+    }
+
+    public void deleteAccount(AuthCallback<Void> callback) {
+        String accessToken = tokenManager.getAccessToken();
+        if (accessToken == null || accessToken.trim().isEmpty()) {
+            callback.onError("로그인이 필요합니다.");
+            return;
+        }
+        authApi.deleteAccount(
+                ApiClient.FUNCTIONS_URL + "/delete-account",
+                "Bearer " + accessToken,
+                ApiClient.SUPABASE_ANON_KEY
+        ).enqueue(new Callback<ResponseBody>() {
+            @Override
+            public void onResponse(Call<ResponseBody> call, Response<ResponseBody> response) {
+                if (response.isSuccessful()) {
+                    tokenManager.clear();
+                    callback.onSuccess(null);
+                    return;
+                }
+                callback.onError(parseError(response));
+            }
+
+            @Override
+            public void onFailure(Call<ResponseBody> call, Throwable throwable) {
+                callback.onError(networkErrorMessage(throwable));
+            }
+        });
     }
 
     private String nicknameFromEmail(String email) {
@@ -158,7 +193,8 @@ public class AuthService {
                     }
                 }
             }
-            return errorJson;
+            String message = jsonObject.optString("msg", jsonObject.optString("message", jsonObject.optString("error_description", errorJson)));
+            return message;
         } catch (Exception ignored) {
             return "Request failed. HTTP " + response.code();
         }
@@ -166,7 +202,7 @@ public class AuthService {
 
     private String networkErrorMessage(Throwable throwable) {
         if (throwable instanceof IOException) {
-            return "Cannot connect to FastAPI server. Check http://10.0.2.2:8001/health.";
+            return "Supabase에 연결할 수 없습니다. 인터넷 연결과 프로젝트 설정을 확인해주세요.";
         }
         return throwable.getMessage() == null ? "Unexpected error occurred." : throwable.getMessage();
     }

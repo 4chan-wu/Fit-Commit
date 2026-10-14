@@ -2,11 +2,13 @@
 
 ## Supabase 인증
 
-- 이메일 회원가입/로그인은 FastAPI의 `/users/signup`, `/users/login`을 통해 Supabase Auth를 사용함
+- 이메일 회원가입/로그인은 AWS/FastAPI 없이 Supabase Auth를 직접 사용함
 - 로그인 응답의 access token, refresh token, 만료 시각을 저장함
-- 만료 1분 전에는 `/users/refresh`로 세션을 갱신함
-- Release 빌드에는 고정 테스트 UUID가 포함되지 않음
+- 만료 1분 전에는 Supabase Auth token endpoint로 세션을 갱신함
+- 고정 테스트 UUID와 `X-Test-User-Id`는 제거함
 - Google/Kakao/Naver/Apple 버튼은 각 개발자 콘솔의 OAuth 설정을 마친 뒤 활성화해야 함
+
+옷·옷장 데이터는 Supabase PostgREST, 사진은 Supabase Storage로 직접 전송함. 앱에는 공개 가능한 anon/publishable key만 포함하며 `service_role`은 포함하지 않음.
 
 Fitcommit Android는 Java/XML 기반 Android 앱임. 현재 흐름은 iOS와 동일하게 카테고리를 먼저 선택하고, 아이템 단독 사진을 로컬 옷장에 먼저 저장한 뒤 Backend 동기화와 AI 분석을 후처리로 시도하는 구조임.
 
@@ -70,22 +72,19 @@ sh gradlew assembleDebug
 
 현재 Codex 검증 환경에는 Java Runtime이 없어 위 빌드는 실행하지 못함. 로컬 개발 환경에서는 Android Studio가 설치한 JDK 또는 별도 JDK 17 이상을 사용하면 됨.
 
-## Backend URL 설정
+## Supabase 설정
 
-Android 앱의 Backend base URL은 `app/src/main/java/com/fitcommit/app/services/ApiClient.java`에서 한 곳으로 관리함.
+`Android/local.properties`, 셸 환경변수, 로컬 `Backend/.env` 순서로 아래 값을 읽어 BuildConfig에 주입함. `local.properties`와 `.env`는 Git에 커밋하지 않음.
 
 팀원 실제 기기 테스트용 기본값은 아래와 같음.
 
 ```text
-BASE_URL=http://54.180.79.90:8000
-BACKEND_CLOTHES_USER_ID=45482f0f-42d0-401e-a18a-77abeb0492cc (Debug 빌드 전용)
-ENABLE_AI_ANALYSIS=false
+SUPABASE_URL=https://iuplvspexcgvhonqgfag.supabase.co
+SUPABASE_ANON_KEY=Supabase의_공개키
+SUPABASE_CLOTHING_BUCKET=clothing-images
 ```
 
-`ENABLE_AI_ANALYSIS=false`이면 AI 서버 `/predict`를 호출하지 않고 Backend `/clothes` 저장까지만 진행함.
-개발 단계에서는 Debug 빌드만 `BACKEND_CLOTHES_USER_ID`를 `X-Test-User-Id` 헤더로 함께 보냄. Release 빌드에서는 테스트 user_id가 비활성화됨.
-Supabase 로그인 세션이 저장되면 테스트 ID 대신 `Authorization: Bearer <token>`을 보내고 `/clothes/me`, `/wardrobes/me`를 사용함.
-팀원들이 같은 테스트 user_id를 쓰면 Supabase `clothes` 데이터가 같은 사용자 옷장에 섞일 수 있음.
+로그인 세션의 `Authorization: Bearer <token>`과 RLS로 사용자 데이터를 분리함. 이미지는 최대 1600px, JPEG 품질 82로 줄인 후 사용자 UUID 폴더에 업로드함.
 
 ## 사용자별 옷장 구조
 

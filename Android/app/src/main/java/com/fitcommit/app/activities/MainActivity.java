@@ -22,6 +22,7 @@ import com.fitcommit.app.models.ClosetItem;
 import com.fitcommit.app.models.Wardrobe;
 import com.fitcommit.app.services.ClothesBackendService;
 import com.fitcommit.app.services.ClothingStorage;
+import com.fitcommit.app.services.TokenManager;
 import com.fitcommit.app.utils.UiUtils;
 
 import java.util.ArrayList;
@@ -127,7 +128,7 @@ public class MainActivity extends Activity {
         currentScreen = "home";
         setSelectedTab(tabHome);
         View view = inflate(R.layout.screen_home);
-        view.findViewById(R.id.viewDailyOutfitButton).setOnClickListener(v -> showAiLanding());
+        view.findViewById(R.id.viewDailyOutfitButton).setOnClickListener(v -> showCloset());
     }
 
     /**
@@ -241,7 +242,7 @@ public class MainActivity extends Activity {
                         }
                         sourceItems.clear();
                         sourceItems.addAll(loadLocalClosetItems());
-                        backendSyncStatusText.setText("● 서버 조회 실패 · 로컬/샘플 데이터 표시 중");
+                        backendSyncStatusText.setText("● 서버 조회 실패 · 기기에 저장된 데이터 표시 중");
                         backendSyncStatusText.setTextColor(getColor(R.color.fit_danger));
                         refresh.run();
                     });
@@ -249,19 +250,14 @@ public class MainActivity extends Activity {
             }).start();
         } else {
             sourceItems.addAll(loadLocalClosetItems());
-            backendSyncStatusText.setText("● 서버 설정 없음 · 로컬/샘플 데이터 표시 중");
+            backendSyncStatusText.setText("● 서버 설정 없음 · 기기에 저장된 데이터 표시 중");
             backendSyncStatusText.setTextColor(getColor(R.color.fit_danger));
             refresh.run();
         }
     }
 
     private List<ClosetItem> loadLocalClosetItems() {
-        List<ClosetItem> items = new ArrayList<>();
-        items.addAll(ClothingStorage.load(this));
-        if (items.isEmpty()) {
-            items.addAll(sampleClosetItems());
-        }
-        return items;
+        return new ArrayList<>(ClothingStorage.load(this));
     }
 
     private void applyClosetFilters(
@@ -421,18 +417,9 @@ public class MainActivity extends Activity {
     }
 
     private void showClosetToolsDialog() {
-        String[] actions = {"3D 공간 스캔", "신체 비율 측정", "새 옷장 만들기"};
         new AlertDialog.Builder(this)
                 .setTitle("옷장 도구")
-                .setItems(actions, (dialog, which) -> {
-                    if (which == 0) {
-                        startActivity(new Intent(this, SpaceScanActivity.class));
-                    } else if (which == 1) {
-                        startActivity(new Intent(this, BodyMeasureActivity.class));
-                    } else {
-                        showCreateWardrobeDialog();
-                    }
-                })
+                .setItems(new String[]{"새 옷장 만들기"}, (dialog, which) -> showCreateWardrobeDialog())
                 .show();
     }
 
@@ -612,20 +599,39 @@ public class MainActivity extends Activity {
         currentScreen = "profile";
         setSelectedTab(tabProfile);
         View view = inflate(R.layout.screen_profile);
-        view.findViewById(R.id.scanHistoryButton).setOnClickListener(v -> UiUtils.toast(this, "스캔 히스토리는 로컬 저장소 연결 후 표시됩니다."));
-        view.findViewById(R.id.profileChatHistoryButton).setOnClickListener(v -> showAiLanding());
+        view.findViewById(R.id.privacyPolicyButton).setOnClickListener(v ->
+                startActivity(new Intent(this, LegalActivity.class)));
         view.findViewById(R.id.logoutButton).setOnClickListener(v -> {
+            new TokenManager(this).clear();
             startActivity(new Intent(this, LoginActivity.class));
             finish();
         });
+        view.findViewById(R.id.deleteAccountButton).setOnClickListener(v -> confirmAccountDeletion());
     }
 
-    private List<ClosetItem> sampleClosetItems() {
-        return Arrays.asList(
-                new ClosetItem("네이비 셔츠", "Shirt", "#1A237E", "All-Season"),
-                new ClosetItem("화이트 티셔츠", "T-shirt", "#F7F7F7", "Spring/Summer"),
-                new ClosetItem("그레이 슬랙스", "Pants", "#6D7280", "All-Season"),
-                new ClosetItem("블랙 후디", "Hoodie", "#20232A", "Fall/Winter")
-        );
+    private void confirmAccountDeletion() {
+        new AlertDialog.Builder(this)
+                .setTitle("계정을 삭제할까요?")
+                .setMessage("계정과 옷장 데이터, 업로드한 사진이 영구적으로 삭제됩니다. 이 작업은 되돌릴 수 없습니다.")
+                .setNegativeButton("취소", null)
+                .setPositiveButton("계정 삭제", (dialog, which) -> new com.fitcommit.app.services.AuthService(this)
+                        .deleteAccount(new com.fitcommit.app.services.AuthService.AuthCallback<Void>() {
+                            @Override
+                            public void onSuccess(Void result) {
+                                runOnUiThread(() -> {
+                                    ClothingStorage.clear(MainActivity.this);
+                                    UiUtils.toast(MainActivity.this, "계정이 삭제되었습니다.");
+                                    startActivity(new Intent(MainActivity.this, LoginActivity.class));
+                                    finish();
+                                });
+                            }
+
+                            @Override
+                            public void onError(String message) {
+                                runOnUiThread(() -> UiUtils.toast(MainActivity.this, "계정 삭제 실패: " + message));
+                            }
+                        }))
+                .show();
     }
+
 }
