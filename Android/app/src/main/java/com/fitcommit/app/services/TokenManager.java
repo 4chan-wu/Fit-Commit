@@ -10,7 +10,6 @@ public class TokenManager {
     private static final String KEY_REFRESH_TOKEN = "refresh_token";
     private static final String KEY_EXPIRES_AT = "expires_at";
     private static final String KEY_AUTH_SOURCE = "auth_source";
-    private static final String AUTH_SOURCE_BACKEND = "backend";
     private static final String AUTH_SOURCE_SUPABASE = "supabase";
 
     private final SharedPreferences preferences;
@@ -18,16 +17,6 @@ public class TokenManager {
     public TokenManager(Context context) {
         preferences = context.getApplicationContext()
                 .getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
-    }
-
-    public void saveToken(String accessToken, String tokenType) {
-        preferences.edit()
-                .putString(KEY_ACCESS_TOKEN, accessToken)
-                .putString(KEY_TOKEN_TYPE, tokenType)
-                .putString(KEY_AUTH_SOURCE, AUTH_SOURCE_BACKEND)
-                .remove(KEY_REFRESH_TOKEN)
-                .remove(KEY_EXPIRES_AT)
-                .apply();
     }
 
     public void saveSupabaseSession(

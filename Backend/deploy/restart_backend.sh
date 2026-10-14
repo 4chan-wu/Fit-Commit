@@ -28,7 +28,7 @@ tar -xzf "$ARCHIVE_PATH" -C "$HOME_DIR"
 if [ ! -f "$ENV_FILE" ]; then
   echo "[restart] WARNING: $ENV_FILE is missing."
   echo "[restart] Create it on EC2 with: sudo nano $ENV_FILE"
-  echo "[restart] The systemd service reads this file for DATABASE_URL, SECRET_KEY, and Supabase env values."
+  echo "[restart] The systemd service reads this file for the Supabase DATABASE_URL and API keys."
 fi
 
 cd "$BACKEND_DIR"
@@ -50,7 +50,7 @@ if command -v systemctl >/dev/null 2>&1; then
   sudo systemctl daemon-reload
   sudo systemctl restart "$SERVICE_NAME"
   sudo systemctl status "$SERVICE_NAME" --no-pager
-  echo "[restart] Test with: curl 'http://54.180.79.90:8000/clothes?user_id=45482f0f-42d0-401e-a18a-77abeb0492cc'"
+  echo "[restart] Test with: curl 'http://54.180.79.90:8000/health'"
 else
   echo "[restart] systemctl is not available. Start manually with:"
   echo "[restart] cd $BACKEND_DIR && source .venv/bin/activate && python -m uvicorn app.main:app --host 0.0.0.0 --port 8000"

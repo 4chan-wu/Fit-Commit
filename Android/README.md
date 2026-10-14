@@ -1,5 +1,13 @@
 # Fitcommit Android
 
+## Supabase 인증
+
+- 이메일 회원가입/로그인은 FastAPI의 `/users/signup`, `/users/login`을 통해 Supabase Auth를 사용함
+- 로그인 응답의 access token, refresh token, 만료 시각을 저장함
+- 만료 1분 전에는 `/users/refresh`로 세션을 갱신함
+- Release 빌드에는 고정 테스트 UUID가 포함되지 않음
+- Google/Kakao/Naver/Apple 버튼은 각 개발자 콘솔의 OAuth 설정을 마친 뒤 활성화해야 함
+
 Fitcommit Android는 Java/XML 기반 Android 앱임. 현재 흐름은 iOS와 동일하게 카테고리를 먼저 선택하고, 아이템 단독 사진을 로컬 옷장에 먼저 저장한 뒤 Backend 동기화와 AI 분석을 후처리로 시도하는 구조임.
 
 ## 역할

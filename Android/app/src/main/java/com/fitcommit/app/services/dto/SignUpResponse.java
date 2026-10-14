@@ -6,13 +6,20 @@ public class SignUpResponse {
     private String message;
 
     @SerializedName("user_id")
-    private long userId;
+    private String userId;
+
+    @SerializedName("requires_email_confirmation")
+    private boolean requiresEmailConfirmation;
 
     public String getMessage() {
         return message;
     }
 
-    public long getUserId() {
+    public String getUserId() {
         return userId;
+    }
+
+    public boolean requiresEmailConfirmation() {
+        return requiresEmailConfirmation;
     }
 }

@@ -570,12 +570,55 @@ public class ClothesBackendService {
         }
     }
 
-    private void applyAuthHeaders(HttpURLConnection connection) {
+    private void applyAuthHeaders(HttpURLConnection connection) throws Exception {
         if (tokenManager.hasSupabaseSession()) {
+            refreshSessionIfNeeded();
             connection.setRequestProperty("Authorization", "Bearer " + tokenManager.getAccessToken());
         } else if (hasTestUser()) {
             connection.setRequestProperty("X-Test-User-Id", ApiClient.BACKEND_CLOTHES_USER_ID);
         }
+    }
+
+    private void refreshSessionIfNeeded() throws Exception {
+        long expiresAt = tokenManager.getExpiresAtEpochSeconds();
+        long now = System.currentTimeMillis() / 1000L;
+        if (expiresAt == 0L || expiresAt > now + 60L) {
+            return;
+        }
+
+        String refreshToken = tokenManager.getRefreshToken();
+        if (refreshToken == null || refreshToken.trim().isEmpty()) {
+            tokenManager.clear();
+            throw new IllegalStateException("로그인 세션이 만료되었습니다. 다시 로그인해주세요.");
+        }
+
+        HttpURLConnection connection = (HttpURLConnection) new URL(ApiClient.BASE_URL + "/users/refresh").openConnection();
+        connection.setRequestMethod("POST");
+        connection.setConnectTimeout(10_000);
+        connection.setReadTimeout(15_000);
+        connection.setDoOutput(true);
+        connection.setRequestProperty("Content-Type", "application/json");
+        connection.setRequestProperty("Accept", "application/json");
+
+        JSONObject payload = new JSONObject();
+        payload.put("refresh_token", refreshToken);
+        try (OutputStream output = connection.getOutputStream()) {
+            output.write(payload.toString().getBytes(StandardCharsets.UTF_8));
+        }
+
+        int statusCode = connection.getResponseCode();
+        String body = readResponse(connection, statusCode);
+        if (statusCode < 200 || statusCode >= 300) {
+            tokenManager.clear();
+            throw new IllegalStateException("로그인 세션을 갱신할 수 없습니다. 다시 로그인해주세요.");
+        }
+
+        JSONObject session = new JSONObject(body);
+        tokenManager.saveSupabaseSession(
+                session.getString("access_token"),
+                session.getString("refresh_token"),
+                session.optLong("expires_at", now + 3600L)
+        );
     }
 
     private boolean hasTestUser() {

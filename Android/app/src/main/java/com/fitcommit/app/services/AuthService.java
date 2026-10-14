@@ -4,6 +4,7 @@ import android.content.Context;
 
 import com.fitcommit.app.services.dto.LoginRequest;
 import com.fitcommit.app.services.dto.LoginResponse;
+import com.fitcommit.app.services.dto.RefreshTokenRequest;
 import com.fitcommit.app.services.dto.SignUpRequest;
 import com.fitcommit.app.services.dto.SignUpResponse;
 
@@ -37,7 +38,11 @@ public class AuthService {
             public void onResponse(Call<LoginResponse> call, Response<LoginResponse> response) {
                 LoginResponse body = response.body();
                 if (response.isSuccessful() && body != null && body.getAccessToken() != null) {
-                    tokenManager.saveToken(body.getAccessToken(), body.getTokenType());
+                    tokenManager.saveSupabaseSession(
+                            body.getAccessToken(),
+                            body.getRefreshToken(),
+                            body.getExpiresAt()
+                    );
                     callback.onSuccess(body);
                     return;
                 }
@@ -64,7 +69,7 @@ public class AuthService {
                 email,
                 name,
                 nickname,
-                phone,
+                phone == null ? "" : phone.replaceAll("[^0-9]", ""),
                 password,
                 passwordConfirm
         );
@@ -82,6 +87,37 @@ public class AuthService {
 
             @Override
             public void onFailure(Call<SignUpResponse> call, Throwable throwable) {
+                callback.onError(networkErrorMessage(throwable));
+            }
+        });
+    }
+
+    public void refreshSession(AuthCallback<LoginResponse> callback) {
+        String refreshToken = tokenManager.getRefreshToken();
+        if (refreshToken == null || refreshToken.trim().isEmpty()) {
+            callback.onError("로그인 세션이 만료되었습니다. 다시 로그인해주세요.");
+            return;
+        }
+
+        authApi.refresh(new RefreshTokenRequest(refreshToken)).enqueue(new Callback<LoginResponse>() {
+            @Override
+            public void onResponse(Call<LoginResponse> call, Response<LoginResponse> response) {
+                LoginResponse body = response.body();
+                if (response.isSuccessful() && body != null && body.getAccessToken() != null) {
+                    tokenManager.saveSupabaseSession(
+                            body.getAccessToken(),
+                            body.getRefreshToken(),
+                            body.getExpiresAt()
+                    );
+                    callback.onSuccess(body);
+                    return;
+                }
+                tokenManager.clear();
+                callback.onError(parseError(response));
+            }
+
+            @Override
+            public void onFailure(Call<LoginResponse> call, Throwable throwable) {
                 callback.onError(networkErrorMessage(throwable));
             }
         });

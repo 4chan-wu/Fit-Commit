@@ -3,7 +3,7 @@ package com.fitcommit.app.services.dto;
 import com.google.gson.annotations.SerializedName;
 
 public class UserDto {
-    private long id;
+    private String id;
     private String email;
     private String nickname;
     private String name;
@@ -11,7 +11,7 @@ public class UserDto {
     @SerializedName("phone_number")
     private String phoneNumber;
 
-    public long getId() {
+    public String getId() {
         return id;
     }
 

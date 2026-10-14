@@ -114,7 +114,12 @@ public class LoginActivity extends Activity {
         authService.signUp(name, email, phone, password, confirm, new AuthService.AuthCallback<SignUpResponse>() {
             @Override
             public void onSuccess(SignUpResponse result) {
-                submitLogin(email, password);
+                if (result.requiresEmailConfirmation()) {
+                    setLoading(false);
+                    showFeedback("인증 메일을 확인한 뒤 로그인해주세요.");
+                } else {
+                    submitLogin(email, password);
+                }
             }
 
             @Override

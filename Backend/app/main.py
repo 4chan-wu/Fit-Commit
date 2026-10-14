@@ -1,8 +1,12 @@
 import os
 
+from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
+
+# Service singletons read their configuration while route modules are imported.
+load_dotenv()
 
 from app.api.user import router as user_router
 from app.api.billing import router as billing_router

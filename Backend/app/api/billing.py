@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
@@ -10,13 +10,9 @@ from app.schemas.billing import (
     ConfirmPaymentRequest,
 )
 from app.services.toss_payment_service import TossPaymentService
+from app.services.supabase_auth_service import user_resolver
 
 router = APIRouter(prefix="/billing", tags=["billing"])
-
-
-# 로그인 전 임시 테스트용
-def get_current_user_id() -> int:
-    return 1
 
 
 @router.get("/plans", response_model=list[PlanResponse])
@@ -33,11 +29,12 @@ def get_plans(db: Session = Depends(get_db)):
 
 
 @router.post("/payments/prepare", response_model=PreparePaymentResponse)
-def prepare_payment(
+async def prepare_payment(
     body: PreparePaymentRequest,
+    request: Request,
     db: Session = Depends(get_db),
 ):
-    user_id = get_current_user_id()
+    user_id = await user_resolver.resolve_user_id(request)
     service = TossPaymentService()
 
     try:
@@ -49,9 +46,10 @@ def prepare_payment(
 @router.post("/payments/confirm")
 async def confirm_payment(
     body: ConfirmPaymentRequest,
+    request: Request,
     db: Session = Depends(get_db),
 ):
-    user_id = get_current_user_id()
+    user_id = await user_resolver.resolve_user_id(request)
     service = TossPaymentService()
 
     try:

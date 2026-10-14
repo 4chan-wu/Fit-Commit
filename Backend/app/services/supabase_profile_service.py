@@ -48,10 +48,10 @@ class SupabaseProfileService:
         )
         return self._single_row_or_404(response, f"profile user_id={user_id}")
 
-    async def upsert_profile(self, user_id: UUID, body: UserProfileCreate) -> dict[str, Any]:
+    async def upsert_profile(self, user_id: UUID | str, body: UserProfileCreate) -> dict[str, Any]:
         payload = body.model_dump(mode="json", exclude_none=True)
         payload["user_id"] = str(user_id)
-        payload.setdefault("preferred_style", [])
+        payload.setdefault("preferred_styles", [])
 
         response = await self._request(
             "POST",
