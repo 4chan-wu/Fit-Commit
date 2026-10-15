@@ -15,6 +15,8 @@ import java.io.BufferedInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
@@ -29,10 +31,12 @@ import okhttp3.RequestBody;
 import okhttp3.Response;
 
 public class ClothesBackendService {
+    private final Context context;
     private final TokenManager tokenManager;
 
     public ClothesBackendService(Context context) {
-        tokenManager = new TokenManager(context);
+        this.context = context.getApplicationContext();
+        tokenManager = new TokenManager(this.context);
     }
 
     public boolean isConfigured() {
@@ -61,13 +65,25 @@ public class ClothesBackendService {
     }
 
     public JSONObject createPending(String category, String imagePath, String wardrobeId) throws Exception {
-        String storageImagePath = localImageReference(imagePath);
-        String storageImageUrl = "";
+        return createPending(category, imagePath, null, wardrobeId);
+    }
+
+    public JSONObject createPending(
+            String category,
+            String originalImagePath,
+            String processedImagePath,
+            String wardrobeId
+    ) throws Exception {
+        String storageImagePath = localImageReference(originalImagePath);
+        String backgroundRemovedImagePath = "";
         try {
             System.out.println("[ClothesBackendService] Supabase Storage upload started category=" + category);
-            JSONObject upload = uploadImage(category, imagePath);
+            JSONObject upload = uploadImage(category, originalImagePath, "original");
             storageImagePath = upload.optString("image_path", storageImagePath);
-            storageImageUrl = upload.optString("image_url", "");
+            if (processedImagePath != null && !processedImagePath.trim().isEmpty()) {
+                JSONObject cutoutUpload = uploadImage(category, processedImagePath, "background_removed");
+                backgroundRemovedImagePath = cutoutUpload.optString("image_path", "");
+            }
             System.out.println("[ClothesBackendService] Storage upload succeeded path=" + storageImagePath);
         } catch (Exception error) {
             System.out.println("[ClothesBackendService] Storage upload failed, falling back to local image reference: " + error.getMessage());
@@ -79,13 +95,24 @@ public class ClothesBackendService {
             payload.put("wardrobe_id", wardrobeId);
         }
         payload.put("main_category", category);
-        payload.put("main_color", dominantColorName(imagePath));
+        String colorSourcePath = processedImagePath == null || processedImagePath.trim().isEmpty()
+                ? originalImagePath
+                : processedImagePath;
+        payload.put("main_color", dominantColorName(colorSourcePath));
         payload.put("analysis_method", "manual");
         payload.put("season", new JSONArray());
         payload.put("style_tags", new JSONArray());
-        payload.put("image_url", storageImageUrl);
+        payload.put("image_url", "");
         payload.put("image_path", storageImagePath);
-        payload.put("local_image_path", imagePath == null ? "" : imagePath);
+        payload.put("local_image_path", "");
+        if (!backgroundRemovedImagePath.isEmpty()) {
+            payload.put("background_removed_image_path", backgroundRemovedImagePath);
+            payload.put("background_removed_image_url", "");
+            payload.put("background_removal_status", "completed");
+            payload.put("background_removal_error", JSONObject.NULL);
+        } else {
+            payload.put("background_removal_status", "not_requested");
+        }
         payload.put("analysis_status", "pending");
         payload.put("needs_analysis", true);
         payload.put("sync_status", "synced");
@@ -108,11 +135,28 @@ public class ClothesBackendService {
             if (bitmap == null) {
                 return "gray";
             }
-            Bitmap scaled = Bitmap.createScaledBitmap(bitmap, 1, 1, true);
-            int pixel = scaled.getPixel(0, 0);
-            int red = android.graphics.Color.red(pixel);
-            int green = android.graphics.Color.green(pixel);
-            int blue = android.graphics.Color.blue(pixel);
+            Bitmap scaled = Bitmap.createScaledBitmap(bitmap, 64, 64, true);
+            long redTotal = 0;
+            long greenTotal = 0;
+            long blueTotal = 0;
+            long alphaTotal = 0;
+            for (int y = 0; y < scaled.getHeight(); y++) {
+                for (int x = 0; x < scaled.getWidth(); x++) {
+                    int pixel = scaled.getPixel(x, y);
+                    int alpha = android.graphics.Color.alpha(pixel);
+                    if (alpha < 32) continue;
+                    redTotal += (long) android.graphics.Color.red(pixel) * alpha;
+                    greenTotal += (long) android.graphics.Color.green(pixel) * alpha;
+                    blueTotal += (long) android.graphics.Color.blue(pixel) * alpha;
+                    alphaTotal += alpha;
+                }
+            }
+            if (scaled != bitmap) scaled.recycle();
+            bitmap.recycle();
+            if (alphaTotal == 0) return "gray";
+            int red = (int) (redTotal / alphaTotal);
+            int green = (int) (greenTotal / alphaTotal);
+            int blue = (int) (blueTotal / alphaTotal);
             String[] names = {"black", "white", "gray", "navy", "blue", "brown", "beige", "red", "pink", "green", "yellow", "purple"};
             int[][] values = {
                     {20, 20, 20}, {245, 245, 245}, {140, 140, 140}, {20, 35, 90},
@@ -137,6 +181,10 @@ public class ClothesBackendService {
     }
 
     public JSONObject uploadImage(String category, String imagePath) throws Exception {
+        return uploadImage(category, imagePath, "original");
+    }
+
+    public JSONObject uploadImage(String category, String imagePath, String imageType) throws Exception {
         if (imagePath == null || imagePath.trim().isEmpty()) {
             throw new IllegalArgumentException("Image path is empty.");
         }
@@ -146,8 +194,11 @@ public class ClothesBackendService {
         }
 
         requireAuthenticatedUserId();
-        String objectPath = tokenManager.getUserId() + "/" + safePathSegment(category) + "/"
-                + java.util.UUID.randomUUID() + ".jpg";
+        boolean backgroundRemoved = "background_removed".equals(imageType);
+        String extension = backgroundRemoved ? "webp" : "jpg";
+        String typeFolder = backgroundRemoved ? "/background_removed" : "";
+        String objectPath = tokenManager.getUserId() + "/" + safePathSegment(category) + typeFolder + "/"
+                + java.util.UUID.randomUUID() + "." + extension;
         String encodedPath = encodeStoragePath(objectPath);
         HttpURLConnection connection = (HttpURLConnection) new URL(
                 ApiClient.STORAGE_URL + "/object/" + ApiClient.SUPABASE_CLOTHING_BUCKET + "/" + encodedPath
@@ -156,12 +207,12 @@ public class ClothesBackendService {
         connection.setConnectTimeout(15_000);
         connection.setReadTimeout(30_000);
         connection.setDoOutput(true);
-        connection.setRequestProperty("Content-Type", "image/jpeg");
+        connection.setRequestProperty("Content-Type", backgroundRemoved ? "image/webp" : "image/jpeg");
         connection.setRequestProperty("Accept", "application/json");
         connection.setRequestProperty("x-upsert", "false");
         applyAuthHeaders(connection);
 
-        byte[] optimizedImage = optimizedJpeg(file);
+        byte[] optimizedImage = backgroundRemoved ? readFileWithLimit(file) : optimizedJpeg(file);
         connection.setFixedLengthStreamingMode(optimizedImage.length);
         try (OutputStream output = connection.getOutputStream()) {
             output.write(optimizedImage);
@@ -188,7 +239,7 @@ public class ClothesBackendService {
             String imagePath,
             AnalysisResult result
     ) throws Exception {
-        return createCompleted(category, subcategory, color, season, styleTags, imagePath, result, "");
+        return createCompleted(category, subcategory, color, season, styleTags, imagePath, null, result, "");
     }
 
     public JSONObject createCompleted(
@@ -201,7 +252,36 @@ public class ClothesBackendService {
             AnalysisResult result,
             String wardrobeId
     ) throws Exception {
-        JSONObject payload = completedPayload(category, subcategory, color, season, styleTags, imagePath, result, wardrobeId);
+        return createCompleted(category, subcategory, color, season, styleTags, imagePath, null, result, wardrobeId);
+    }
+
+    public JSONObject createCompleted(
+            String category,
+            String subcategory,
+            String color,
+            String season,
+            String styleTags,
+            String originalImagePath,
+            String processedImagePath,
+            AnalysisResult result,
+            String wardrobeId
+    ) throws Exception {
+        JSONObject originalUpload = uploadImage(category, originalImagePath, "original");
+        JSONObject cutoutUpload = processedImagePath == null || processedImagePath.trim().isEmpty()
+                ? null
+                : uploadImage(category, processedImagePath, "background_removed");
+        JSONObject payload = completedPayload(category, subcategory, color, season, styleTags, result, wardrobeId);
+        payload.put("image_path", originalUpload.optString("image_path"));
+        payload.put("image_url", "");
+        payload.put("local_image_path", "");
+        if (cutoutUpload != null) {
+            payload.put("background_removed_image_path", cutoutUpload.optString("image_path"));
+            payload.put("background_removed_image_url", "");
+            payload.put("background_removal_status", "completed");
+            payload.put("background_removal_error", JSONObject.NULL);
+        } else {
+            payload.put("background_removal_status", "not_requested");
+        }
         putCurrentUserId(payload);
         return requestJson("POST", ApiClient.BASE_URL + "/clothes", payload);
     }
@@ -230,14 +310,12 @@ public class ClothesBackendService {
             AnalysisResult result,
             String wardrobeId
     ) throws Exception {
-        JSONObject payload = completedPayload(category, subcategory, color, season, styleTags, imagePath, result, wardrobeId);
+        JSONObject payload = completedPayload(category, subcategory, color, season, styleTags, result, wardrobeId);
         return requestJson("PATCH", ApiClient.BASE_URL + "/clothes?id=eq." + urlEncode(clothingId), payload);
     }
 
     public JSONObject updateFailed(String clothingId, String imagePath, String errorMessage) throws Exception {
         JSONObject payload = new JSONObject();
-        payload.put("image_path", imagePath == null ? "" : imagePath);
-        payload.put("local_image_path", imagePath == null ? "" : imagePath);
         payload.put("analysis_status", "failed");
         payload.put("analysis_error", errorMessage == null ? "AI analysis failed" : errorMessage);
         payload.put("needs_analysis", true);
@@ -278,8 +356,13 @@ public class ClothesBackendService {
             String color = row.optString("main_color", "#CCCCCC");
             String season = seasonLabel(row.optJSONArray("season"));
             String styleTags = joinTags(row.optJSONArray("style_tags"));
-            String imagePath = row.optString("image_path", "");
-            String localImagePath = row.optString("local_image_path", imagePath);
+            String originalStoragePath = row.optString("image_path", "");
+            String cutoutStoragePath = row.optString("background_removed_image_path", "");
+            String localImagePath = row.optString("local_image_path", "");
+            if (localImagePath.isEmpty() || !new File(localImagePath).exists()) {
+                String preferredStoragePath = cutoutStoragePath.isEmpty() ? originalStoragePath : cutoutStoragePath;
+                localImagePath = downloadStorageImage(preferredStoragePath);
+            }
             String status = row.optString("analysis_status", "completed");
             String syncStatus = row.optString("sync_status", "synced");
             String wardrobeIdValue = row.optString("wardrobe_id", "");
@@ -404,7 +487,6 @@ public class ClothesBackendService {
             String color,
             String season,
             String styleTags,
-            String imagePath,
             AnalysisResult result,
             String wardrobeId
     ) throws Exception {
@@ -417,9 +499,6 @@ public class ClothesBackendService {
         payload.put("main_color", color);
         payload.put("season", seasonArray(season));
         payload.put("style_tags", tagsArray(styleTags));
-        payload.put("image_url", result == null ? "" : result.imageUrl);
-        payload.put("image_path", imagePath == null ? "" : imagePath);
-        payload.put("local_image_path", imagePath == null ? "" : imagePath);
         payload.put("confidence", result == null ? 0 : result.confidence);
         boolean manual = result == null || result.confidence <= 0;
         payload.put("analysis_method", manual ? "manual" : result.method);
@@ -703,5 +782,56 @@ public class ClothesBackendService {
             throw new IllegalArgumentException("최적화된 이미지가 2MB를 초과합니다.");
         }
         return bytes;
+    }
+
+    private byte[] readFileWithLimit(File file) throws Exception {
+        if (file.length() > 2 * 1024 * 1024) {
+            throw new IllegalArgumentException("배경 제거 이미지가 2MB를 초과합니다.");
+        }
+        try (FileInputStream input = new FileInputStream(file);
+             ByteArrayOutputStream output = new ByteArrayOutputStream()) {
+            byte[] buffer = new byte[8192];
+            int read;
+            while ((read = input.read(buffer)) != -1) output.write(buffer, 0, read);
+            return output.toByteArray();
+        }
+    }
+
+    private String downloadStorageImage(String storagePath) {
+        if (storagePath == null || storagePath.trim().isEmpty() || storagePath.startsWith("local://")) {
+            return "";
+        }
+        try {
+            File directory = new File(context.getFilesDir(), "closet_remote_cache");
+            if (!directory.exists() && !directory.mkdirs()) return "";
+            String extension = storagePath.toLowerCase().endsWith(".webp") ? ".webp"
+                    : storagePath.toLowerCase().endsWith(".png") ? ".png" : ".jpg";
+            File cached = new File(directory, Integer.toHexString(storagePath.hashCode()) + extension);
+            if (cached.exists() && cached.length() > 0) return cached.getAbsolutePath();
+
+            HttpURLConnection connection = (HttpURLConnection) new URL(
+                    ApiClient.STORAGE_URL + "/object/authenticated/" + ApiClient.SUPABASE_CLOTHING_BUCKET
+                            + "/" + encodeStoragePath(storagePath)
+            ).openConnection();
+            connection.setRequestMethod("GET");
+            connection.setConnectTimeout(10_000);
+            connection.setReadTimeout(20_000);
+            applyAuthHeaders(connection);
+            int statusCode = connection.getResponseCode();
+            if (statusCode < 200 || statusCode >= 300) {
+                readResponse(connection, statusCode);
+                return "";
+            }
+            try (InputStream input = new BufferedInputStream(connection.getInputStream());
+                 FileOutputStream output = new FileOutputStream(cached)) {
+                byte[] buffer = new byte[8192];
+                int read;
+                while ((read = input.read(buffer)) != -1) output.write(buffer, 0, read);
+            }
+            return cached.getAbsolutePath();
+        } catch (Exception error) {
+            System.out.println("[ClothesBackendService] Private image download failed: " + error.getMessage());
+            return "";
+        }
     }
 }

@@ -32,6 +32,7 @@ import java.util.List;
  */
 public class AnalysisResultActivity extends Activity {
     public static final String EXTRA_IMAGE_PATH = "imagePath";
+    public static final String EXTRA_ORIGINAL_IMAGE_PATH = "originalImagePath";
     public static final String EXTRA_CATEGORY_HINT = "categoryHint";
     public static final String EXTRA_EDIT_MODE = "editMode";
     public static final String EXTRA_LOCAL_ID = "localId";
@@ -48,6 +49,7 @@ public class AnalysisResultActivity extends Activity {
     private ClothesBackendService clothesBackendService;
 
     private String imagePath;
+    private String originalImagePath;
     private String categoryHint;
     private String localItemId;
     private String serverClothingId;
@@ -62,6 +64,10 @@ public class AnalysisResultActivity extends Activity {
         clothesBackendService = new ClothesBackendService(this);
 
         imagePath = getIntent().getStringExtra(EXTRA_IMAGE_PATH);
+        originalImagePath = valueOrDefault(
+                getIntent().getStringExtra(EXTRA_ORIGINAL_IMAGE_PATH),
+                imagePath
+        );
         categoryHint = valueOrDefault(getIntent().getStringExtra(EXTRA_CATEGORY_HINT), "top");
         localItemId = getIntent().getStringExtra(EXTRA_LOCAL_ID);
         serverClothingId = getIntent().getStringExtra(EXTRA_REMOTE_ID);
@@ -257,11 +263,21 @@ public class AnalysisResultActivity extends Activity {
         saveLocally(name, category, subcategory, color, season, styleTags, false);
 
         if (clothesBackendService.isConfigured()) {
-            setLoading(true, "서버에 의류 정보를 저장 중입니다...");
+            setLoading(true, "원본과 배경 제거 이미지를 안전하게 저장 중입니다...");
             new Thread(() -> {
                 try {
                     if (serverClothingId == null || serverClothingId.trim().isEmpty()) {
-                        org.json.JSONObject row = clothesBackendService.createCompleted(category, subcategory, color, season, styleTags, imagePath, result, selectedWardrobeId);
+                        org.json.JSONObject row = clothesBackendService.createCompleted(
+                                category,
+                                subcategory,
+                                color,
+                                season,
+                                styleTags,
+                                originalImagePath,
+                                imagePath,
+                                result,
+                                selectedWardrobeId
+                        );
                         Object id = row.opt("id");
                         serverClothingId = id == null ? null : String.valueOf(id);
                     } else {
@@ -373,7 +389,12 @@ public class AnalysisResultActivity extends Activity {
         }
         try {
             System.out.println("[AnalysisResultActivity] Backend /clothes request started");
-            org.json.JSONObject row = clothesBackendService.createPending(categoryHint, imagePath, selectedWardrobeId);
+            org.json.JSONObject row = clothesBackendService.createPending(
+                    categoryHint,
+                    originalImagePath,
+                    imagePath,
+                    selectedWardrobeId
+            );
             Object id = row.opt("id");
             serverClothingId = id == null ? null : String.valueOf(id);
             selectedWardrobeId = row.optString("wardrobe_id", selectedWardrobeId);
@@ -480,11 +501,28 @@ public class AnalysisResultActivity extends Activity {
             if (bitmap == null) {
                 return "gray";
             }
-            Bitmap scaled = Bitmap.createScaledBitmap(bitmap, 1, 1, true);
-            int pixel = scaled.getPixel(0, 0);
-            int red = android.graphics.Color.red(pixel);
-            int green = android.graphics.Color.green(pixel);
-            int blue = android.graphics.Color.blue(pixel);
+            Bitmap scaled = Bitmap.createScaledBitmap(bitmap, 64, 64, true);
+            long redTotal = 0;
+            long greenTotal = 0;
+            long blueTotal = 0;
+            long alphaTotal = 0;
+            for (int y = 0; y < scaled.getHeight(); y++) {
+                for (int x = 0; x < scaled.getWidth(); x++) {
+                    int pixel = scaled.getPixel(x, y);
+                    int alpha = android.graphics.Color.alpha(pixel);
+                    if (alpha < 32) continue;
+                    redTotal += (long) android.graphics.Color.red(pixel) * alpha;
+                    greenTotal += (long) android.graphics.Color.green(pixel) * alpha;
+                    blueTotal += (long) android.graphics.Color.blue(pixel) * alpha;
+                    alphaTotal += alpha;
+                }
+            }
+            if (scaled != bitmap) scaled.recycle();
+            bitmap.recycle();
+            if (alphaTotal == 0) return "gray";
+            int red = (int) (redTotal / alphaTotal);
+            int green = (int) (greenTotal / alphaTotal);
+            int blue = (int) (blueTotal / alphaTotal);
             String bestName = "gray";
             double bestDistance = Double.MAX_VALUE;
             int[][] values = {

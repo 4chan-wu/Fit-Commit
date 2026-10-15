@@ -24,6 +24,14 @@ WITH CHECK (
     AND (storage.foldername(name))[1] = auth.uid()::text
 );
 
+DROP POLICY IF EXISTS clothing_images_select_own_folder ON storage.objects;
+CREATE POLICY clothing_images_select_own_folder
+ON storage.objects FOR SELECT TO authenticated
+USING (
+    bucket_id = 'clothing-images'
+    AND (storage.foldername(name))[1] = auth.uid()::text
+);
+
 DROP POLICY IF EXISTS clothing_images_update_own_folder ON storage.objects;
 CREATE POLICY clothing_images_update_own_folder
 ON storage.objects FOR UPDATE TO authenticated

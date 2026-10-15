@@ -27,10 +27,10 @@ Fitcommit Android는 Java/XML 기반 Android 앱임. 현재 흐름은 iOS와 동
 - AI 서버 없이도 사용자가 카테고리, 세부 종류, 대표 색상, 계절을 직접 수정할 수 있음
 - 대표색은 Android 로컬 이미지 처리로 추천값을 계산하고, 사용자가 직접 바꿀 수 있음
 - 수동 수정은 `analysis_method=manual`로 저장하고 `analysis_status=pending`을 유지할 수 있음
-- 배경 제거는 저장 필수 조건이 아니며 향후 선택 기능으로 분리함
-- 원본 이미지는 항상 먼저 저장하고, 배경 제거 실패 시에도 원본 이미지와 clothes row는 유지해야 함
-- Android에는 밝은 배경을 투명 처리하는 `BackgroundRemover.processBitmap/processUri`가 있지만 현재 등록 저장 흐름에는 연결하지 않음
-- Android 배경 제거는 ML Kit, OpenCV, 또는 서버 처리 중 하나로 안정화한 뒤 연결해야 함
+- 사진 촬영은 앱 내부 CameraX 화면에서 고품질 JPEG로 저장하며 갤러리 선택도 지원함
+- 등록 전에 ML Kit Subject Segmentation으로 기기 안에서 배경을 제거함
+- 배경 제거본은 투명 WebP로 저장하고 원본 JPEG와 함께 Supabase Storage의 사용자 UUID 폴더에 업로드함
+- 옷장 목록은 배경 제거본을 우선 내려받아 표시하고, 이전 데이터에는 원본 이미지를 fallback으로 사용함
 - Backend 저장 실패 시에도 `ClothingStorage` 로컬 item은 유지됨
 - 옷장 화면은 Backend 조회 결과와 로컬 저장소를 remote id/local id 기준으로 병합함
 - 신체 비율 측정은 MediaPipe Pose Landmarker를 이용해 기기 안에서 전신 관절과 예상 신체 치수를 분석함
@@ -86,7 +86,7 @@ SUPABASE_ANON_KEY=Supabase의_공개키
 SUPABASE_CLOTHING_BUCKET=clothing-images
 ```
 
-로그인 세션의 `Authorization: Bearer <token>`과 RLS로 사용자 데이터를 분리함. 이미지는 최대 1600px, JPEG 품질 82로 줄인 후 사용자 UUID 폴더에 업로드함.
+로그인 세션의 `Authorization: Bearer <token>`과 RLS로 사용자 데이터를 분리함. 원본은 최대 1600px JPEG 품질 82, 배경 제거본은 알파 채널을 유지하는 WebP로 사용자 UUID 폴더에 업로드함. ML Kit Subject Segmentation 모델은 Google Play services를 통해 기기에 내려받으므로 최초 실행 시 인터넷 연결이 필요할 수 있음.
 
 ## Google Play 출시 빌드
 
@@ -162,12 +162,15 @@ ipconfig getifaddr en0
 저장 흐름은 아래 순서로 동작함. AI 분석 성공과 서버 저장 성공은 로컬 저장의 필수 조건이 아님.
 
 ```text
+AddClothingActivity
+  -> 앱 내부 CameraX 촬영 또는 시스템 Photo Picker로 갤러리 선택
+  -> 원본 JPEG를 앱 내부 저장소에 저장
+  -> ML Kit Subject Segmentation으로 온디바이스 배경 제거
+  -> 알파 채널을 유지한 투명 WebP 생성
 AnalysisResultActivity
   -> ClothingStorage에 local item 먼저 저장
-  -> Backend POST /clothes/upload로 Storage 업로드 시도
-  -> 업로드 성공 시 image_path/image_url을 서버 row에 사용
-  -> 업로드 실패 시 local:// fallback 사용
-  -> ClothesBackendService.createPending()으로 Backend 동기화 시도
+  -> 원본 JPEG와 투명 WebP를 Supabase Storage에 직접 업로드
+  -> image_path와 background_removed_image_path를 clothes row에 저장
   -> 성공 시 remote_id 저장 + sync_status=synced
   -> 실패 시 로컬 유지 + sync_status=sync_failed
   -> ENABLE_AI_ANALYSIS=false이면 AI 서버 호출 건너뜀
@@ -183,8 +186,9 @@ AnalysisResultActivity
 Closet 화면
   -> ClothingStorage 로컬 데이터 조회
   -> ClothesBackendService.fetchClothes()
-  -> Supabase 세션이 있으면 GET /clothes/me
-  -> 세션이 없고 Debug 빌드이면 GET /clothes?user_id=...
+  -> Supabase 세션으로 PostgREST clothes 조회
+  -> private Storage에서 background_removed_image_path를 인증 다운로드
+  -> 배경 제거본이 없는 기존 데이터는 image_path 원본으로 대체
   -> 성공 시 Supabase 데이터와 로컬 데이터를 중복 없이 병합
   -> 실패 시 ClothingStorage 로컬 데이터만 표시
 ```
@@ -193,12 +197,13 @@ AI 실패 item과 서버 동기화 실패 item도 옷장 화면에 표시됨. �
 
 ## 이미지 경로
 
-Android는 사진을 `ClothingStorage`에 먼저 저장한 뒤 Backend `POST /clothes/upload`로 Supabase Storage 업로드를 시도함. 업로드 성공 시 `/clothes` 생성 payload에 `image_path`와 `image_url`을 포함함.
+Android는 사진과 배경 제거본을 `ClothingStorage`에 먼저 저장한 뒤 Supabase Storage로 직접 업로드함. 공개 URL은 만들지 않고 private bucket의 object path만 DB에 저장함.
 
 Storage 경로는 아래 형태를 사용함.
 
 ```text
 {user_id}/{main_category}/{filename}.jpg
+{user_id}/{main_category}/background_removed/{filename}.webp
 ```
 
 업로드 실패 시에도 옷 등록은 계속 진행함. 이때 `local://...` 또는 앱 내부 로컬 경로를 fallback으로 저장함. `local://` 경로는 Supabase Dashboard에서 볼 수 없는 앱 내부 참조임.
