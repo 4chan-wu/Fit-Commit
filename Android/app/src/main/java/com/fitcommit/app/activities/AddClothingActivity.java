@@ -7,7 +7,10 @@ import android.net.Uri;
 import android.os.Bundle;
 import android.os.Build;
 import android.provider.MediaStore;
+import android.view.LayoutInflater;
+import android.view.View;
 
+import com.fitcommit.app.R;
 import com.fitcommit.app.services.BackgroundRemover;
 
 public class AddClothingActivity extends Activity {
@@ -44,18 +47,24 @@ public class AddClothingActivity extends Activity {
     }
 
     private void showSourceDialog() {
-        new AlertDialog.Builder(this)
-                .setTitle("의류 이미지 추가")
-                .setMessage("옷 한 벌만 화면 중앙에 놓고 촬영해주세요.\n배경은 단순할수록 분석 정확도가 높아집니다.")
-                .setItems(new String[]{"사진 찍기", "갤러리에서 선택"}, (dialog, which) -> {
-                    if (which == 0) {
-                        openCamera();
-                    } else {
-                        openGallery();
-                    }
-                })
-                .setOnCancelListener(dialog -> finish())
-                .show();
+        View content = LayoutInflater.from(this).inflate(R.layout.dialog_clothing_source, null);
+        AlertDialog dialog = new AlertDialog.Builder(this)
+                .setView(content)
+                .setOnCancelListener(ignored -> finish())
+                .create();
+        content.findViewById(R.id.takeClothingPhotoButton).setOnClickListener(view -> {
+            dialog.dismiss();
+            openCamera();
+        });
+        content.findViewById(R.id.pickClothingPhotoButton).setOnClickListener(view -> {
+            dialog.dismiss();
+            openGallery();
+        });
+        content.findViewById(R.id.cancelClothingSourceButton).setOnClickListener(view -> {
+            dialog.dismiss();
+            finish();
+        });
+        dialog.show();
     }
 
     private void openCamera() {
@@ -120,22 +129,38 @@ public class AddClothingActivity extends Activity {
         BackgroundRemover.processFile(this, originalPath, new BackgroundRemover.Callback() {
             @Override
             public void onSuccess(String processedImagePath) {
-                runOnUiThread(() -> {
-                    dismissProgressDialog();
-                    Intent intent = new Intent(AddClothingActivity.this, AnalysisResultActivity.class);
-                    intent.putExtra(AnalysisResultActivity.EXTRA_IMAGE_PATH, processedImagePath);
-                    intent.putExtra(AnalysisResultActivity.EXTRA_ORIGINAL_IMAGE_PATH, originalPath);
-                    intent.putExtra(AnalysisResultActivity.EXTRA_CATEGORY_HINT, selectedCategoryHint);
-                    startActivity(intent);
-                    finish();
-                });
+                runOnUiThread(() -> openAnalysisResult(originalPath, processedImagePath, true));
             }
 
             @Override
             public void onError(String message) {
-                runOnUiThread(() -> showProcessingError(message));
+                runOnUiThread(() -> showBackgroundRemovalFallback(originalPath, message));
             }
         });
+    }
+
+    private void openAnalysisResult(String originalPath, String displayImagePath, boolean backgroundRemoved) {
+        dismissProgressDialog();
+        Intent intent = new Intent(this, AnalysisResultActivity.class);
+        intent.putExtra(AnalysisResultActivity.EXTRA_IMAGE_PATH, displayImagePath);
+        intent.putExtra(AnalysisResultActivity.EXTRA_ORIGINAL_IMAGE_PATH, originalPath);
+        intent.putExtra(AnalysisResultActivity.EXTRA_BACKGROUND_REMOVED, backgroundRemoved);
+        intent.putExtra(AnalysisResultActivity.EXTRA_CATEGORY_HINT, selectedCategoryHint);
+        startActivity(intent);
+        finish();
+    }
+
+    private void showBackgroundRemovalFallback(String originalPath, String message) {
+        dismissProgressDialog();
+        new AlertDialog.Builder(this)
+                .setTitle("배경 제거가 어려운 사진이에요")
+                .setMessage(message + "\n\n촬영한 원본 사진은 그대로 등록할 수 있습니다.")
+                .setPositiveButton("원본으로 등록", (dialog, which) ->
+                        openAnalysisResult(originalPath, originalPath, false))
+                .setNeutralButton("다시 선택", (dialog, which) -> showSourceDialog())
+                .setNegativeButton("취소", (dialog, which) -> finish())
+                .setOnCancelListener(dialog -> finish())
+                .show();
     }
 
     private void showProcessingDialog(String message) {

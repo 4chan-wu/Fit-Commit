@@ -28,11 +28,17 @@ import java.util.List;
  * 실제 의류 사진을 중심으로 보여주는 2열 옷장 어댑터입니다.
  */
 public class ClosetCardAdapter extends RecyclerView.Adapter<ClosetCardAdapter.ClothingViewHolder> {
+    public interface OnDeleteClickListener {
+        void onDeleteClick(ClosetItem item);
+    }
+
     private final Context context;
+    private final OnDeleteClickListener deleteClickListener;
     private final List<ClosetItem> items = new ArrayList<>();
 
-    public ClosetCardAdapter(Context context) {
+    public ClosetCardAdapter(Context context, OnDeleteClickListener deleteClickListener) {
         this.context = context;
+        this.deleteClickListener = deleteClickListener;
     }
 
     public void submitList(List<ClosetItem> newItems) {
@@ -101,6 +107,11 @@ public class ClosetCardAdapter extends RecyclerView.Adapter<ClosetCardAdapter.Cl
         }
 
         holder.itemView.setOnClickListener(v -> openItem(item));
+        holder.itemView.setOnLongClickListener(v -> {
+            deleteClickListener.onDeleteClick(item);
+            return true;
+        });
+        holder.moreButton.setOnClickListener(v -> deleteClickListener.onDeleteClick(item));
     }
 
     private int withSoftAlpha(int color) {
@@ -132,6 +143,7 @@ public class ClosetCardAdapter extends RecyclerView.Adapter<ClosetCardAdapter.Cl
         final TextView status;
         final TextView name;
         final TextView meta;
+        final TextView moreButton;
         final View color;
 
         ClothingViewHolder(@NonNull View itemView) {
@@ -140,6 +152,7 @@ public class ClosetCardAdapter extends RecyclerView.Adapter<ClosetCardAdapter.Cl
             status = itemView.findViewById(R.id.closetItemStatus);
             name = itemView.findViewById(R.id.closetItemName);
             meta = itemView.findViewById(R.id.closetItemMeta);
+            moreButton = itemView.findViewById(R.id.closetItemMoreButton);
             color = itemView.findViewById(R.id.closetItemColor);
         }
     }

@@ -27,6 +27,7 @@ import com.fitcommit.app.services.ClothingStorage;
 import com.fitcommit.app.services.TokenManager;
 import com.fitcommit.app.utils.UiUtils;
 
+import java.io.File;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -146,7 +147,7 @@ public class MainActivity extends Activity {
         RecyclerView grid = view.findViewById(R.id.closetGrid);
         grid.setLayoutManager(new GridLayoutManager(this, 2));
         grid.setHasFixedSize(false);
-        ClosetCardAdapter adapter = new ClosetCardAdapter(this);
+        ClosetCardAdapter adapter = new ClosetCardAdapter(this, this::confirmDeleteClothing);
         grid.setAdapter(adapter);
 
         TextView countText = view.findViewById(R.id.closetCountText);
@@ -262,6 +263,60 @@ public class MainActivity extends Activity {
 
     private List<ClosetItem> loadLocalClosetItems() {
         return new ArrayList<>(ClothingStorage.load(this));
+    }
+
+    private void confirmDeleteClothing(ClosetItem item) {
+        new AlertDialog.Builder(this)
+                .setTitle("옷을 삭제할까요?")
+                .setMessage("\"" + safe(item.name) + "\"을 옷장에서 삭제합니다. 서버에 저장된 사진도 함께 정리됩니다.")
+                .setNegativeButton("취소", null)
+                .setPositiveButton("삭제", (dialog, which) -> deleteClothing(item))
+                .show();
+    }
+
+    private void deleteClothing(ClosetItem item) {
+        boolean hasRemoteId = item.remoteId != null && !item.remoteId.trim().isEmpty();
+        if (!hasRemoteId) {
+            ClothingStorage.delete(this, item.localId, item.remoteId);
+            deleteLocalClothingImage(item.imagePath);
+            UiUtils.toast(this, "옷장에서 삭제했습니다.");
+            showCloset();
+            return;
+        }
+        if (!clothesBackendService.isConfigured()) {
+            UiUtils.toast(this, "서버에 연결한 후 다시 삭제해주세요.");
+            return;
+        }
+
+        UiUtils.toast(this, "옷을 삭제하고 있습니다...");
+        new Thread(() -> {
+            try {
+                boolean imagesDeleted = clothesBackendService.deleteClothing(item.remoteId);
+                ClothingStorage.delete(this, item.localId, item.remoteId);
+                deleteLocalClothingImage(item.imagePath);
+                runOnUiThread(() -> {
+                    UiUtils.toast(this, imagesDeleted
+                            ? "옷과 저장된 사진을 삭제했습니다."
+                            : "옷은 삭제했지만 서버 사진 일부를 정리하지 못했습니다.");
+                    showCloset();
+                });
+            } catch (Exception error) {
+                runOnUiThread(() -> UiUtils.toast(this, "옷 삭제 실패: " + error.getMessage()));
+            }
+        }).start();
+    }
+
+    private void deleteLocalClothingImage(String imagePath) {
+        if (imagePath == null || imagePath.trim().isEmpty()) return;
+        try {
+            File file = new File(imagePath);
+            String appFilesPath = getFilesDir().getCanonicalPath() + File.separator;
+            if (file.getCanonicalPath().startsWith(appFilesPath) && file.exists() && !file.delete()) {
+                System.out.println("[MainActivity] Local clothing image cleanup failed: " + imagePath);
+            }
+        } catch (Exception error) {
+            System.out.println("[MainActivity] Local clothing image cleanup failed: " + error.getMessage());
+        }
     }
 
     private void applyClosetFilters(

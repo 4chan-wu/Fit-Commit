@@ -324,6 +324,98 @@ public class ClothesBackendService {
         return requestJson("PATCH", ApiClient.BASE_URL + "/clothes?id=eq." + urlEncode(clothingId), payload);
     }
 
+    public boolean deleteClothing(String clothingId) throws Exception {
+        if (clothingId == null || clothingId.trim().isEmpty()) {
+            throw new IllegalArgumentException("삭제할 서버 의류 ID가 없습니다.");
+        }
+        requireAuthenticatedUserId();
+        String filter = "?id=eq." + urlEncode(clothingId);
+        List<String> storagePaths = fetchClothingStoragePaths(filter);
+
+        HttpURLConnection connection = (HttpURLConnection) new URL(ApiClient.BASE_URL + "/clothes" + filter).openConnection();
+        connection.setRequestMethod("DELETE");
+        connection.setConnectTimeout(10_000);
+        connection.setReadTimeout(15_000);
+        connection.setRequestProperty("Accept", "application/json");
+        connection.setRequestProperty("Prefer", "return=representation");
+        applyAuthHeaders(connection);
+        int statusCode = connection.getResponseCode();
+        String body = readResponse(connection, statusCode);
+        if (statusCode < 200 || statusCode >= 300) {
+            throw new IllegalStateException("Supabase 의류 삭제 실패: " + statusCode + " " + body);
+        }
+        JSONArray deletedRows = body == null || body.trim().isEmpty() ? new JSONArray() : new JSONArray(body);
+        if (deletedRows.length() == 0) {
+            throw new IllegalStateException("삭제할 의류를 찾지 못했습니다.");
+        }
+
+        if (!storagePaths.isEmpty()) {
+            try {
+                deleteStorageObjects(storagePaths);
+            } catch (Exception cleanupError) {
+                System.out.println("[ClothesBackendService] Deleted clothing row, but image cleanup failed: "
+                        + cleanupError.getMessage());
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private List<String> fetchClothingStoragePaths(String filter) throws Exception {
+        HttpURLConnection connection = (HttpURLConnection) new URL(
+                ApiClient.BASE_URL + "/clothes" + filter
+                        + "&select=image_path,background_removed_image_path&limit=1"
+        ).openConnection();
+        connection.setRequestMethod("GET");
+        connection.setConnectTimeout(10_000);
+        connection.setReadTimeout(15_000);
+        connection.setRequestProperty("Accept", "application/json");
+        applyAuthHeaders(connection);
+        int statusCode = connection.getResponseCode();
+        String body = readResponse(connection, statusCode);
+        if (statusCode < 200 || statusCode >= 300) {
+            throw new IllegalStateException("삭제할 의류 조회 실패: " + statusCode + " " + body);
+        }
+        List<String> paths = new ArrayList<>();
+        JSONArray rows = new JSONArray(body);
+        if (rows.length() == 0) return paths;
+        JSONObject row = rows.getJSONObject(0);
+        addStoragePath(paths, row.optString("image_path", ""));
+        addStoragePath(paths, row.optString("background_removed_image_path", ""));
+        return paths;
+    }
+
+    private void addStoragePath(List<String> paths, String path) {
+        if (path != null && !path.trim().isEmpty() && !path.startsWith("local://")) {
+            paths.add(path);
+        }
+    }
+
+    private void deleteStorageObjects(List<String> paths) throws Exception {
+        HttpURLConnection connection = (HttpURLConnection) new URL(
+                ApiClient.STORAGE_URL + "/object/" + ApiClient.SUPABASE_CLOTHING_BUCKET
+        ).openConnection();
+        connection.setRequestMethod("DELETE");
+        connection.setConnectTimeout(10_000);
+        connection.setReadTimeout(20_000);
+        connection.setDoOutput(true);
+        connection.setRequestProperty("Content-Type", "application/json");
+        connection.setRequestProperty("Accept", "application/json");
+        applyAuthHeaders(connection);
+        JSONObject payload = new JSONObject();
+        payload.put("prefixes", new JSONArray(paths));
+        byte[] bodyBytes = payload.toString().getBytes(StandardCharsets.UTF_8);
+        connection.setFixedLengthStreamingMode(bodyBytes.length);
+        try (OutputStream output = connection.getOutputStream()) {
+            output.write(bodyBytes);
+        }
+        int statusCode = connection.getResponseCode();
+        String body = readResponse(connection, statusCode);
+        if (statusCode < 200 || statusCode >= 300) {
+            throw new IllegalStateException("Supabase 이미지 삭제 실패: " + statusCode + " " + body);
+        }
+    }
+
     public List<ClosetItem> fetchClothes() throws Exception {
         return fetchClothes("");
     }

@@ -33,6 +33,7 @@ import java.util.List;
 public class AnalysisResultActivity extends Activity {
     public static final String EXTRA_IMAGE_PATH = "imagePath";
     public static final String EXTRA_ORIGINAL_IMAGE_PATH = "originalImagePath";
+    public static final String EXTRA_BACKGROUND_REMOVED = "backgroundRemoved";
     public static final String EXTRA_CATEGORY_HINT = "categoryHint";
     public static final String EXTRA_EDIT_MODE = "editMode";
     public static final String EXTRA_LOCAL_ID = "localId";
@@ -50,6 +51,7 @@ public class AnalysisResultActivity extends Activity {
 
     private String imagePath;
     private String originalImagePath;
+    private boolean backgroundRemoved;
     private String categoryHint;
     private String localItemId;
     private String serverClothingId;
@@ -68,6 +70,9 @@ public class AnalysisResultActivity extends Activity {
                 getIntent().getStringExtra(EXTRA_ORIGINAL_IMAGE_PATH),
                 imagePath
         );
+        backgroundRemoved = getIntent().hasExtra(EXTRA_BACKGROUND_REMOVED)
+                ? getIntent().getBooleanExtra(EXTRA_BACKGROUND_REMOVED, false)
+                : imagePath != null && originalImagePath != null && !imagePath.equals(originalImagePath);
         categoryHint = valueOrDefault(getIntent().getStringExtra(EXTRA_CATEGORY_HINT), "top");
         localItemId = getIntent().getStringExtra(EXTRA_LOCAL_ID);
         serverClothingId = getIntent().getStringExtra(EXTRA_REMOTE_ID);
@@ -263,7 +268,9 @@ public class AnalysisResultActivity extends Activity {
         saveLocally(name, category, subcategory, color, season, styleTags, false);
 
         if (clothesBackendService.isConfigured()) {
-            setLoading(true, "원본과 배경 제거 이미지를 안전하게 저장 중입니다...");
+            setLoading(true, backgroundRemoved
+                    ? "원본과 배경 제거 이미지를 안전하게 저장 중입니다..."
+                    : "원본 이미지를 안전하게 저장 중입니다...");
             new Thread(() -> {
                 try {
                     if (serverClothingId == null || serverClothingId.trim().isEmpty()) {
@@ -274,7 +281,7 @@ public class AnalysisResultActivity extends Activity {
                                 season,
                                 styleTags,
                                 originalImagePath,
-                                imagePath,
+                                backgroundRemoved ? imagePath : null,
                                 result,
                                 selectedWardrobeId
                         );
@@ -392,7 +399,7 @@ public class AnalysisResultActivity extends Activity {
             org.json.JSONObject row = clothesBackendService.createPending(
                     categoryHint,
                     originalImagePath,
-                    imagePath,
+                    backgroundRemoved ? imagePath : null,
                     selectedWardrobeId
             );
             Object id = row.opt("id");
