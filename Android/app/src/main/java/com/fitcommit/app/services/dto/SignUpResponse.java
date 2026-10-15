@@ -15,6 +15,10 @@ public class SignUpResponse {
         return user == null ? null : user.getId();
     }
 
+    public boolean hasUser() {
+        return user != null && user.getId() != null && !user.getId().trim().isEmpty();
+    }
+
     public boolean requiresEmailConfirmation() {
         return accessToken == null || accessToken.trim().isEmpty();
     }

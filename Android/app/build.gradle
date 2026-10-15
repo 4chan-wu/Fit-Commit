@@ -36,6 +36,29 @@ def hasGeneratedUploadKey = generatedUploadKeystoreFile.exists() && generatedUpl
 def hasReleaseSigning = releaseKeystoreFile.exists() || hasGeneratedUploadKey
 def generatedUploadPassword = hasGeneratedUploadKey ? generatedUploadPasswordFile.getText("UTF-8").trim() : ""
 
+def poseModelFile = file("src/main/assets/pose_landmarker_full.task")
+def poseModelSha256 = "5134a3aad27a58b93da0088d431f366da362b44e3ccfbe3462b3827a839011b1"
+tasks.register("downloadPoseLandmarkerModel") {
+    outputs.file(poseModelFile)
+    doLast {
+        if (!poseModelFile.exists()) {
+            poseModelFile.parentFile.mkdirs()
+            new URL("https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_full/float16/1/pose_landmarker_full.task")
+                    .withInputStream { input -> poseModelFile.withOutputStream { output -> output << input } }
+        }
+        def digest = java.security.MessageDigest.getInstance("SHA-256")
+        poseModelFile.withInputStream { input ->
+            byte[] buffer = new byte[8192]
+            int count
+            while ((count = input.read(buffer)) != -1) digest.update(buffer, 0, count)
+        }
+        def actualSha256 = digest.digest().encodeHex().toString()
+        if (actualSha256 != poseModelSha256) {
+            throw new GradleException("Pose Landmarker model checksum mismatch: ${actualSha256}")
+        }
+    }
+}
+
 android {
     namespace "com.fitcommit.app"
     compileSdk 36
@@ -85,6 +108,10 @@ android {
     }
 }
 
+tasks.named("preBuild").configure {
+    dependsOn("downloadPoseLandmarkerModel")
+}
+
 dependencies {
     def camerax_version = "1.4.2"
     def retrofit_version = "2.11.0"
@@ -97,4 +124,6 @@ dependencies {
     implementation "androidx.camera:camera-view:$camerax_version"
     implementation "com.squareup.retrofit2:retrofit:$retrofit_version"
     implementation "com.squareup.retrofit2:converter-gson:$retrofit_version"
+    implementation "com.google.mediapipe:tasks-vision:1.1.1"
+    testImplementation "junit:junit:4.13.2"
 }

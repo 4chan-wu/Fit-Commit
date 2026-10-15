@@ -33,6 +33,8 @@ Fitcommit Android는 Java/XML 기반 Android 앱임. 현재 흐름은 iOS와 동
 - Android 배경 제거는 ML Kit, OpenCV, 또는 서버 처리 중 하나로 안정화한 뒤 연결해야 함
 - Backend 저장 실패 시에도 `ClothingStorage` 로컬 item은 유지됨
 - 옷장 화면은 Backend 조회 결과와 로컬 저장소를 remote id/local id 기준으로 병합함
+- 신체 비율 측정은 MediaPipe Pose Landmarker를 이용해 기기 안에서 전신 관절과 예상 신체 치수를 분석함
+- 측정 결과는 사용자별 로컬 저장소에 최대 20개까지 보관하고 마이 화면에 최근 결과를 표시함
 - 3D 공간 스캔과 신체 비율 측정 진입점은 옷장 화면에 계속 유지함
 
 ## 구조
@@ -70,7 +72,7 @@ cd Android
 sh gradlew assembleDebug
 ```
 
-현재 Codex 검증 환경에는 Java Runtime이 없어 위 빌드는 실행하지 못함. 로컬 개발 환경에서는 Android Studio가 설치한 JDK 또는 별도 JDK 17 이상을 사용하면 됨.
+Android Studio가 설치한 JDK 또는 별도 JDK 17 이상을 사용하면 됨. 신체 분석 모델이 없으면 첫 빌드 시 공식 Google 저장소에서 내려받고 SHA-256을 검증함.
 
 ## Supabase 설정
 
@@ -88,7 +90,7 @@ SUPABASE_CLOTHING_BUCKET=clothing-images
 
 ## Google Play 출시 빌드
 
-첫 출시 화면에는 실제 동작하는 이메일 인증과 디지털 옷장 기능만 노출함. AI 코디, 소셜 로그인, 신체 비율 측정, 공간 스캔은 구현 완료 후 다시 노출함.
+첫 출시에는 이메일 인증, 디지털 옷장과 온디바이스 신체 비율 측정을 제공함. AI 코디, 소셜 로그인과 3D 공간 스캔은 실제 연동을 완료한 뒤 노출 여부를 다시 검토함. 신체 측정값은 카메라 기반 추정치이므로 의료·재단용 실측값으로 안내하지 않음.
 
 출시 전 다음 작업이 필요함.
 

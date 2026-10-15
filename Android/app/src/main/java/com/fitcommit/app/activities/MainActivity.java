@@ -18,8 +18,10 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import com.fitcommit.app.R;
 import com.fitcommit.app.adapters.ClosetCardAdapter;
+import com.fitcommit.app.models.BodyMeasurement;
 import com.fitcommit.app.models.ClosetItem;
 import com.fitcommit.app.models.Wardrobe;
+import com.fitcommit.app.services.BodyMeasurementStorage;
 import com.fitcommit.app.services.ClothesBackendService;
 import com.fitcommit.app.services.ClothingStorage;
 import com.fitcommit.app.services.TokenManager;
@@ -80,6 +82,8 @@ public class MainActivity extends Activity {
         super.onResume();
         if ("closet".equals(currentScreen)) {
             showCloset();
+        } else if ("profile".equals(currentScreen)) {
+            showProfile();
         }
     }
 
@@ -599,6 +603,22 @@ public class MainActivity extends Activity {
         currentScreen = "profile";
         setSelectedTab(tabProfile);
         View view = inflate(R.layout.screen_profile);
+        BodyMeasurement latestMeasurement = BodyMeasurementStorage.latest(this);
+        TextView measurementSummary = view.findViewById(R.id.bodyMeasurementSummaryText);
+        if (latestMeasurement == null) {
+            measurementSummary.setText("아직 저장된 측정 결과가 없어요.\n카메라로 전신 비율을 분석해 보세요.");
+        } else {
+            measurementSummary.setText(String.format(
+                    Locale.KOREA,
+                    "%s · 예상 키 %.1f cm\n어깨 %.1f cm · 골반 %.1f cm",
+                    latestMeasurement.bodyShape,
+                    latestMeasurement.heightMeters * 100f,
+                    latestMeasurement.shoulderWidthMeters * 100f,
+                    latestMeasurement.hipWidthMeters * 100f
+            ));
+        }
+        view.findViewById(R.id.startBodyMeasurementButton).setOnClickListener(v ->
+                startActivity(new Intent(this, BodyMeasureActivity.class)));
         view.findViewById(R.id.privacyPolicyButton).setOnClickListener(v ->
                 startActivity(new Intent(this, LegalActivity.class)));
         view.findViewById(R.id.logoutButton).setOnClickListener(v -> {
@@ -620,6 +640,7 @@ public class MainActivity extends Activity {
                             public void onSuccess(Void result) {
                                 runOnUiThread(() -> {
                                     ClothingStorage.clear(MainActivity.this);
+                                    BodyMeasurementStorage.clearAll(MainActivity.this);
                                     UiUtils.toast(MainActivity.this, "계정이 삭제되었습니다.");
                                     startActivity(new Intent(MainActivity.this, LoginActivity.class));
                                     finish();

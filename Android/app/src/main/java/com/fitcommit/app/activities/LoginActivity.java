@@ -126,9 +126,19 @@ public class LoginActivity extends Activity {
         authService.signUp(name, email, phone, password, confirm, new AuthService.AuthCallback<SignUpResponse>() {
             @Override
             public void onSuccess(SignUpResponse result) {
+                // Supabase can intentionally return an empty 200 response when an already
+                // registered address signs up again. It does not send another confirmation
+                // email in that case, so do not tell the user to wait for a mail that will
+                // never arrive.
+                if (!result.hasUser()) {
+                    signUpMode = false;
+                    updateMode();
+                    showFeedback("이미 가입된 이메일일 수 있어요. 입력한 이메일과 비밀번호로 로그인해주세요.");
+                    return;
+                }
                 if (result.requiresEmailConfirmation()) {
                     setLoading(false);
-                    showFeedback("인증 메일을 확인한 뒤 로그인해주세요.");
+                    showFeedback("인증 메일을 보냈어요. 받은편지함과 스팸함을 확인한 뒤 로그인해주세요.");
                 } else {
                     submitLogin(email, password);
                 }
