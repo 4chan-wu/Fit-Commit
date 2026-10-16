@@ -27,7 +27,6 @@
             android:layout_height="64dp"
             android:layout_gravity="bottom"
             android:background="@drawable/bg_tab_bar"
-            android:elevation="10dp"
             android:gravity="center"
             android:orientation="horizontal"
             android:padding="6dp">
