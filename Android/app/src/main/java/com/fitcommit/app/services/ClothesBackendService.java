@@ -57,7 +57,7 @@ public class ClothesBackendService {
             String imagePath,
             AnalysisResult result
     ) throws Exception {
-        createCompleted(category, subcategory, color, season, styleTags, imagePath, result);
+        createCompleted(name, category, subcategory, color, season, styleTags, imagePath, null, result, "");
     }
 
     public JSONObject createPending(String category, String imagePath) throws Exception {
@@ -239,7 +239,7 @@ public class ClothesBackendService {
             String imagePath,
             AnalysisResult result
     ) throws Exception {
-        return createCompleted(category, subcategory, color, season, styleTags, imagePath, null, result, "");
+        return createCompleted(null, category, subcategory, color, season, styleTags, imagePath, null, result, "");
     }
 
     public JSONObject createCompleted(
@@ -252,10 +252,11 @@ public class ClothesBackendService {
             AnalysisResult result,
             String wardrobeId
     ) throws Exception {
-        return createCompleted(category, subcategory, color, season, styleTags, imagePath, null, result, wardrobeId);
+        return createCompleted(null, category, subcategory, color, season, styleTags, imagePath, null, result, wardrobeId);
     }
 
     public JSONObject createCompleted(
+            String displayName,
             String category,
             String subcategory,
             String color,
@@ -270,7 +271,7 @@ public class ClothesBackendService {
         JSONObject cutoutUpload = processedImagePath == null || processedImagePath.trim().isEmpty()
                 ? null
                 : uploadImage(category, processedImagePath, "background_removed");
-        JSONObject payload = completedPayload(category, subcategory, color, season, styleTags, result, wardrobeId);
+        JSONObject payload = completedPayload(displayName, category, subcategory, color, season, styleTags, result, wardrobeId);
         payload.put("image_path", originalUpload.optString("image_path"));
         payload.put("image_url", "");
         payload.put("local_image_path", "");
@@ -296,11 +297,12 @@ public class ClothesBackendService {
             String imagePath,
             AnalysisResult result
     ) throws Exception {
-        return updateCompleted(clothingId, category, subcategory, color, season, styleTags, imagePath, result, "");
+        return updateCompleted(clothingId, null, category, subcategory, color, season, styleTags, imagePath, result, "");
     }
 
     public JSONObject updateCompleted(
             String clothingId,
+            String displayName,
             String category,
             String subcategory,
             String color,
@@ -310,7 +312,19 @@ public class ClothesBackendService {
             AnalysisResult result,
             String wardrobeId
     ) throws Exception {
-        JSONObject payload = completedPayload(category, subcategory, color, season, styleTags, result, wardrobeId);
+        JSONObject payload = completedPayload(displayName, category, subcategory, color, season, styleTags, result, wardrobeId);
+        return requestJson("PATCH", ApiClient.BASE_URL + "/clothes?id=eq." + urlEncode(clothingId), payload);
+    }
+
+    public JSONObject moveClothing(String clothingId, String wardrobeId) throws Exception {
+        if (clothingId == null || clothingId.trim().isEmpty()) {
+            throw new IllegalArgumentException("이동할 의류 ID가 없습니다.");
+        }
+        if (wardrobeId == null || wardrobeId.trim().isEmpty()) {
+            throw new IllegalArgumentException("이동할 옷장을 선택해주세요.");
+        }
+        JSONObject payload = new JSONObject();
+        payload.put("wardrobe_id", wardrobeId);
         return requestJson("PATCH", ApiClient.BASE_URL + "/clothes?id=eq." + urlEncode(clothingId), payload);
     }
 
@@ -459,8 +473,11 @@ public class ClothesBackendService {
             String syncStatus = row.optString("sync_status", "synced");
             String wardrobeIdValue = row.optString("wardrobe_id", "");
             boolean needsAnalysis = row.optBoolean("needs_analysis", !"completed".equals(status));
-            String name = subcategory.isEmpty() ? category : subcategory;
-            String note = "source=backend; status=" + status + "; style_tags=" + styleTags;
+            String fallbackName = subcategory.isEmpty() ? category : subcategory;
+            String name = row.optString("display_name", fallbackName);
+            if (name.trim().isEmpty()) name = fallbackName;
+            String note = "source=backend; status=" + status + "; subcategory=" + subcategory
+                    + "; style_tags=" + styleTags;
             if ("pending".equals(status)) {
                 season = "분석 대기";
             } else if ("failed".equals(status)) {
@@ -559,21 +576,13 @@ public class ClothesBackendService {
     }
 
     public void deleteWardrobe(String wardrobeId) throws Exception {
-        HttpURLConnection connection = (HttpURLConnection) new URL(wardrobeMutationUrl(wardrobeId)).openConnection();
-        connection.setRequestMethod("DELETE");
-        connection.setConnectTimeout(10_000);
-        connection.setReadTimeout(15_000);
-        connection.setRequestProperty("Accept", "application/json");
-        connection.setRequestProperty("Prefer", "return=representation");
-        applyAuthHeaders(connection);
-        int statusCode = connection.getResponseCode();
-        String body = readResponse(connection, statusCode);
-        if (statusCode < 200 || statusCode >= 300) {
-            throw new IllegalStateException("Backend wardrobe delete failed: " + statusCode + " " + body);
-        }
+        JSONObject payload = new JSONObject();
+        payload.put("p_wardrobe_id", wardrobeId);
+        requestJson("POST", ApiClient.BASE_URL + "/rpc/delete_wardrobe_and_move_clothes", payload);
     }
 
     private JSONObject completedPayload(
+            String displayName,
             String category,
             String subcategory,
             String color,
@@ -583,6 +592,9 @@ public class ClothesBackendService {
             String wardrobeId
     ) throws Exception {
         JSONObject payload = new JSONObject();
+        if (displayName != null) {
+            payload.put("display_name", displayName.trim());
+        }
         if (wardrobeId != null && !wardrobeId.trim().isEmpty()) {
             payload.put("wardrobe_id", wardrobeId);
         }
@@ -703,14 +715,14 @@ public class ClothesBackendService {
         boolean summer = contains(seasons, "summer");
         boolean fall = contains(seasons, "fall");
         boolean winter = contains(seasons, "winter");
+        if (seasons.length() >= 4) {
+            return "All-Season";
+        }
         if (fall && winter) {
             return "Fall/Winter";
         }
         if (spring && summer) {
             return "Spring/Summer";
-        }
-        if (seasons.length() >= 4) {
-            return "All-Season";
         }
         return seasons.length() > 0 ? seasons.optString(0) : "All-Season";
     }

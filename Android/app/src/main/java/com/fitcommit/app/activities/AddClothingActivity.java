@@ -14,6 +14,7 @@ import com.fitcommit.app.R;
 import com.fitcommit.app.services.BackgroundRemover;
 
 public class AddClothingActivity extends Activity {
+    public static final String EXTRA_WARDROBE_ID = "wardrobeId";
     private static final int REQUEST_TAKE_PHOTO = 5102;
     private static final int REQUEST_PICK_IMAGE = 5103;
     private static final String[] CATEGORY_VALUES = {"top", "bottom", "outer", "shoes", "hat", "bag", "dress"};
@@ -28,11 +29,14 @@ public class AddClothingActivity extends Activity {
     };
 
     private String selectedCategoryHint = CATEGORY_VALUES[0];
+    private String selectedWardrobeId = "";
     private AlertDialog progressDialog;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        selectedWardrobeId = getIntent().getStringExtra(EXTRA_WARDROBE_ID);
+        if (selectedWardrobeId == null) selectedWardrobeId = "";
         showCategoryDialog();
     }
 
@@ -146,6 +150,7 @@ public class AddClothingActivity extends Activity {
         intent.putExtra(AnalysisResultActivity.EXTRA_ORIGINAL_IMAGE_PATH, originalPath);
         intent.putExtra(AnalysisResultActivity.EXTRA_BACKGROUND_REMOVED, backgroundRemoved);
         intent.putExtra(AnalysisResultActivity.EXTRA_CATEGORY_HINT, selectedCategoryHint);
+        intent.putExtra(AnalysisResultActivity.EXTRA_WARDROBE_ID, selectedWardrobeId);
         startActivity(intent);
         finish();
     }

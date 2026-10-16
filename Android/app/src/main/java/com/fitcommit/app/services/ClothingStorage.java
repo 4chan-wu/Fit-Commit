@@ -77,6 +77,29 @@ public final class ClothingStorage {
         saveOrReplace(context, updatedItem);
     }
 
+    public static void updateWardrobe(Context context, ClosetItem item, String wardrobeId) {
+        if (item == null || item.localId == null || item.localId.trim().isEmpty()) {
+            return;
+        }
+        saveOrReplace(context, new ClosetItem(
+                item.localId,
+                item.remoteId,
+                wardrobeId,
+                item.name,
+                item.category,
+                item.color,
+                item.season,
+                item.note,
+                item.imagePath,
+                item.analysisStatus,
+                item.analysisError,
+                item.needsAnalysis,
+                item.syncStatus,
+                item.syncError,
+                item.createdAt
+        ));
+    }
+
     public static void delete(Context context, String localId, String remoteId) {
         List<ClosetItem> items = load(context);
         items.removeIf(item -> matches(item.localId, localId) || matches(item.remoteId, remoteId));

@@ -57,6 +57,7 @@ public class MainActivity extends Activity {
     private TextView tabProfile;
     private String currentScreen = "";
     private String selectedWardrobeId = "";
+    private final List<Wardrobe> availableWardrobes = new ArrayList<>();
     private ClothesBackendService clothesBackendService;
 
     @Override
@@ -171,7 +172,17 @@ public class MainActivity extends Activity {
         RecyclerView grid = view.findViewById(R.id.closetGrid);
         grid.setLayoutManager(new GridLayoutManager(this, 2));
         grid.setHasFixedSize(false);
-        ClosetCardAdapter adapter = new ClosetCardAdapter(this, this::confirmDeleteClothing);
+        ClosetCardAdapter adapter = new ClosetCardAdapter(this, new ClosetCardAdapter.OnItemActionListener() {
+            @Override
+            public void onOpen(ClosetItem item) {
+                openClothingEditor(item);
+            }
+
+            @Override
+            public void onManage(ClosetItem item) {
+                showClothingActions(item);
+            }
+        });
         grid.setAdapter(adapter);
 
         TextView countText = view.findViewById(R.id.closetCountText);
@@ -205,10 +216,11 @@ public class MainActivity extends Activity {
         );
         bindCategoryFilters(categoryRow, selectedCategory, refresh);
 
-        View.OnClickListener addClothing = v -> startActivity(new Intent(this, AddClothingActivity.class));
+        View.OnClickListener addClothing = v -> openAddClothing();
         view.findViewById(R.id.addClothingButton).setOnClickListener(addClothing);
         emptyText.setOnClickListener(addClothing);
         view.findViewById(R.id.createWardrobeButton).setOnClickListener(v -> showCreateWardrobeDialog());
+        view.findViewById(R.id.wardrobeManageButton).setOnClickListener(v -> showWardrobeManagerDialog());
         view.findViewById(R.id.bodyMeasureButton)
                 .setOnClickListener(v -> startActivity(new Intent(this, BodyMeasureActivity.class)));
         view.findViewById(R.id.spaceScanButton)
@@ -252,6 +264,8 @@ public class MainActivity extends Activity {
                             return;
                         }
                         bindWardrobeFilters(wardrobeRow, fetchedWardrobes);
+                        availableWardrobes.clear();
+                        availableWardrobes.addAll(fetchedWardrobes);
                         sourceItems.clear();
                         sourceItems.addAll(mergeBackendAndLocalItems(backendItems));
                         if (!fetchedWardrobesSuccessfully) {
@@ -291,13 +305,107 @@ public class MainActivity extends Activity {
         return new ArrayList<>(ClothingStorage.load(this));
     }
 
-    private void confirmDeleteClothing(ClosetItem item) {
+    private void openAddClothing() {
+        Intent intent = new Intent(this, AddClothingActivity.class);
+        intent.putExtra(AddClothingActivity.EXTRA_WARDROBE_ID, selectedWardrobeId);
+        startActivity(intent);
+    }
+
+    private void openClothingEditor(ClosetItem item) {
+        Intent intent = new Intent(this, AnalysisResultActivity.class);
+        intent.putExtra(AnalysisResultActivity.EXTRA_EDIT_MODE, true);
+        intent.putExtra(AnalysisResultActivity.EXTRA_LOCAL_ID, item.localId);
+        intent.putExtra(AnalysisResultActivity.EXTRA_REMOTE_ID, item.remoteId);
+        intent.putExtra(AnalysisResultActivity.EXTRA_WARDROBE_ID, item.wardrobeId);
+        intent.putExtra(AnalysisResultActivity.EXTRA_IMAGE_PATH, item.imagePath);
+        intent.putExtra(AnalysisResultActivity.EXTRA_CATEGORY_HINT, item.category);
+        intent.putExtra(AnalysisResultActivity.EXTRA_NAME, item.name);
+        intent.putExtra(AnalysisResultActivity.EXTRA_COLOR, item.color);
+        intent.putExtra(AnalysisResultActivity.EXTRA_SEASON, item.season);
+        intent.putExtra(AnalysisResultActivity.EXTRA_NOTE, item.note);
+        startActivity(intent);
+    }
+
+    private void showClothingActions(ClosetItem item) {
+        String[] actions = {"정보 수정", "다른 옷장으로 이동", "옷 삭제"};
         new AlertDialog.Builder(this)
+                .setTitle(safe(item.name).isEmpty() ? "옷 관리" : item.name)
+                .setItems(actions, (dialog, which) -> {
+                    if (which == 0) {
+                        openClothingEditor(item);
+                    } else if (which == 1) {
+                        showMoveClothingDialog(item);
+                    } else {
+                        confirmDeleteClothing(item);
+                    }
+                })
+                .setNegativeButton("닫기", null)
+                .show();
+    }
+
+    private void showMoveClothingDialog(ClosetItem item) {
+        if (availableWardrobes.isEmpty()) {
+            UiUtils.toast(this, "옷장 목록을 불러온 후 다시 시도해주세요.");
+            return;
+        }
+        String[] labels = new String[availableWardrobes.size()];
+        int checked = 0;
+        for (int i = 0; i < availableWardrobes.size(); i++) {
+            Wardrobe wardrobe = availableWardrobes.get(i);
+            labels[i] = wardrobe.isDefault ? wardrobe.name + " (기본)" : wardrobe.name;
+            if (wardrobe.id.equals(item.wardrobeId)) checked = i;
+        }
+        new AlertDialog.Builder(this)
+                .setTitle("이동할 옷장 선택")
+                .setSingleChoiceItems(labels, checked, (dialog, which) -> {
+                    dialog.dismiss();
+                    moveClothing(item, availableWardrobes.get(which));
+                })
+                .setNegativeButton("취소", null)
+                .show();
+    }
+
+    private void moveClothing(ClosetItem item, Wardrobe wardrobe) {
+        if (wardrobe.id.equals(item.wardrobeId)) {
+            UiUtils.toast(this, "이미 선택한 옷장에 들어 있습니다.");
+            return;
+        }
+        boolean hasRemoteId = item.remoteId != null && !item.remoteId.trim().isEmpty();
+        if (!hasRemoteId) {
+            ClothingStorage.updateWardrobe(this, item, wardrobe.id);
+            UiUtils.toast(this, wardrobe.name + "으로 이동했습니다.");
+            showCloset();
+            return;
+        }
+        if (!clothesBackendService.isConfigured()) {
+            UiUtils.toast(this, "서버에 연결한 후 다시 이동해주세요.");
+            return;
+        }
+        UiUtils.toast(this, "옷을 이동하고 있습니다...");
+        new Thread(() -> {
+            try {
+                clothesBackendService.moveClothing(item.remoteId, wardrobe.id);
+                ClothingStorage.updateWardrobe(this, item, wardrobe.id);
+                runOnUiThread(() -> {
+                    UiUtils.toast(this, wardrobe.name + "으로 이동했습니다.");
+                    showCloset();
+                });
+            } catch (Exception error) {
+                runOnUiThread(() -> UiUtils.toast(this, "옷장 이동 실패: " + error.getMessage()));
+            }
+        }).start();
+    }
+
+    private void confirmDeleteClothing(ClosetItem item) {
+        AlertDialog dialog = new AlertDialog.Builder(this)
                 .setTitle("옷을 삭제할까요?")
                 .setMessage("\"" + safe(item.name) + "\"을 옷장에서 삭제합니다. 서버에 저장된 사진도 함께 정리됩니다.")
                 .setNegativeButton("취소", null)
-                .setPositiveButton("삭제", (dialog, which) -> deleteClothing(item))
-                .show();
+                .setPositiveButton("삭제", (prompt, which) -> deleteClothing(item))
+                .create();
+        dialog.setOnShowListener(ignored -> dialog.getButton(AlertDialog.BUTTON_POSITIVE)
+                .setTextColor(getColor(R.color.fit_danger)));
+        dialog.show();
     }
 
     private void deleteClothing(ClosetItem item) {
@@ -513,17 +621,22 @@ public class MainActivity extends Activity {
 
     private List<ClosetItem> mergeBackendAndLocalItems(List<ClosetItem> backendItems) {
         List<ClosetItem> merged = new ArrayList<>(backendItems);
-        java.util.HashSet<String> remoteIds = new java.util.HashSet<>();
-        for (ClosetItem item : backendItems) {
-            if (item.remoteId != null && !item.remoteId.trim().isEmpty()) {
-                remoteIds.add(item.remoteId);
-            }
-        }
         for (ClosetItem localItem : ClothingStorage.load(this)) {
             boolean matchesWardrobe = selectedWardrobeId == null
                     || selectedWardrobeId.trim().isEmpty()
                     || selectedWardrobeId.equals(localItem.wardrobeId);
-            if (matchesWardrobe && (localItem.remoteId == null || localItem.remoteId.trim().isEmpty() || !remoteIds.contains(localItem.remoteId))) {
+            if (!matchesWardrobe) continue;
+            int remoteIndex = -1;
+            for (int i = 0; i < merged.size(); i++) {
+                if (localItem.remoteId != null && !localItem.remoteId.trim().isEmpty()
+                        && localItem.remoteId.equals(merged.get(i).remoteId)) {
+                    remoteIndex = i;
+                    break;
+                }
+            }
+            if (remoteIndex >= 0 && "sync_failed".equals(localItem.syncStatus)) {
+                merged.set(remoteIndex, localItem);
+            } else if (remoteIndex < 0) {
                 merged.add(localItem);
             }
         }
@@ -611,6 +724,23 @@ public class MainActivity extends Activity {
                         showEditWardrobeDialog(wardrobe);
                     }
                 })
+                .show();
+    }
+
+    private void showWardrobeManagerDialog() {
+        if (availableWardrobes.isEmpty()) {
+            UiUtils.toast(this, "관리할 옷장이 없습니다.");
+            return;
+        }
+        String[] labels = new String[availableWardrobes.size()];
+        for (int i = 0; i < availableWardrobes.size(); i++) {
+            Wardrobe wardrobe = availableWardrobes.get(i);
+            labels[i] = wardrobe.isDefault ? wardrobe.name + " (기본)" : wardrobe.name;
+        }
+        new AlertDialog.Builder(this)
+                .setTitle("관리할 옷장 선택")
+                .setItems(labels, (dialog, which) -> showWardrobeActionDialog(availableWardrobes.get(which)))
+                .setNegativeButton("닫기", null)
                 .show();
     }
 

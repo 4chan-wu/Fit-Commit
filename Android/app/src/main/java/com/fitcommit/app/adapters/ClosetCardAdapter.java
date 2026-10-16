@@ -1,7 +1,6 @@
 package com.fitcommit.app.adapters;
 
 import android.content.Context;
-import android.content.Intent;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Color;
@@ -16,7 +15,6 @@ import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.fitcommit.app.R;
-import com.fitcommit.app.activities.AnalysisResultActivity;
 import com.fitcommit.app.models.ClosetItem;
 import com.fitcommit.app.utils.UiUtils;
 
@@ -29,17 +27,18 @@ import java.util.Locale;
  * 실제 의류 사진을 중심으로 보여주는 2열 옷장 어댑터입니다.
  */
 public class ClosetCardAdapter extends RecyclerView.Adapter<ClosetCardAdapter.ClothingViewHolder> {
-    public interface OnDeleteClickListener {
-        void onDeleteClick(ClosetItem item);
+    public interface OnItemActionListener {
+        void onOpen(ClosetItem item);
+        void onManage(ClosetItem item);
     }
 
     private final Context context;
-    private final OnDeleteClickListener deleteClickListener;
+    private final OnItemActionListener actionListener;
     private final List<ClosetItem> items = new ArrayList<>();
 
-    public ClosetCardAdapter(Context context, OnDeleteClickListener deleteClickListener) {
+    public ClosetCardAdapter(Context context, OnItemActionListener actionListener) {
         this.context = context;
-        this.deleteClickListener = deleteClickListener;
+        this.actionListener = actionListener;
     }
 
     public void submitList(List<ClosetItem> newItems) {
@@ -107,12 +106,12 @@ public class ClosetCardAdapter extends RecyclerView.Adapter<ClosetCardAdapter.Cl
             holder.status.setVisibility(View.GONE);
         }
 
-        holder.itemView.setOnClickListener(v -> openItem(item));
+        holder.itemView.setOnClickListener(v -> actionListener.onOpen(item));
         holder.itemView.setOnLongClickListener(v -> {
-            deleteClickListener.onDeleteClick(item);
+            actionListener.onManage(item);
             return true;
         });
-        holder.moreButton.setOnClickListener(v -> deleteClickListener.onDeleteClick(item));
+        holder.moreButton.setOnClickListener(v -> actionListener.onManage(item));
     }
 
     private int withSoftAlpha(int color) {
@@ -156,21 +155,6 @@ public class ClosetCardAdapter extends RecyclerView.Adapter<ClosetCardAdapter.Cl
         if (value.contains("fall") || value.contains("autumn") || value.contains("가을")) labels.add("가을");
         if (value.contains("winter") || value.contains("겨울")) labels.add("겨울");
         return labels.isEmpty() ? season : android.text.TextUtils.join("·", labels);
-    }
-
-    private void openItem(ClosetItem item) {
-        Intent intent = new Intent(context, AnalysisResultActivity.class);
-        intent.putExtra(AnalysisResultActivity.EXTRA_EDIT_MODE, true);
-        intent.putExtra(AnalysisResultActivity.EXTRA_LOCAL_ID, item.localId);
-        intent.putExtra(AnalysisResultActivity.EXTRA_REMOTE_ID, item.remoteId);
-        intent.putExtra(AnalysisResultActivity.EXTRA_WARDROBE_ID, item.wardrobeId);
-        intent.putExtra(AnalysisResultActivity.EXTRA_IMAGE_PATH, item.imagePath);
-        intent.putExtra(AnalysisResultActivity.EXTRA_CATEGORY_HINT, item.category);
-        intent.putExtra(AnalysisResultActivity.EXTRA_NAME, item.name);
-        intent.putExtra(AnalysisResultActivity.EXTRA_COLOR, item.color);
-        intent.putExtra(AnalysisResultActivity.EXTRA_SEASON, item.season);
-        intent.putExtra(AnalysisResultActivity.EXTRA_NOTE, item.note);
-        context.startActivity(intent);
     }
 
     @Override

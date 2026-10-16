@@ -93,6 +93,23 @@
                 android:paddingHorizontal="14dp" />
 
             <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="18dp"
+                android:text="저장할 옷장"
+                android:textColor="@color/fit_text"
+                android:textSize="14sp"
+                android:textStyle="bold" />
+
+            <Spinner
+                android:id="@+id/wardrobeSpinner"
+                android:layout_width="match_parent"
+                android:layout_height="52dp"
+                android:layout_marginTop="8dp"
+                android:background="@drawable/bg_input"
+                android:paddingHorizontal="14dp" />
+
+            <TextView
                 android:id="@+id/colorSummaryText"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -168,14 +185,6 @@
                     android:hint="세부 종류 (선택)"
                     android:paddingHorizontal="14dp"
                     android:singleLine="true" />
-
-                <Spinner
-                    android:id="@+id/wardrobeSpinner"
-                    android:layout_width="match_parent"
-                    android:layout_height="52dp"
-                    android:layout_marginTop="10dp"
-                    android:background="@drawable/bg_input"
-                    android:paddingHorizontal="14dp" />
 
                 <TextView
                     android:layout_width="match_parent"
@@ -255,6 +264,18 @@
                 android:textColor="#FFFFFF"
                 android:textSize="16sp"
                 android:textStyle="bold" />
+
+            <Button
+                android:id="@+id/deleteResultButton"
+                android:layout_width="match_parent"
+                android:layout_height="52dp"
+                android:layout_marginTop="12dp"
+                android:background="@drawable/bg_danger_soft_button"
+                android:text="−  옷 삭제"
+                android:textAllCaps="false"
+                android:textColor="@color/fit_danger"
+                android:textStyle="bold"
+                android:visibility="gone" />
         </LinearLayout>
     </LinearLayout>
 </ScrollView>
