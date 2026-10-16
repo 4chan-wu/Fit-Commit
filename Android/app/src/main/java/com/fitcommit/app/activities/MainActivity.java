@@ -263,6 +263,9 @@ public class MainActivity extends Activity {
                         if (!"closet".equals(currentScreen)) {
                             return;
                         }
+                        if (selectedWardrobeId == null || selectedWardrobeId.trim().isEmpty()) {
+                            ClothingStorage.reconcileActiveWithBackend(this, backendItems);
+                        }
                         bindWardrobeFilters(wardrobeRow, fetchedWardrobes);
                         availableWardrobes.clear();
                         availableWardrobes.addAll(fetchedWardrobes);
@@ -632,7 +635,9 @@ public class MainActivity extends Activity {
             }
             if (remoteIndex >= 0 && "sync_failed".equals(localItem.syncStatus)) {
                 merged.set(remoteIndex, localItem);
-            } else if (remoteIndex < 0) {
+            } else if (remoteIndex < 0
+                    && (localItem.remoteId == null || localItem.remoteId.trim().isEmpty()
+                    || "sync_failed".equals(localItem.syncStatus))) {
                 merged.add(localItem);
             }
         }

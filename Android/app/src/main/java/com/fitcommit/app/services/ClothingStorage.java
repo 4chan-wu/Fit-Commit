@@ -121,6 +121,46 @@ public final class ClothingStorage {
         persist(context, trashedItems, KEY_TRASHED_ITEMS);
     }
 
+    public static void reconcileActiveWithBackend(Context context, List<ClosetItem> backendItems) {
+        List<ClosetItem> activeItems = load(context);
+        List<ClosetItem> trashedItems = loadFromKey(context, KEY_TRASHED_ITEMS);
+        boolean changed = false;
+        for (int i = activeItems.size() - 1; i >= 0; i--) {
+            ClosetItem localItem = activeItems.get(i);
+            if (localItem.remoteId == null || localItem.remoteId.trim().isEmpty()
+                    || "sync_failed".equals(localItem.syncStatus)) {
+                continue;
+            }
+            boolean existsOnBackend = false;
+            for (ClosetItem backendItem : backendItems) {
+                if (matches(backendItem.remoteId, localItem.remoteId)) {
+                    existsOnBackend = true;
+                    break;
+                }
+            }
+            if (!existsOnBackend) {
+                if (!contains(trashedItems, localItem.localId, localItem.remoteId)) {
+                    trashedItems.add(0, localItem);
+                }
+                activeItems.remove(i);
+                changed = true;
+            }
+        }
+        if (changed) {
+            persist(context, activeItems, KEY_ITEMS);
+            persist(context, trashedItems, KEY_TRASHED_ITEMS);
+        }
+    }
+
+    private static boolean contains(List<ClosetItem> items, String localId, String remoteId) {
+        for (ClosetItem item : items) {
+            if (matches(item.localId, localId) || matches(item.remoteId, remoteId)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     private static boolean matches(String value, String target) {
         return value != null && target != null && !target.trim().isEmpty() && value.equals(target);
     }
