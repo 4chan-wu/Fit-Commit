@@ -1,6 +1,7 @@
 import base64
 import os
 import uuid
+from uuid import UUID
 
 import httpx
 from sqlalchemy import text
@@ -26,7 +27,7 @@ class TossPaymentService:
         if not self.client_key or not self.secret_key:
             raise ValueError("TOSS_CLIENT_KEY / TOSS_SECRET_KEY not set")
 
-    def create_order(self, db: Session, user_id: int, plan_id: int) -> dict:
+    def create_order(self, db: Session, user_id: UUID, plan_id: int) -> dict:
         plan = db.execute(
             text("""
                 SELECT id, code, name, price, currency
@@ -72,7 +73,7 @@ class TossPaymentService:
     async def confirm_payment(
         self,
         db: Session,
-        user_id: int,
+        user_id: UUID,
         payment_key: str,
         order_id: str,
         amount: int,

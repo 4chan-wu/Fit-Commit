@@ -1,20 +1,19 @@
 package com.fitcommit.app.activities;
 
-import android.Manifest;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.Intent;
-import android.content.pm.PackageManager;
-import android.graphics.Bitmap;
 import android.net.Uri;
 import android.os.Bundle;
+import android.os.Build;
 import android.provider.MediaStore;
+import android.view.LayoutInflater;
+import android.view.View;
 
+import com.fitcommit.app.R;
 import com.fitcommit.app.services.BackgroundRemover;
-import com.fitcommit.app.utils.UiUtils;
 
 public class AddClothingActivity extends Activity {
-    private static final int REQUEST_CAMERA_PERMISSION = 5101;
     private static final int REQUEST_TAKE_PHOTO = 5102;
     private static final int REQUEST_PICK_IMAGE = 5103;
     private static final String[] CATEGORY_VALUES = {"top", "bottom", "outer", "shoes", "hat", "bag", "dress"};
@@ -29,6 +28,7 @@ public class AddClothingActivity extends Activity {
     };
 
     private String selectedCategoryHint = CATEGORY_VALUES[0];
+    private AlertDialog progressDialog;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -47,88 +47,155 @@ public class AddClothingActivity extends Activity {
     }
 
     private void showSourceDialog() {
-        new AlertDialog.Builder(this)
-                .setTitle("의류 이미지 추가")
-                .setMessage("옷 한 벌만 화면 중앙에 놓고 촬영해주세요.\n배경은 단순할수록 분석 정확도가 높아집니다.")
-                .setItems(new String[]{"사진 찍기", "갤러리에서 선택"}, (dialog, which) -> {
-                    if (which == 0) {
-                        openCameraWithPermission();
-                    } else {
-                        openGallery();
-                    }
-                })
-                .setOnCancelListener(dialog -> finish())
-                .show();
-    }
-
-    private void openCameraWithPermission() {
-        if (checkSelfPermission(Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) {
+        View content = LayoutInflater.from(this).inflate(R.layout.dialog_clothing_source, null);
+        AlertDialog dialog = new AlertDialog.Builder(this)
+                .setView(content)
+                .setOnCancelListener(ignored -> finish())
+                .create();
+        content.findViewById(R.id.takeClothingPhotoButton).setOnClickListener(view -> {
+            dialog.dismiss();
             openCamera();
-        } else {
-            requestPermissions(new String[]{Manifest.permission.CAMERA}, REQUEST_CAMERA_PERMISSION);
-        }
+        });
+        content.findViewById(R.id.pickClothingPhotoButton).setOnClickListener(view -> {
+            dialog.dismiss();
+            openGallery();
+        });
+        content.findViewById(R.id.cancelClothingSourceButton).setOnClickListener(view -> {
+            dialog.dismiss();
+            finish();
+        });
+        dialog.show();
     }
 
     private void openCamera() {
-        Intent intent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
-        if (intent.resolveActivity(getPackageManager()) == null) {
-            UiUtils.toast(this, "카메라 앱을 찾을 수 없습니다.");
-            finish();
-            return;
-        }
+        Intent intent = new Intent(this, ClothingCameraActivity.class);
         startActivityForResult(intent, REQUEST_TAKE_PHOTO);
     }
 
     private void openGallery() {
-        Intent intent = new Intent(Intent.ACTION_PICK, MediaStore.Images.Media.EXTERNAL_CONTENT_URI);
-        intent.setType("image/*");
-        startActivityForResult(intent, REQUEST_PICK_IMAGE);
-    }
-
-    @Override
-    public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
-        if (requestCode == REQUEST_CAMERA_PERMISSION
-                && grantResults.length > 0
-                && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-            openCamera();
+        Intent intent;
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            intent = new Intent(MediaStore.ACTION_PICK_IMAGES);
+            intent.setType("image/*");
         } else {
-            UiUtils.toast(this, "카메라 권한이 필요합니다.");
-            finish();
+            intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
+            intent.addCategory(Intent.CATEGORY_OPENABLE);
+            intent.setType("image/*");
         }
+        startActivityForResult(intent, REQUEST_PICK_IMAGE);
     }
 
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
         if (resultCode != RESULT_OK || data == null) {
-            finish();
+            showSourceDialog();
             return;
         }
 
-        try {
-            String processedPath;
-            if (requestCode == REQUEST_PICK_IMAGE) {
-                Uri imageUri = data.getData();
-                if (imageUri == null) {
-                    throw new IllegalStateException("이미지를 선택하지 못했습니다.");
-                }
-                processedPath = BackgroundRemover.saveOriginalUri(this, imageUri);
-            } else if (requestCode == REQUEST_TAKE_PHOTO) {
-                Bitmap bitmap = (Bitmap) data.getExtras().get("data");
-                processedPath = BackgroundRemover.saveOriginalBitmap(this, bitmap);
-            } else {
-                finish();
+        showProcessingDialog("원본 이미지를 준비하고 있습니다...");
+        if (requestCode == REQUEST_PICK_IMAGE) {
+            Uri imageUri = data.getData();
+            if (imageUri == null) {
+                showProcessingError("이미지를 선택하지 못했습니다.");
                 return;
             }
-
-            Intent intent = new Intent(this, AnalysisResultActivity.class);
-            intent.putExtra(AnalysisResultActivity.EXTRA_IMAGE_PATH, processedPath);
-            intent.putExtra(AnalysisResultActivity.EXTRA_CATEGORY_HINT, selectedCategoryHint);
-            startActivity(intent);
-        } catch (Exception e) {
-            UiUtils.toast(this, "이미지를 처리할 수 없습니다.");
+            new Thread(() -> {
+                try {
+                    String originalPath = BackgroundRemover.saveOriginalUri(this, imageUri);
+                    runOnUiThread(() -> removeBackground(originalPath));
+                } catch (Exception error) {
+                    runOnUiThread(() -> showProcessingError("이미지를 읽을 수 없습니다. " + safeMessage(error)));
+                }
+            }).start();
+            return;
         }
+
+        if (requestCode == REQUEST_TAKE_PHOTO) {
+            String originalPath = data.getStringExtra(ClothingCameraActivity.EXTRA_CAPTURED_IMAGE_PATH);
+            if (originalPath == null || originalPath.trim().isEmpty()) {
+                showProcessingError("촬영한 이미지를 불러오지 못했습니다.");
+                return;
+            }
+            removeBackground(originalPath);
+            return;
+        }
+        dismissProgressDialog();
         finish();
+    }
+
+    private void removeBackground(String originalPath) {
+        showProcessingDialog("기기에서 옷과 배경을 분리하고 있습니다...");
+        BackgroundRemover.processFile(this, originalPath, new BackgroundRemover.Callback() {
+            @Override
+            public void onSuccess(String processedImagePath) {
+                runOnUiThread(() -> openAnalysisResult(originalPath, processedImagePath, true));
+            }
+
+            @Override
+            public void onError(String message) {
+                runOnUiThread(() -> showBackgroundRemovalFallback(originalPath, message));
+            }
+        });
+    }
+
+    private void openAnalysisResult(String originalPath, String displayImagePath, boolean backgroundRemoved) {
+        dismissProgressDialog();
+        Intent intent = new Intent(this, AnalysisResultActivity.class);
+        intent.putExtra(AnalysisResultActivity.EXTRA_IMAGE_PATH, displayImagePath);
+        intent.putExtra(AnalysisResultActivity.EXTRA_ORIGINAL_IMAGE_PATH, originalPath);
+        intent.putExtra(AnalysisResultActivity.EXTRA_BACKGROUND_REMOVED, backgroundRemoved);
+        intent.putExtra(AnalysisResultActivity.EXTRA_CATEGORY_HINT, selectedCategoryHint);
+        startActivity(intent);
+        finish();
+    }
+
+    private void showBackgroundRemovalFallback(String originalPath, String message) {
+        dismissProgressDialog();
+        new AlertDialog.Builder(this)
+                .setTitle("배경 제거가 어려운 사진이에요")
+                .setMessage(message + "\n\n촬영한 원본 사진은 그대로 등록할 수 있습니다.")
+                .setPositiveButton("원본으로 등록", (dialog, which) ->
+                        openAnalysisResult(originalPath, originalPath, false))
+                .setNeutralButton("다시 선택", (dialog, which) -> showSourceDialog())
+                .setNegativeButton("취소", (dialog, which) -> finish())
+                .setOnCancelListener(dialog -> finish())
+                .show();
+    }
+
+    private void showProcessingDialog(String message) {
+        dismissProgressDialog();
+        progressDialog = new AlertDialog.Builder(this)
+                .setTitle("옷 사진 준비 중")
+                .setMessage(message)
+                .setCancelable(false)
+                .create();
+        progressDialog.show();
+    }
+
+    private void showProcessingError(String message) {
+        dismissProgressDialog();
+        new AlertDialog.Builder(this)
+                .setTitle("배경을 제거하지 못했어요")
+                .setMessage(message)
+                .setPositiveButton("다시 선택", (dialog, which) -> showSourceDialog())
+                .setNegativeButton("취소", (dialog, which) -> finish())
+                .setOnCancelListener(dialog -> finish())
+                .show();
+    }
+
+    private void dismissProgressDialog() {
+        if (progressDialog != null && progressDialog.isShowing()) progressDialog.dismiss();
+        progressDialog = null;
+    }
+
+    private String safeMessage(Throwable error) {
+        return error.getMessage() == null ? "알 수 없는 오류" : error.getMessage();
+    }
+
+    @Override
+    protected void onDestroy() {
+        dismissProgressDialog();
+        super.onDestroy();
     }
 }

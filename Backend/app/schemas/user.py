@@ -36,15 +36,15 @@ class UserSignup(BaseModel):
         return v
 
     # -------------------------------
-    # 이름 검증 (한글만 허용)
+    # 이름 검증 (국제 사용자 이름과 공백 허용)
     # -------------------------------
     @field_validator("name")
     @classmethod
     def validate_name(cls, v: str):
-        # 한글만 허용 (가-힣)
-        if not re.fullmatch(r"[가-힣]+", v):
-            raise ValueError("이름은 한글만 입력 가능합니다.")
-        return v
+        normalized = v.strip()
+        if not normalized or not all(char.isalpha() or char.isspace() for char in normalized):
+            raise ValueError("이름은 문자와 공백만 입력 가능합니다.")
+        return normalized
     
     # -------------------------------
     # 전화번호 검증

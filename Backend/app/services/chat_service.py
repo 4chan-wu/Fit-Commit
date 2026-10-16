@@ -1,4 +1,5 @@
 import json
+from uuid import UUID
 
 from sqlalchemy import text
 from sqlalchemy.orm import Session
@@ -78,7 +79,7 @@ def save_ai_message(db: Session, room_id: int, ai_answer: str):
 
 def save_ai_log(
     db: Session,
-    user_id: int,
+    user_id: UUID,
     room_id: int,
     request_payload: dict,
     response_payload: dict,

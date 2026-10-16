@@ -1,6 +1,33 @@
-# Fitcommit Backend
+# Fitcommit Backend (전환 참고용)
 
-Fitcommit Backend는 앱에서 로컬에 먼저 저장한 옷장 메타데이터를 Supabase에 동기화하고 조회하는 FastAPI 서버임. 현재 Backend는 AWS EC2에서 `http://54.180.79.90:8000` 주소로 실행 중이며, 외부 Mac 터미널에서 Supabase `public.clothes` GET/POST 200 OK 확인이 완료됨.
+Android/iOS 운영 경로는 2026-10-14부터 AWS EC2/FastAPI를 사용하지 않고 Supabase Auth, PostgreSQL, PostgREST, Storage를 직접 사용함. 이 폴더는 기존 API 동작과 향후 Edge Function 변환을 위한 참고용이며 EC2에 배포하지 않음.
+
+## Supabase 단일 데이터 저장소 전환
+
+- 이메일 계정과 향후 SNS 계정은 Supabase Auth를 단일 인증 원본으로 사용함
+- 프로필, 옷장, 의류, 채팅, AI 로그, 주문과 결제 기록은 같은 Supabase 프로젝트에 저장함
+- Android/iOS는 Supabase access/refresh token을 저장하고 Supabase API에 Bearer token을 전송함
+- OpenAI/Toss처럼 secret이 필요한 기능은 Supabase Edge Functions로 이동함
+- 로컬 Docker PostgreSQL 서비스는 제거했으며 `DATABASE_URL`은 Supabase transaction pooler URI여야 함
+- `ALLOW_TEST_USER_ID`는 기본값 `false`이며 운영에서는 절대 활성화하지 않음
+
+기존 프로젝트 전환 순서:
+
+1. Supabase Dashboard에서 데이터베이스 백업을 생성함
+2. SQL Editor에서 `app/db/supabase_unified_auth_migration.sql`을 실행함
+3. `app/db/supabase_storage_direct_access_migration.sql`을 실행함
+4. Android/iOS에 Supabase URL과 공개키를 설정함
+5. 기존 `public.users` 계정은 Supabase Auth 회원가입 또는 비밀번호 재설정으로 전환함
+
+마이그레이션은 기존 bigint `user_id` 테이블에 데이터가 있으면 중단되도록 작성되어 있음. 기존 `public.users`는 즉시 RLS 및 권한 회수로 잠그지만, 계정 복구가 끝날 때까지 삭제하지 않음.
+
+2026-10-14 적용 결과:
+
+- `fitcommit_backup_20261014` 비공개 스키마에 적용 전 23개 테이블/14행 백업 완료
+- bigint `user_id` 사용 테이블 12개를 Supabase Auth UUID로 전환 완료
+- 기존 옷 6개와 옷장 2개 보존 확인
+- `public.users`, `public.user_credentials`, `public.auth_accounts` 익명 REST 접근 차단 확인
+- 기존 계정 3개 중 1개는 Supabase Auth 이메일과 일치하며 2개는 비밀번호 재설정/초대 필요
 
 ## 역할
 
@@ -70,7 +97,7 @@ CORS_ALLOW_ORIGINS=*
 - `ENABLE_AI_ANALYSIS=false`는 현재 앱 테스트에서 AI 서버 없이 옷 저장만 확인하기 위한 값임
 - `CORS_ALLOW_ORIGINS=*`는 개발 중에만 사용하고, 운영에서는 실제 웹 도메인으로 제한해야 함
 
-기존 사용자/채팅/결제 라우터가 함께 로드되므로 EC2에서도 `DATABASE_URL`과 `SECRET_KEY`는 설정해야 함. 의류 API만 테스트하더라도 현재 앱 구조에서는 Backend import 단계에서 `DATABASE_URL`이 필요함.
+채팅·결제 라우터는 Supabase PostgreSQL에 직접 연결하므로 EC2에서도 Supabase transaction pooler `DATABASE_URL`을 설정해야 함.
 
 ## Supabase 테이블
 
@@ -211,7 +238,6 @@ SUPABASE_ANON_KEY=your-anon-key
 SUPABASE_CLOTHING_BUCKET=clothing-images
 ENABLE_AI_ANALYSIS=false
 CORS_ALLOW_ORIGINS=*
-SECRET_KEY=change-this-secret-key
 ```
 
 8. systemd 서비스로 실행함
@@ -347,12 +373,20 @@ SUPABASE_ANON_KEY=your-anon-key
 SUPABASE_CLOTHING_BUCKET=clothing-images
 ENABLE_AI_ANALYSIS=false
 CORS_ALLOW_ORIGINS=*
-SECRET_KEY=change-this-secret-key
 ```
 
 tmux는 더 이상 기본 운영 방식으로 사용하지 않음.
 
 ## `/clothes` API
+
+모든 `/clothes`, `/wardrobes` 요청은 사용자 인증이 필요함. 운영에서는
+`Authorization: Bearer <supabase_access_token>`을 사용하고, 개발용 호출에서는
+요청의 `user_id`와 동일한 `X-Test-User-Id` 헤더를 함께 보내야 함. 본문이나 쿼리의
+`user_id`가 인증 사용자와 다르면 Backend가 403을 반환함.
+
+```bash
+-H "X-Test-User-Id: 45482f0f-42d0-401e-a18a-77abeb0492cc"
+```
 
 ### `GET /health`
 
@@ -452,7 +486,7 @@ curl -X POST "http://127.0.0.1:8000/users/me/profile" \
     "nickname": "fitcommit-test",
     "height_cm": 170,
     "body_type": "standard",
-    "preferred_style": ["casual", "minimal"]
+    "preferred_styles": ["casual", "minimal"]
   }'
 ```
 

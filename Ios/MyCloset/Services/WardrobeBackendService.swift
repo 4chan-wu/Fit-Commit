@@ -34,14 +34,18 @@ enum WardrobeBackendService {
         }
 
         var components = URLComponents(url: baseURL.appending(path: "wardrobes"), resolvingAgainstBaseURL: false)
-        components?.queryItems = [URLQueryItem(name: "user_id", value: userID)]
+        components?.queryItems = [
+            URLQueryItem(name: "select", value: "*"),
+            URLQueryItem(name: "order", value: "is_default.desc,created_at.asc")
+        ]
         guard let url = components?.url else {
             throw URLError(.badURL)
         }
 
         var request = URLRequest(url: url)
-        applyWardrobeAuthHeaders(to: &request)
+        try await applyWardrobeAuthHeaders(to: &request)
         request.setValue("application/json", forHTTPHeaderField: "Accept")
+        request.setValue("return=representation", forHTTPHeaderField: "Prefer")
         return try await send(request, response: [BackendWardrobeRow].self)
     }
 
@@ -57,7 +61,7 @@ enum WardrobeBackendService {
 
         var request = URLRequest(url: baseURL.appending(path: "wardrobes"))
         request.httpMethod = "POST"
-        applyWardrobeAuthHeaders(to: &request)
+        try await applyWardrobeAuthHeaders(to: &request)
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue("application/json", forHTTPHeaderField: "Accept")
         request.httpBody = try wardrobeJSONEncoder.encode(
@@ -68,7 +72,7 @@ enum WardrobeBackendService {
                 isDefault: isDefault
             )
         )
-        return try await send(request, response: BackendWardrobeRow.self)
+        return try await sendSingle(request, response: BackendWardrobeRow.self)
     }
 
     static func update(
@@ -82,17 +86,18 @@ enum WardrobeBackendService {
             throw URLError(.badURL)
         }
 
-        var components = URLComponents(url: baseURL.appending(path: "wardrobes/\(wardrobeID)"), resolvingAgainstBaseURL: false)
-        components?.queryItems = [URLQueryItem(name: "user_id", value: userID)]
+        var components = URLComponents(url: baseURL.appending(path: "wardrobes"), resolvingAgainstBaseURL: false)
+        components?.queryItems = [URLQueryItem(name: "id", value: "eq.\(wardrobeID)")]
         guard let url = components?.url else {
             throw URLError(.badURL)
         }
 
         var request = URLRequest(url: url)
-        request.httpMethod = "PUT"
-        applyWardrobeAuthHeaders(to: &request)
+        request.httpMethod = "PATCH"
+        try await applyWardrobeAuthHeaders(to: &request)
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue("application/json", forHTTPHeaderField: "Accept")
+        request.setValue("return=representation", forHTTPHeaderField: "Prefer")
         request.httpBody = try wardrobeJSONEncoder.encode(
             WardrobeUpdatePayload(
                 name: name,
@@ -100,7 +105,7 @@ enum WardrobeBackendService {
                 isDefault: isDefault
             )
         )
-        return try await send(request, response: BackendWardrobeRow.self)
+        return try await sendSingle(request, response: BackendWardrobeRow.self)
     }
 
     static func delete(wardrobeID: String) async throws {
@@ -109,15 +114,15 @@ enum WardrobeBackendService {
             throw URLError(.badURL)
         }
 
-        var components = URLComponents(url: baseURL.appending(path: "wardrobes/\(wardrobeID)"), resolvingAgainstBaseURL: false)
-        components?.queryItems = [URLQueryItem(name: "user_id", value: userID)]
+        var components = URLComponents(url: baseURL.appending(path: "wardrobes"), resolvingAgainstBaseURL: false)
+        components?.queryItems = [URLQueryItem(name: "id", value: "eq.\(wardrobeID)")]
         guard let url = components?.url else {
             throw URLError(.badURL)
         }
 
         var request = URLRequest(url: url)
         request.httpMethod = "DELETE"
-        applyWardrobeAuthHeaders(to: &request)
+        try await applyWardrobeAuthHeaders(to: &request)
         request.setValue("application/json", forHTTPHeaderField: "Accept")
         let (data, response) = try await URLSession.shared.data(for: request)
         guard let httpResponse = response as? HTTPURLResponse,
@@ -140,15 +145,20 @@ enum WardrobeBackendService {
         }
         return try JSONDecoder().decode(T.self, from: data)
     }
+
+    private static func sendSingle<T: Decodable>(_ request: URLRequest, response type: T.Type) async throws -> T {
+        let rows: [T] = try await send(request, response: [T].self)
+        guard let first = rows.first else { throw URLError(.cannotParseResponse) }
+        return first
+    }
 }
 
-private func applyWardrobeAuthHeaders(to request: inout URLRequest) {
-    if let token = BackendClothesService.configuredAccessToken {
+private func applyWardrobeAuthHeaders(to request: inout URLRequest) async throws {
+    if let token = try await AuthenticationManager.shared.validAccessToken()
+        ?? BackendClothesService.configuredAccessToken {
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
     }
-    if let userID = BackendClothesService.configuredUserID {
-        request.setValue(userID, forHTTPHeaderField: "X-Test-User-Id")
-    }
+    request.setValue(SupabaseConfiguration.anonKey, forHTTPHeaderField: "apikey")
 }
 
 private let wardrobeJSONEncoder: JSONEncoder = {

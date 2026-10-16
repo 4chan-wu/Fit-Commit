@@ -14,6 +14,8 @@ struct LoginView: View {
     @State private var failedLoginCount = 0
     @State private var lockoutEndDate: Date?
     @State private var now = Date()
+    @State private var pendingSocialProvider: String?
+    @State private var isSubmitting = false
 
     private let lockoutDuration: TimeInterval = 60
 
@@ -63,7 +65,7 @@ struct LoginView: View {
     }
 
     private var canSubmit: Bool {
-        guard !isLocked, isEmailValid, isPasswordValid else { return false }
+        guard !isLocked, !isSubmitting, isEmailValid, isPasswordValid else { return false }
 
         if isSignUpMode {
             return isNameValid && isPhoneNumberValid && isPasswordConfirmationValid
@@ -142,7 +144,7 @@ struct LoginView: View {
                     feedbackArea
 
                     Button(action: submitCredentials) {
-                        Text(isSignUpMode ? "회원가입" : "로그인")
+                        Text(isSubmitting ? "처리 중..." : (isSignUpMode ? "회원가입" : "로그인"))
                             .font(.system(.headline, design: .rounded).weight(.bold))
                             .foregroundStyle(.white)
                             .frame(maxWidth: .infinity)
@@ -175,6 +177,19 @@ struct LoginView: View {
                     errorMessage = ""
                 }
             }
+        }
+        .alert(
+            "\(pendingSocialProvider ?? "소셜") 로그인 준비 중",
+            isPresented: Binding(
+                get: { pendingSocialProvider != nil },
+                set: { if !$0 { pendingSocialProvider = nil } }
+            )
+        ) {
+            Button("확인", role: .cancel) {
+                pendingSocialProvider = nil
+            }
+        } message: {
+            Text("개발자 앱과 Supabase OAuth 설정이 완료되면 사용할 수 있습니다. 계정 인증 없이 앱에 진입하는 테스트 동작은 제거했습니다.")
         }
     }
 
@@ -252,11 +267,11 @@ struct LoginView: View {
 
             VStack(spacing: 10) {
                 SocialAuthButton(title: "Apple로 시작하기", systemImage: "apple.logo") {
-                    performDummySocialLogin()
+                    beginSocialLogin("Apple")
                 }
 
                 SocialAuthButton(title: "Google로 시작하기", systemImage: "g.circle") {
-                    performDummySocialLogin()
+                    beginSocialLogin("Google")
                 }
 
                 SocialAuthButton(
@@ -265,7 +280,16 @@ struct LoginView: View {
                     backgroundColor: Color(hex: 0xFEE500),
                     foregroundColor: .black
                 ) {
-                    performDummySocialLogin()
+                    beginSocialLogin("카카오톡")
+                }
+
+                SocialAuthButton(
+                    title: "네이버로 시작하기",
+                    systemImage: "n.circle",
+                    backgroundColor: Color(hex: 0x03C75A),
+                    foregroundColor: .white
+                ) {
+                    beginSocialLogin("네이버")
                 }
             }
         }
@@ -273,31 +297,54 @@ struct LoginView: View {
 
     private func submitCredentials() {
         errorMessage = ""
+        isSubmitting = true
 
-        if isSignUpMode {
-            authenticationManager.login()
-            return
-        }
+        Task {
+            do {
+                if isSignUpMode {
+                    let requiresConfirmation = try await authenticationManager.signUp(
+                        name: name.trimmingCharacters(in: .whitespacesAndNewlines),
+                        email: email.trimmingCharacters(in: .whitespacesAndNewlines),
+                        phoneNumber: phoneDigits,
+                        password: password
+                    )
+                    await MainActor.run {
+                        isSubmitting = false
+                        if requiresConfirmation {
+                            errorMessage = "인증 메일을 확인한 뒤 로그인해주세요."
+                        } else {
+                            isSignUpMode = false
+                            errorMessage = "회원가입이 완료되었습니다. 로그인해주세요."
+                        }
+                    }
+                    return
+                }
 
-        // FastAPI 연결 시 /auth/login 요청으로 교체
-        let isSimulatedLoginSuccess = email.lowercased() == "test@fitcommit.com" && password == "Fitcommit1!"
-
-        if isSimulatedLoginSuccess {
-            failedLoginCount = 0
-            authenticationManager.login()
-        } else {
-            failedLoginCount += 1
-            if failedLoginCount >= 10 {
-                lockoutEndDate = Date().addingTimeInterval(lockoutDuration)
-                errorMessage = "1분간 계정이 잠깁니다."
-            } else {
-                errorMessage = "이메일 또는 비밀번호가 올바르지 않습니다. (\(failedLoginCount)/10)"
+                try await authenticationManager.signIn(
+                    email: email.trimmingCharacters(in: .whitespacesAndNewlines),
+                    password: password
+                )
+                await MainActor.run {
+                    failedLoginCount = 0
+                    isSubmitting = false
+                }
+            } catch {
+                await MainActor.run {
+                    isSubmitting = false
+                    failedLoginCount += 1
+                    if failedLoginCount >= 10 {
+                        lockoutEndDate = Date().addingTimeInterval(lockoutDuration)
+                        errorMessage = "1분간 계정이 잠깁니다."
+                    } else {
+                        errorMessage = error.localizedDescription
+                    }
+                }
             }
         }
     }
 
-    private func performDummySocialLogin() {
-        authenticationManager.login()
+    private func beginSocialLogin(_ provider: String) {
+        pendingSocialProvider = provider
     }
 
     private func formatPhoneNumber(_ value: String) -> String {

@@ -1,5 +1,15 @@
 # Fitcommit Android
 
+## Supabase 인증
+
+- 이메일 회원가입/로그인은 AWS/FastAPI 없이 Supabase Auth를 직접 사용함
+- 로그인 응답의 access token, refresh token, 만료 시각을 저장함
+- 만료 1분 전에는 Supabase Auth token endpoint로 세션을 갱신함
+- 고정 테스트 UUID와 `X-Test-User-Id`는 제거함
+- Google/Kakao/Naver/Apple 버튼은 각 개발자 콘솔의 OAuth 설정을 마친 뒤 활성화해야 함
+
+옷·옷장 데이터는 Supabase PostgREST, 사진은 Supabase Storage로 직접 전송함. 앱에는 공개 가능한 anon/publishable key만 포함하며 `service_role`은 포함하지 않음.
+
 Fitcommit Android는 Java/XML 기반 Android 앱임. 현재 흐름은 iOS와 동일하게 카테고리를 먼저 선택하고, 아이템 단독 사진을 로컬 옷장에 먼저 저장한 뒤 Backend 동기화와 AI 분석을 후처리로 시도하는 구조임.
 
 ## 역할
@@ -17,12 +27,14 @@ Fitcommit Android는 Java/XML 기반 Android 앱임. 현재 흐름은 iOS와 동
 - AI 서버 없이도 사용자가 카테고리, 세부 종류, 대표 색상, 계절을 직접 수정할 수 있음
 - 대표색은 Android 로컬 이미지 처리로 추천값을 계산하고, 사용자가 직접 바꿀 수 있음
 - 수동 수정은 `analysis_method=manual`로 저장하고 `analysis_status=pending`을 유지할 수 있음
-- 배경 제거는 저장 필수 조건이 아니며 향후 선택 기능으로 분리함
-- 원본 이미지는 항상 먼저 저장하고, 배경 제거 실패 시에도 원본 이미지와 clothes row는 유지해야 함
-- Android에는 밝은 배경을 투명 처리하는 `BackgroundRemover.processBitmap/processUri`가 있지만 현재 등록 저장 흐름에는 연결하지 않음
-- Android 배경 제거는 ML Kit, OpenCV, 또는 서버 처리 중 하나로 안정화한 뒤 연결해야 함
+- 사진 촬영은 앱 내부 CameraX 화면에서 고품질 JPEG로 저장하며 갤러리 선택도 지원함
+- 등록 전에 ML Kit Subject Segmentation으로 기기 안에서 배경을 제거함
+- 배경 제거본은 투명 WebP로 저장하고 원본 JPEG와 함께 Supabase Storage의 사용자 UUID 폴더에 업로드함
+- 옷장 목록은 배경 제거본을 우선 내려받아 표시하고, 이전 데이터에는 원본 이미지를 fallback으로 사용함
 - Backend 저장 실패 시에도 `ClothingStorage` 로컬 item은 유지됨
 - 옷장 화면은 Backend 조회 결과와 로컬 저장소를 remote id/local id 기준으로 병합함
+- 신체 비율 측정은 MediaPipe Pose Landmarker를 이용해 기기 안에서 전신 관절과 예상 신체 치수를 분석함
+- 측정 결과는 사용자별 로컬 저장소에 최대 20개까지 보관하고 마이 화면에 최근 결과를 표시함
 - 3D 공간 스캔과 신체 비율 측정 진입점은 옷장 화면에 계속 유지함
 
 ## 구조
@@ -60,25 +72,46 @@ cd Android
 sh gradlew assembleDebug
 ```
 
-현재 Codex 검증 환경에는 Java Runtime이 없어 위 빌드는 실행하지 못함. 로컬 개발 환경에서는 Android Studio가 설치한 JDK 또는 별도 JDK 17 이상을 사용하면 됨.
+Android Studio가 설치한 JDK 또는 별도 JDK 17 이상을 사용하면 됨. 신체 분석 모델이 없으면 첫 빌드 시 공식 Google 저장소에서 내려받고 SHA-256을 검증함.
 
-## Backend URL 설정
+## Supabase 설정
 
-Android 앱의 Backend base URL은 `app/src/main/java/com/fitcommit/app/services/ApiClient.java`에서 한 곳으로 관리함.
+`Android/local.properties`, 셸 환경변수, 로컬 `Backend/.env` 순서로 아래 값을 읽어 BuildConfig에 주입함. `local.properties`와 `.env`는 Git에 커밋하지 않음.
 
 팀원 실제 기기 테스트용 기본값은 아래와 같음.
 
 ```text
-BASE_URL=http://54.180.79.90:8000
-BACKEND_CLOTHES_USER_ID=45482f0f-42d0-401e-a18a-77abeb0492cc
-SUPABASE_ACCESS_TOKEN=
-ENABLE_AI_ANALYSIS=false
+SUPABASE_URL=https://iuplvspexcgvhonqgfag.supabase.co
+SUPABASE_ANON_KEY=Supabase의_공개키
+SUPABASE_CLOTHING_BUCKET=clothing-images
 ```
 
-`ENABLE_AI_ANALYSIS=false`이면 AI 서버 `/predict`를 호출하지 않고 Backend `/clothes` 저장까지만 진행함.
-개발 단계에서는 `BACKEND_CLOTHES_USER_ID`를 `X-Test-User-Id` 헤더로 함께 보내며, `SUPABASE_ACCESS_TOKEN` 값이 있으면 `Authorization: Bearer <token>` 헤더도 보낼 수 있게 준비함.
-실제 서비스에서는 테스트 user_id 직접 입력 방식이 아니라 Supabase Auth access token 기반 인증으로 바꿔야 함.
-팀원들이 같은 테스트 user_id를 쓰면 Supabase `clothes` 데이터가 같은 사용자 옷장에 섞일 수 있음.
+로그인 세션의 `Authorization: Bearer <token>`과 RLS로 사용자 데이터를 분리함. 원본은 최대 1600px JPEG 품질 82, 배경 제거본은 알파 채널을 유지하는 WebP로 사용자 UUID 폴더에 업로드함. ML Kit Subject Segmentation 모델은 Google Play services를 통해 기기에 내려받으므로 최초 실행 시 인터넷 연결이 필요할 수 있음.
+
+## Google Play 출시 빌드
+
+첫 출시에는 이메일 인증, 디지털 옷장과 온디바이스 신체 비율 측정을 제공함. AI 코디, 소셜 로그인과 3D 공간 스캔은 실제 연동을 완료한 뒤 노출 여부를 다시 검토함. 신체 측정값은 카메라 기반 추정치이므로 의료·재단용 실측값으로 안내하지 않음.
+
+출시 전 다음 작업이 필요함.
+
+1. `Backend/app/db/make_clothing_storage_private.sql`을 Supabase SQL Editor에서 실행함.
+2. 계정 삭제 Edge Function을 배포함.
+
+   ```bash
+   supabase functions deploy delete-account --project-ref iuplvspexcgvhonqgfag
+   ```
+
+3. GitHub Pages에서 `/docs` 폴더를 공개하고 Play Console에 아래 주소를 등록함.
+   - 개인정보처리방침: `https://4chan-wu.github.io/Fit-Commit/privacy-policy.html`
+   - 계정 삭제: `https://4chan-wu.github.io/Fit-Commit/account-deletion.html`
+4. 업로드 키를 준비함. 현재 로컬에서는 `fitcommit-upload.jks`와 `upload-key.password`를 자동으로 읽어 서명함. 두 파일은 Git에서 제외되며, 앱 업데이트에 계속 필요하므로 반드시 별도의 안전한 위치에 함께 백업함. 다른 환경에서는 `keystore.properties.example`을 `keystore.properties`로 복사해 기존 키를 연결할 수 있음.
+5. 다음 명령으로 lint와 서명된 AAB를 생성함.
+
+   ```bash
+   JAVA_HOME="/Applications/Android Studio.app/Contents/jbr/Contents/Home" bash gradlew :app:lintRelease :app:bundleRelease
+   ```
+
+로컬 업로드 키나 `keystore.properties`가 없으면 개발 확인용 unsigned AAB만 생성됨. Google Play 업로드 전 `jarsigner -verify`로 서명을 확인해야 함.
 
 ## 사용자별 옷장 구조
 
@@ -89,7 +122,8 @@ Android 앱은 현재 `wardrobe_id`를 몰라도 옷 등록이 가능함. Backen
 - 추가 옷장은 여러 개 가능함
 - 같은 사용자 안에서 같은 옷장 이름은 중복될 수 없음
 - 옷장 화면에서 “전체”와 서버 옷장 목록을 필터 버튼으로 표시함
-- 특정 옷장을 선택하면 Backend `GET /clothes?user_id=...&wardrobe_id=...`로 해당 옷장 옷만 조회함
+- 로그인 사용자가 특정 옷장을 선택하면 Backend `GET /clothes/me?wardrobe_id=...`로 해당 옷장 옷만 조회함
+- Debug 테스트 사용자는 기존 `GET /clothes?user_id=...&wardrobe_id=...` 경로를 사용함
 - “옷장 관리” 버튼으로 추가 옷장을 생성할 수 있음
 - 옷장 필터 버튼을 길게 누르면 해당 옷장 수정/삭제 액션을 열 수 있음
 - `ClothesBackendService`에는 옷장 목록 조회, 생성, 수정, 삭제 API 호출 구조를 준비함
@@ -128,12 +162,15 @@ ipconfig getifaddr en0
 저장 흐름은 아래 순서로 동작함. AI 분석 성공과 서버 저장 성공은 로컬 저장의 필수 조건이 아님.
 
 ```text
+AddClothingActivity
+  -> 앱 내부 CameraX 촬영 또는 시스템 Photo Picker로 갤러리 선택
+  -> 원본 JPEG를 앱 내부 저장소에 저장
+  -> ML Kit Subject Segmentation으로 온디바이스 배경 제거
+  -> 알파 채널을 유지한 투명 WebP 생성
 AnalysisResultActivity
   -> ClothingStorage에 local item 먼저 저장
-  -> Backend POST /clothes/upload로 Storage 업로드 시도
-  -> 업로드 성공 시 image_path/image_url을 서버 row에 사용
-  -> 업로드 실패 시 local:// fallback 사용
-  -> ClothesBackendService.createPending()으로 Backend 동기화 시도
+  -> 원본 JPEG와 투명 WebP를 Supabase Storage에 직접 업로드
+  -> image_path와 background_removed_image_path를 clothes row에 저장
   -> 성공 시 remote_id 저장 + sync_status=synced
   -> 실패 시 로컬 유지 + sync_status=sync_failed
   -> ENABLE_AI_ANALYSIS=false이면 AI 서버 호출 건너뜀
@@ -149,7 +186,9 @@ AnalysisResultActivity
 Closet 화면
   -> ClothingStorage 로컬 데이터 조회
   -> ClothesBackendService.fetchClothes()
-  -> GET /clothes?user_id=...
+  -> Supabase 세션으로 PostgREST clothes 조회
+  -> private Storage에서 background_removed_image_path를 인증 다운로드
+  -> 배경 제거본이 없는 기존 데이터는 image_path 원본으로 대체
   -> 성공 시 Supabase 데이터와 로컬 데이터를 중복 없이 병합
   -> 실패 시 ClothingStorage 로컬 데이터만 표시
 ```
@@ -158,12 +197,13 @@ AI 실패 item과 서버 동기화 실패 item도 옷장 화면에 표시됨. �
 
 ## 이미지 경로
 
-Android는 사진을 `ClothingStorage`에 먼저 저장한 뒤 Backend `POST /clothes/upload`로 Supabase Storage 업로드를 시도함. 업로드 성공 시 `/clothes` 생성 payload에 `image_path`와 `image_url`을 포함함.
+Android는 사진과 배경 제거본을 `ClothingStorage`에 먼저 저장한 뒤 Supabase Storage로 직접 업로드함. 공개 URL은 만들지 않고 private bucket의 object path만 DB에 저장함.
 
 Storage 경로는 아래 형태를 사용함.
 
 ```text
 {user_id}/{main_category}/{filename}.jpg
+{user_id}/{main_category}/background_removed/{filename}.webp
 ```
 
 업로드 실패 시에도 옷 등록은 계속 진행함. 이때 `local://...` 또는 앱 내부 로컬 경로를 fallback으로 저장함. `local://` 경로는 Supabase Dashboard에서 볼 수 없는 앱 내부 참조임.
@@ -214,8 +254,7 @@ POST /clothes/{clothing_id}/analyze
 
 ## 남은 작업
 
-- Android JDK 환경에서 Gradle 빌드를 검증해야 함
 - 실제 AI 서버를 배포하고 Android 후처리 흐름과 연결해야 함
 - 업로드된 이미지 기반 AI 재분석과 벡터화를 연결해야 함
-- 임시 user_id 대신 Supabase Auth access token 기반 인증으로 전환해야 함
+- Google/Kakao/Naver OAuth 결과를 `TokenManager.saveSupabaseSession(...)`에 연결하고 refresh token 갱신을 구현해야 함
 - 재분석 버튼에서 Backend `POST /clothes/{clothing_id}/analyze`를 호출하는 UI를 완성해야 함

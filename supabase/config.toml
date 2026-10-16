@@ -1,0 +1,10 @@
+project_id = "iuplvspexcgvhonqgfag"
+
+[functions.ai-chat]
+verify_jwt = true
+
+[functions.delete-account]
+verify_jwt = true
+
+[functions.toss-payments]
+verify_jwt = true

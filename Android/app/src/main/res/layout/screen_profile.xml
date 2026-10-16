@@ -1,7 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
-    android:layout_height="match_parent">
+    android:layout_height="match_parent"
+    android:fillViewport="true">
 
     <LinearLayout
         android:layout_width="match_parent"
@@ -9,97 +10,83 @@
         android:orientation="vertical"
         android:padding="20dp">
 
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="마이"
+            android:textColor="@color/fit_text"
+            android:textSize="28sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="10dp"
+            android:text="계정과 개인정보 설정을 관리합니다."
+            android:textColor="@color/fit_text_secondary"
+            android:textSize="14sp" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="30dp"
+            android:text="나의 신체 분석"
+            android:textColor="@color/fit_text_secondary"
+            android:textStyle="bold" />
+
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
             android:background="@drawable/bg_card"
-            android:gravity="center_horizontal"
-            android:orientation="vertical">
+            android:orientation="vertical"
+            android:padding="18dp">
 
             <TextView
-                android:layout_width="80dp"
-                android:layout_height="80dp"
-                android:background="@drawable/bg_soft_button"
-                android:gravity="center"
-                android:text="👤"
-                android:textSize="36sp" />
-
-            <TextView
-                android:id="@+id/profileNameText"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="14dp"
-                android:gravity="center"
-                android:text="닉네임을 설정해주세요"
+                android:text="BODY PROFILE"
                 android:textColor="@color/fit_primary"
-                android:textSize="20sp"
+                android:textSize="12sp"
                 android:textStyle="bold" />
 
             <TextView
+                android:id="@+id/bodyMeasurementSummaryText"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
-                android:gravity="center"
-                android:text="프로필 수정"
-                android:textColor="@color/fit_text_secondary"
+                android:layout_marginTop="9dp"
+                android:lineSpacingExtra="4dp"
+                android:textColor="@color/fit_text"
+                android:textSize="15sp" />
+
+            <Button
+                android:id="@+id/startBodyMeasurementButton"
+                android:layout_width="match_parent"
+                android:layout_height="52dp"
+                android:layout_marginTop="16dp"
+                android:background="@drawable/bg_primary_button"
+                android:text="신체 비율 측정하기"
+                android:textAllCaps="false"
+                android:textColor="#FFFFFF"
                 android:textStyle="bold" />
         </LinearLayout>
 
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="28dp"
-            android:text="내 활동"
+            android:layout_marginTop="26dp"
+            android:text="정보 및 약관"
             android:textColor="@color/fit_text_secondary"
             android:textStyle="bold" />
 
         <Button
-            android:id="@+id/scanHistoryButton"
+            android:id="@+id/privacyPolicyButton"
             android:layout_width="match_parent"
             android:layout_height="54dp"
             android:layout_marginTop="12dp"
             android:background="@drawable/bg_card"
-            android:text="스캔 히스토리  ›"
+            android:text="개인정보처리방침  ›"
             android:textAllCaps="false"
-            android:textColor="@color/fit_text" />
-
-        <Button
-            android:id="@+id/profileChatHistoryButton"
-            android:layout_width="match_parent"
-            android:layout_height="54dp"
-            android:layout_marginTop="7dp"
-            android:background="@drawable/bg_card"
-            android:text="채팅 기록  ›"
-            android:textAllCaps="false"
-            android:textColor="@color/fit_text" />
-
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="24dp"
-            android:text="앱 설정"
-            android:textColor="@color/fit_text_secondary"
-            android:textStyle="bold" />
-
-        <Switch
-            android:id="@+id/faceIdSwitch"
-            android:layout_width="match_parent"
-            android:layout_height="56dp"
-            android:layout_marginTop="12dp"
-            android:background="@drawable/bg_card"
-            android:paddingHorizontal="18dp"
-            android:text="측정 기록 접근 시 생체 인증 사용"
-            android:textColor="@color/fit_text" />
-
-        <Switch
-            android:id="@+id/autoLoginSwitch"
-            android:layout_width="match_parent"
-            android:layout_height="56dp"
-            android:layout_marginTop="7dp"
-            android:background="@drawable/bg_card"
-            android:checked="true"
-            android:paddingHorizontal="18dp"
-            android:text="자동 로그인"
             android:textColor="@color/fit_text" />
 
         <TextView
@@ -109,16 +96,27 @@
             android:background="@drawable/bg_card"
             android:gravity="center_vertical"
             android:paddingHorizontal="18dp"
-            android:text="앱 버전 정보    1.0"
+            android:text="앱 버전    1.0"
             android:textColor="@color/fit_text" />
 
         <Button
             android:id="@+id/logoutButton"
             android:layout_width="match_parent"
             android:layout_height="54dp"
-            android:layout_marginTop="32dp"
+            android:layout_marginTop="30dp"
             android:background="@drawable/bg_card"
             android:text="로그아웃"
+            android:textAllCaps="false"
+            android:textColor="@color/fit_text"
+            android:textStyle="bold" />
+
+        <Button
+            android:id="@+id/deleteAccountButton"
+            android:layout_width="match_parent"
+            android:layout_height="54dp"
+            android:layout_marginTop="8dp"
+            android:background="@drawable/bg_card"
+            android:text="계정 삭제"
             android:textAllCaps="false"
             android:textColor="@color/fit_danger"
             android:textStyle="bold" />

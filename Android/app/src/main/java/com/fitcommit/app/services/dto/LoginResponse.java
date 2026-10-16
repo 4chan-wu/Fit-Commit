@@ -11,6 +11,12 @@ public class LoginResponse {
     @SerializedName("token_type")
     private String tokenType;
 
+    @SerializedName("refresh_token")
+    private String refreshToken;
+
+    @SerializedName("expires_at")
+    private long expiresAt;
+
     private UserDto user;
 
     public String getMessage() {
@@ -23,6 +29,14 @@ public class LoginResponse {
 
     public String getTokenType() {
         return tokenType;
+    }
+
+    public String getRefreshToken() {
+        return refreshToken;
+    }
+
+    public long getExpiresAt() {
+        return expiresAt;
     }
 
     public UserDto getUser() {

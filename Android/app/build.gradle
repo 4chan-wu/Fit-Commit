@@ -2,17 +2,114 @@ plugins {
     id "com.android.application"
 }
 
+def localProperties = new Properties()
+def localPropertiesFile = rootProject.file("local.properties")
+if (localPropertiesFile.exists()) {
+    localPropertiesFile.withInputStream { localProperties.load(it) }
+}
+
+def backendEnv = new Properties()
+def backendEnvFile = rootProject.file("../Backend/.env")
+if (backendEnvFile.exists()) {
+    backendEnvFile.eachLine { line ->
+        def trimmed = line.trim()
+        if (trimmed && !trimmed.startsWith("#") && trimmed.contains("=")) {
+            def separator = trimmed.indexOf("=")
+            backendEnv.setProperty(trimmed.substring(0, separator), trimmed.substring(separator + 1))
+        }
+    }
+}
+
+def supabaseValue = { String name, String fallback = "" ->
+    def value = System.getenv(name) ?: localProperties.getProperty(name) ?: backendEnv.getProperty(name) ?: fallback
+    return value.replace("\\", "\\\\").replace('"', '\\"')
+}
+
+def releaseKeystoreProperties = new Properties()
+def releaseKeystoreFile = rootProject.file("keystore.properties")
+if (releaseKeystoreFile.exists()) {
+    releaseKeystoreFile.withInputStream { releaseKeystoreProperties.load(it) }
+}
+def generatedUploadKeystoreFile = rootProject.file("fitcommit-upload.jks")
+def generatedUploadPasswordFile = rootProject.file("upload-key.password")
+def hasGeneratedUploadKey = generatedUploadKeystoreFile.exists() && generatedUploadPasswordFile.exists()
+def hasReleaseSigning = releaseKeystoreFile.exists() || hasGeneratedUploadKey
+def generatedUploadPassword = hasGeneratedUploadKey ? generatedUploadPasswordFile.getText("UTF-8").trim() : ""
+
+def poseModelFile = file("src/main/assets/pose_landmarker_full.task")
+def poseModelSha256 = "5134a3aad27a58b93da0088d431f366da362b44e3ccfbe3462b3827a839011b1"
+tasks.register("downloadPoseLandmarkerModel") {
+    outputs.file(poseModelFile)
+    doLast {
+        if (!poseModelFile.exists()) {
+            poseModelFile.parentFile.mkdirs()
+            new URL("https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_full/float16/1/pose_landmarker_full.task")
+                    .withInputStream { input -> poseModelFile.withOutputStream { output -> output << input } }
+        }
+        def digest = java.security.MessageDigest.getInstance("SHA-256")
+        poseModelFile.withInputStream { input ->
+            byte[] buffer = new byte[8192]
+            int count
+            while ((count = input.read(buffer)) != -1) digest.update(buffer, 0, count)
+        }
+        def actualSha256 = digest.digest().encodeHex().toString()
+        if (actualSha256 != poseModelSha256) {
+            throw new GradleException("Pose Landmarker model checksum mismatch: ${actualSha256}")
+        }
+    }
+}
+
 android {
     namespace "com.fitcommit.app"
-    compileSdk 35
+    compileSdk 36
+
+    buildFeatures {
+        buildConfig true
+    }
 
     defaultConfig {
         applicationId "com.fitcommit.app"
         minSdk 24
-        targetSdk 35
+        targetSdk 36
         versionCode 1
         versionName "1.0"
+
+        buildConfigField "String", "SUPABASE_URL", "\"${supabaseValue('SUPABASE_URL', 'https://iuplvspexcgvhonqgfag.supabase.co')}\""
+        buildConfigField "String", "SUPABASE_ANON_KEY", "\"${supabaseValue('SUPABASE_ANON_KEY')}\""
+        buildConfigField "String", "SUPABASE_CLOTHING_BUCKET", "\"${supabaseValue('SUPABASE_CLOTHING_BUCKET', 'clothing-images')}\""
     }
+
+    signingConfigs {
+        if (hasReleaseSigning) {
+            release {
+                storeFile releaseKeystoreFile.exists()
+                        ? file(releaseKeystoreProperties.getProperty("storeFile"))
+                        : generatedUploadKeystoreFile
+                storePassword releaseKeystoreFile.exists()
+                        ? releaseKeystoreProperties.getProperty("storePassword")
+                        : generatedUploadPassword
+                keyAlias releaseKeystoreFile.exists()
+                        ? releaseKeystoreProperties.getProperty("keyAlias")
+                        : "fitcommit-upload"
+                keyPassword releaseKeystoreFile.exists()
+                        ? releaseKeystoreProperties.getProperty("keyPassword")
+                        : generatedUploadPassword
+            }
+        }
+    }
+
+    buildTypes {
+        release {
+            if (hasReleaseSigning) {
+                signingConfig signingConfigs.release
+            }
+            minifyEnabled false
+        }
+    }
+}
+
+tasks.named("preBuild").configure {
+    dependsOn("downloadPoseLandmarkerModel")
 }
 
 dependencies {
@@ -27,4 +124,7 @@ dependencies {
     implementation "androidx.camera:camera-view:$camerax_version"
     implementation "com.squareup.retrofit2:retrofit:$retrofit_version"
     implementation "com.squareup.retrofit2:converter-gson:$retrofit_version"
+    implementation "com.google.mediapipe:tasks-vision:1.1.1"
+    implementation "com.google.android.gms:play-services-mlkit-subject-segmentation:16.0.0-beta1"
+    testImplementation "junit:junit:4.13.2"
 }

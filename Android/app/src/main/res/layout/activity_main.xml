@@ -34,7 +34,11 @@
 
             <TextView android:id="@+id/tabHome" style="@style/FitTabText" android:text="홈" />
             <TextView android:id="@+id/tabCloset" style="@style/FitTabText" android:text="내 옷장" />
-            <TextView android:id="@+id/tabAi" style="@style/FitTabText" android:text="AI 코디" />
+            <TextView
+                android:id="@+id/tabAi"
+                style="@style/FitTabText"
+                android:text="AI 코디"
+                android:visibility="gone" />
             <TextView android:id="@+id/tabProfile" style="@style/FitTabText" android:text="마이" />
         </LinearLayout>
     </FrameLayout>
