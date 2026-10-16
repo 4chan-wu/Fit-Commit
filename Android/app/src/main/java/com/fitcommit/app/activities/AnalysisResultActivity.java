@@ -45,7 +45,9 @@ public class AnalysisResultActivity extends Activity {
     public static final String EXTRA_WARDROBE_ID = "wardrobeId";
 
     private static final String[] CATEGORIES = {"top", "bottom", "outer", "shoes", "hat", "bag", "dress"};
+    private static final String[] CATEGORY_LABELS = {"상의", "하의", "아우터", "신발", "모자", "가방", "원피스"};
     private static final String[] COLORS = {"black", "white", "gray", "navy", "blue", "brown", "beige", "red", "pink", "green", "yellow", "purple"};
+    private static final String[] COLOR_LABELS = {"블랙", "화이트", "그레이", "네이비", "블루", "브라운", "베이지", "레드", "핑크", "그린", "옐로", "퍼플"};
     private final FashionAiService fashionAiService = new FashionAiService();
     private ClothesBackendService clothesBackendService;
 
@@ -58,6 +60,7 @@ public class AnalysisResultActivity extends Activity {
     private String selectedWardrobeId = "";
     private final List<Wardrobe> wardrobes = new ArrayList<>();
     private AnalysisResult result;
+    private boolean detailsVisible;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -101,13 +104,13 @@ public class AnalysisResultActivity extends Activity {
 
     private void setupStaticForm() {
         Spinner categorySpinner = findViewById(R.id.categorySpinner);
-        ArrayAdapter<String> adapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_dropdown_item, CATEGORIES);
+        ArrayAdapter<String> adapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_dropdown_item, CATEGORY_LABELS);
         categorySpinner.setAdapter(adapter);
         int hintIndex = Arrays.asList(CATEGORIES).indexOf(categoryHint);
         categorySpinner.setSelection(Math.max(hintIndex, 0));
 
         Spinner colorSpinner = findViewById(R.id.colorSpinner);
-        ArrayAdapter<String> colorAdapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_dropdown_item, COLORS);
+        ArrayAdapter<String> colorAdapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_dropdown_item, COLOR_LABELS);
         colorSpinner.setAdapter(colorAdapter);
         colorSpinner.setOnItemSelectedListener(new android.widget.AdapterView.OnItemSelectedListener() {
             @Override
@@ -120,7 +123,7 @@ public class AnalysisResultActivity extends Activity {
             }
         });
 
-        findViewById(R.id.editResultButton).setOnClickListener(v -> resetFields());
+        findViewById(R.id.editResultButton).setOnClickListener(v -> setDetailsVisible(!detailsVisible));
         findViewById(R.id.saveResultButton).setOnClickListener(v -> saveConfirmedResult());
         Spinner wardrobeSpinner = findViewById(R.id.wardrobeSpinner);
         ArrayAdapter<String> wardrobeAdapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_dropdown_item, new String[]{"기본 옷장"});
@@ -188,6 +191,7 @@ public class AnalysisResultActivity extends Activity {
         if (note != null && note.contains("subcategory=")) {
             ((EditText) findViewById(R.id.subcategoryEditText)).setText(extractNoteValue(note, "subcategory"));
         }
+        setDetailsVisible(true);
         setLoading(false, "수정 후 저장하면 Backend PUT /clothes/{id}로 반영됩니다.");
     }
 
@@ -230,7 +234,10 @@ public class AnalysisResultActivity extends Activity {
     }
 
     private void bindResult(AnalysisResult result) {
-        ((TextView) findViewById(R.id.resultCategoryText)).setText(result.mainCategory);
+        int categoryIndex = Arrays.asList(CATEGORIES).indexOf(result.mainCategory);
+        ((TextView) findViewById(R.id.resultCategoryText)).setText(
+                categoryIndex >= 0 ? CATEGORY_LABELS[categoryIndex] : result.mainCategory
+        );
         ((TextView) findViewById(R.id.resultConfidenceText)).setText(Math.round(result.confidence * 100) + "% confidence");
         String color = normalizeColor(result.mainColor);
         ((TextView) findViewById(R.id.colorSummaryText)).setText("대표 색상  " + color);
@@ -245,8 +252,7 @@ public class AnalysisResultActivity extends Activity {
         }
 
         Spinner categorySpinner = findViewById(R.id.categorySpinner);
-        int index = Arrays.asList(CATEGORIES).indexOf(result.mainCategory);
-        categorySpinner.setSelection(Math.max(index, 0));
+        categorySpinner.setSelection(Math.max(categoryIndex, 0));
 
         bindSeason(result.season);
     }
@@ -257,9 +263,21 @@ public class AnalysisResultActivity extends Activity {
         }
     }
 
+    private void setDetailsVisible(boolean visible) {
+        detailsVisible = visible;
+        findViewById(R.id.detailsContainer).setVisibility(visible ? View.VISIBLE : View.GONE);
+        ((android.widget.Button) findViewById(R.id.editResultButton)).setText(
+                visible ? "상세 정보 접기" : "상세 정보 추가"
+        );
+    }
+
     private void saveConfirmedResult() {
-        String name = valueOrDefault(((EditText) findViewById(R.id.clothingNameEditText)).getText().toString(), "새 의류");
-        String category = ((Spinner) findViewById(R.id.categorySpinner)).getSelectedItem().toString();
+        int categoryPosition = ((Spinner) findViewById(R.id.categorySpinner)).getSelectedItemPosition();
+        String category = CATEGORIES[Math.max(0, Math.min(categoryPosition, CATEGORIES.length - 1))];
+        String enteredName = ((EditText) findViewById(R.id.clothingNameEditText)).getText().toString().trim();
+        String name = enteredName.isEmpty() || isGeneratedDefaultName(enteredName)
+                ? defaultNameFor(category)
+                : enteredName;
         String subcategory = ((EditText) findViewById(R.id.subcategoryEditText)).getText().toString().trim();
         String color = valueOrDefault(((EditText) findViewById(R.id.colorEditText)).getText().toString(), "gray");
         String styleTags = ((EditText) findViewById(R.id.styleTagsEditText)).getText().toString().trim();
@@ -631,6 +649,15 @@ public class AnalysisResultActivity extends Activity {
             default:
                 return "새 의류";
         }
+    }
+
+    private boolean isGeneratedDefaultName(String name) {
+        for (String category : CATEGORIES) {
+            if (defaultNameFor(category).equals(name)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private String valueOrDefault(String value, String fallback) {

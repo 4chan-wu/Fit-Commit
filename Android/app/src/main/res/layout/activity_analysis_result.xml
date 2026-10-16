@@ -24,9 +24,10 @@
         <ImageView
             android:id="@+id/resultPreviewImage"
             android:layout_width="match_parent"
-            android:layout_height="240dp"
-            android:layout_marginTop="12dp"
+            android:layout_height="280dp"
+            android:layout_marginTop="8dp"
             android:background="@drawable/bg_card"
+            android:contentDescription="등록할 의류 이미지"
             android:padding="14dp"
             android:scaleType="fitCenter" />
 
@@ -49,7 +50,7 @@
             <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="의류 정보 입력"
+                android:text="이대로 옷장에 추가할까요?"
                 android:textColor="@color/fit_text"
                 android:textSize="20sp"
                 android:textStyle="bold" />
@@ -58,7 +59,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="4dp"
-                android:text="확정 전 최종 값을 확인하고 수정해주세요."
+                android:text="카테고리와 색상만 확인하면 바로 저장할 수 있어요."
                 android:textColor="@color/fit_text_secondary"
                 android:textSize="13sp" />
 
@@ -66,156 +67,185 @@
                 android:id="@+id/resultCategoryText"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="18dp"
-                android:text="top"
-                android:textColor="@color/fit_text"
-                android:textSize="18sp"
-                android:textStyle="bold" />
+                android:visibility="gone" />
 
             <TextView
                 android:id="@+id/resultConfidenceText"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="4dp"
-                android:text="0% confidence"
-                android:textColor="@color/fit_text_secondary"
-                android:textSize="12sp" />
+                android:visibility="gone" />
 
-            <EditText
-                android:id="@+id/clothingNameEditText"
+            <TextView
                 android:layout_width="match_parent"
-                android:layout_height="52dp"
-                android:layout_marginTop="18dp"
-                android:background="@drawable/bg_input"
-                android:hint="의류 이름"
-                android:paddingHorizontal="14dp"
-                android:singleLine="true" />
+                android:layout_height="wrap_content"
+                android:layout_marginTop="20dp"
+                android:text="카테고리"
+                android:textColor="@color/fit_text"
+                android:textSize="14sp"
+                android:textStyle="bold" />
 
             <Spinner
                 android:id="@+id/categorySpinner"
                 android:layout_width="match_parent"
                 android:layout_height="52dp"
-                android:layout_marginTop="12dp"
+                android:layout_marginTop="8dp"
                 android:background="@drawable/bg_input"
                 android:paddingHorizontal="14dp" />
-
-            <Spinner
-                android:id="@+id/wardrobeSpinner"
-                android:layout_width="match_parent"
-                android:layout_height="52dp"
-                android:layout_marginTop="12dp"
-                android:background="@drawable/bg_input"
-                android:paddingHorizontal="14dp" />
-
-            <EditText
-                android:id="@+id/subcategoryEditText"
-                android:layout_width="match_parent"
-                android:layout_height="52dp"
-                android:layout_marginTop="12dp"
-                android:background="@drawable/bg_input"
-                android:hint="세부 종류"
-                android:paddingHorizontal="14dp"
-                android:singleLine="true" />
-
-            <EditText
-                android:id="@+id/colorEditText"
-                android:layout_width="match_parent"
-                android:layout_height="52dp"
-                android:layout_marginTop="12dp"
-                android:background="@drawable/bg_input"
-                android:hint="대표 색상"
-                android:paddingHorizontal="14dp"
-                android:singleLine="true" />
-
-            <Spinner
-                android:id="@+id/colorSpinner"
-                android:layout_width="match_parent"
-                android:layout_height="52dp"
-                android:layout_marginTop="12dp"
-                android:background="@drawable/bg_input"
-                android:paddingHorizontal="14dp" />
-
-            <LinearLayout
-                android:id="@+id/seasonGroup"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="14dp"
-                android:orientation="vertical">
-
-                <CheckBox
-                    android:id="@+id/seasonSpring"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:text="spring" />
-
-                <CheckBox
-                    android:id="@+id/seasonSummer"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:text="summer" />
-
-                <CheckBox
-                    android:id="@+id/seasonFall"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:text="fall" />
-
-                <CheckBox
-                    android:id="@+id/seasonWinter"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:text="winter" />
-            </LinearLayout>
-
-            <EditText
-                android:id="@+id/styleTagsEditText"
-                android:layout_width="match_parent"
-                android:layout_height="52dp"
-                android:layout_marginTop="12dp"
-                android:background="@drawable/bg_input"
-                android:hint="스타일 태그, 쉼표로 구분"
-                android:paddingHorizontal="14dp"
-                android:singleLine="true" />
 
             <TextView
                 android:id="@+id/colorSummaryText"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="18dp"
-                android:text="대표 색상  #CCCCCC"
+                android:text="사진에서 찾은 대표 색상"
                 android:textColor="@color/fit_text"
+                android:textSize="14sp"
                 android:textStyle="bold" />
 
-            <LinearLayout
+            <Spinner
+                android:id="@+id/colorSpinner"
+                android:layout_width="match_parent"
+                android:layout_height="52dp"
+                android:layout_marginTop="8dp"
+                android:background="@drawable/bg_input"
+                android:paddingHorizontal="14dp" />
+
+            <EditText
+                android:id="@+id/colorEditText"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="18dp"
-                android:orientation="horizontal">
+                android:visibility="gone" />
 
-                <Button
-                    android:id="@+id/editResultButton"
-                    android:layout_width="0dp"
-                    android:layout_height="54dp"
-                    android:layout_marginEnd="8dp"
-                    android:layout_weight="1"
-                    android:background="@drawable/bg_soft_button"
-                    android:text="수정하기"
-                    android:textAllCaps="false"
-                    android:textColor="@color/fit_primary"
+            <LinearLayout
+                android:id="@+id/detailsContainer"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:visibility="gone">
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="22dp"
+                    android:text="상세 정보"
+                    android:textColor="@color/fit_text"
+                    android:textSize="16sp"
                     android:textStyle="bold" />
 
-                <Button
-                    android:id="@+id/saveResultButton"
-                    android:layout_width="0dp"
-                    android:layout_height="54dp"
-                    android:layout_marginStart="8dp"
-                    android:layout_weight="1"
-                    android:background="@drawable/bg_primary_button"
-                    android:text="저장하기"
-                    android:textAllCaps="false"
-                    android:textColor="#FFFFFF"
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="3dp"
+                    android:text="필요할 때만 입력하세요. 모두 선택사항이에요."
+                    android:textColor="@color/fit_text_secondary"
+                    android:textSize="12sp" />
+
+                <EditText
+                    android:id="@+id/clothingNameEditText"
+                    android:layout_width="match_parent"
+                    android:layout_height="52dp"
+                    android:layout_marginTop="12dp"
+                    android:background="@drawable/bg_input"
+                    android:hint="옷 이름 (선택)"
+                    android:paddingHorizontal="14dp"
+                    android:singleLine="true" />
+
+                <EditText
+                    android:id="@+id/subcategoryEditText"
+                    android:layout_width="match_parent"
+                    android:layout_height="52dp"
+                    android:layout_marginTop="10dp"
+                    android:background="@drawable/bg_input"
+                    android:hint="세부 종류 (선택)"
+                    android:paddingHorizontal="14dp"
+                    android:singleLine="true" />
+
+                <Spinner
+                    android:id="@+id/wardrobeSpinner"
+                    android:layout_width="match_parent"
+                    android:layout_height="52dp"
+                    android:layout_marginTop="10dp"
+                    android:background="@drawable/bg_input"
+                    android:paddingHorizontal="14dp" />
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="16dp"
+                    android:text="입기 좋은 계절 (선택)"
+                    android:textColor="@color/fit_text"
+                    android:textSize="14sp"
                     android:textStyle="bold" />
+
+                <LinearLayout
+                    android:id="@+id/seasonGroup"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:orientation="horizontal">
+
+                    <CheckBox
+                        android:id="@+id/seasonSpring"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="봄" />
+
+                    <CheckBox
+                        android:id="@+id/seasonSummer"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="여름" />
+
+                    <CheckBox
+                        android:id="@+id/seasonFall"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="가을" />
+
+                    <CheckBox
+                        android:id="@+id/seasonWinter"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="겨울" />
+                </LinearLayout>
+
+                <EditText
+                    android:id="@+id/styleTagsEditText"
+                    android:layout_width="match_parent"
+                    android:layout_height="52dp"
+                    android:layout_marginTop="10dp"
+                    android:background="@drawable/bg_input"
+                    android:hint="스타일 태그 (선택)"
+                    android:paddingHorizontal="14dp"
+                    android:singleLine="true" />
             </LinearLayout>
+
+            <Button
+                android:id="@+id/editResultButton"
+                android:layout_width="match_parent"
+                android:layout_height="48dp"
+                android:layout_marginTop="14dp"
+                android:background="@drawable/bg_soft_button"
+                android:text="상세 정보 추가"
+                android:textAllCaps="false"
+                android:textColor="@color/fit_primary"
+                android:textStyle="bold" />
+
+            <Button
+                android:id="@+id/saveResultButton"
+                android:layout_width="match_parent"
+                android:layout_height="56dp"
+                android:layout_marginTop="10dp"
+                android:background="@drawable/bg_primary_button"
+                android:text="옷장에 저장"
+                android:textAllCaps="false"
+                android:textColor="#FFFFFF"
+                android:textSize="16sp"
+                android:textStyle="bold" />
         </LinearLayout>
     </LinearLayout>
 </ScrollView>
