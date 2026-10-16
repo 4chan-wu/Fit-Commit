@@ -136,17 +136,26 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="3dp"
-                    android:text="필요할 때만 입력하세요. 모두 선택사항이에요."
+                    android:text="필요한 내용만 선택해서 추가할 수 있어요."
                     android:textColor="@color/fit_text_secondary"
                     android:textSize="12sp" />
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="14dp"
+                    android:text="옷 이름 (선택)"
+                    android:textColor="@color/fit_text"
+                    android:textSize="14sp"
+                    android:textStyle="bold" />
 
                 <EditText
                     android:id="@+id/clothingNameEditText"
                     android:layout_width="match_parent"
                     android:layout_height="52dp"
-                    android:layout_marginTop="12dp"
+                    android:layout_marginTop="8dp"
                     android:background="@drawable/bg_input"
-                    android:hint="옷 이름 (선택)"
+                    android:hint="예: 네이비 오버핏 티셔츠"
                     android:paddingHorizontal="14dp"
                     android:singleLine="true" />
 

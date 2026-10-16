@@ -186,13 +186,15 @@ public class AnalysisResultActivity extends Activity {
                 ""
         );
         bindResult(result);
-        ((EditText) findViewById(R.id.clothingNameEditText)).setText(valueOrDefault(getIntent().getStringExtra(EXTRA_NAME), defaultNameFor(categoryHint)));
+        ((EditText) findViewById(R.id.clothingNameEditText)).setText(
+                displayNameOrDefault(getIntent().getStringExtra(EXTRA_NAME), categoryHint)
+        );
         String note = getIntent().getStringExtra(EXTRA_NOTE);
         if (note != null && note.contains("subcategory=")) {
             ((EditText) findViewById(R.id.subcategoryEditText)).setText(extractNoteValue(note, "subcategory"));
         }
         setDetailsVisible(true);
-        setLoading(false, "수정 후 저장하면 Backend PUT /clothes/{id}로 반영됩니다.");
+        setLoading(false, "");
     }
 
     private void registerClothing() {
@@ -200,7 +202,7 @@ public class AnalysisResultActivity extends Activity {
             result = AnalysisResult.fallback(categoryHint);
             bindResult(result);
             findViewById(R.id.resultConfidenceText).setVisibility(View.GONE);
-            setLoading(false, "의류 정보를 확인하고 저장해주세요.");
+            setLoading(false, "");
             return;
         }
         setLoading(true, "Backend /clothes 저장을 먼저 진행 중입니다...");
@@ -240,13 +242,14 @@ public class AnalysisResultActivity extends Activity {
         );
         ((TextView) findViewById(R.id.resultConfidenceText)).setText(Math.round(result.confidence * 100) + "% confidence");
         String color = normalizeColor(result.mainColor);
-        ((TextView) findViewById(R.id.colorSummaryText)).setText("대표 색상  " + color);
+        int colorIndex = Arrays.asList(COLORS).indexOf(color);
+        String colorLabel = colorIndex >= 0 ? COLOR_LABELS[colorIndex] : color;
+        ((TextView) findViewById(R.id.colorSummaryText)).setText("대표 색상 · " + colorLabel);
         ((EditText) findViewById(R.id.clothingNameEditText)).setText(defaultNameFor(result.mainCategory));
         ((EditText) findViewById(R.id.subcategoryEditText)).setText(result.subcategory);
         ((EditText) findViewById(R.id.colorEditText)).setText(color);
         ((EditText) findViewById(R.id.styleTagsEditText)).setText(joinTags(result.styleTags));
         Spinner colorSpinner = findViewById(R.id.colorSpinner);
-        int colorIndex = Arrays.asList(COLORS).indexOf(color);
         if (colorIndex >= 0) {
             colorSpinner.setSelection(colorIndex);
         }
@@ -658,6 +661,14 @@ public class AnalysisResultActivity extends Activity {
             }
         }
         return false;
+    }
+
+    private String displayNameOrDefault(String name, String category) {
+        String trimmed = name == null ? "" : name.trim();
+        if (trimmed.isEmpty() || Arrays.asList(CATEGORIES).contains(trimmed)) {
+            return defaultNameFor(category);
+        }
+        return trimmed;
     }
 
     private String valueOrDefault(String value, String fallback) {
