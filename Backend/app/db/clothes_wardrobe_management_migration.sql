@@ -2,11 +2,15 @@
 -- Android 옷장 화면의 이름 저장과 안전한 옷장 삭제/이동을 지원합니다.
 
 ALTER TABLE public.clothes
-    ADD COLUMN IF NOT EXISTS display_name text NOT NULL DEFAULT '';
+    ADD COLUMN IF NOT EXISTS display_name text NOT NULL DEFAULT '',
+    ADD COLUMN IF NOT EXISTS deleted_at timestamptz;
 
 UPDATE public.clothes
    SET display_name = COALESCE(NULLIF(subcategory, ''), NULLIF(main_category, ''), '의류')
  WHERE display_name = '';
+
+CREATE INDEX IF NOT EXISTS idx_clothes_deleted_at
+ON public.clothes(deleted_at);
 
 CREATE OR REPLACE FUNCTION public.delete_wardrobe_and_move_clothes(p_wardrobe_id uuid)
 RETURNS void

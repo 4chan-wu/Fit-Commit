@@ -399,7 +399,7 @@ public class MainActivity extends Activity {
     private void confirmDeleteClothing(ClosetItem item) {
         AlertDialog dialog = new AlertDialog.Builder(this)
                 .setTitle("옷을 삭제할까요?")
-                .setMessage("\"" + safe(item.name) + "\"을 옷장에서 삭제합니다. 서버에 저장된 사진도 함께 정리됩니다.")
+                .setMessage("\"" + safe(item.name) + "\"을 삭제하시겠습니까?")
                 .setNegativeButton("취소", null)
                 .setPositiveButton("삭제", (prompt, which) -> deleteClothing(item))
                 .create();
@@ -411,9 +411,8 @@ public class MainActivity extends Activity {
     private void deleteClothing(ClosetItem item) {
         boolean hasRemoteId = item.remoteId != null && !item.remoteId.trim().isEmpty();
         if (!hasRemoteId) {
-            ClothingStorage.delete(this, item.localId, item.remoteId);
-            deleteLocalClothingImage(item.imagePath);
-            UiUtils.toast(this, "옷장에서 삭제했습니다.");
+            ClothingStorage.moveToTrash(this, item.localId, item.remoteId);
+            UiUtils.toast(this, "옷을 삭제했습니다.");
             showCloset();
             return;
         }
@@ -425,13 +424,10 @@ public class MainActivity extends Activity {
         UiUtils.toast(this, "옷을 삭제하고 있습니다...");
         new Thread(() -> {
             try {
-                boolean imagesDeleted = clothesBackendService.deleteClothing(item.remoteId);
-                ClothingStorage.delete(this, item.localId, item.remoteId);
-                deleteLocalClothingImage(item.imagePath);
+                clothesBackendService.deleteClothing(item.remoteId);
+                ClothingStorage.moveToTrash(this, item.localId, item.remoteId);
                 runOnUiThread(() -> {
-                    UiUtils.toast(this, imagesDeleted
-                            ? "옷과 저장된 사진을 삭제했습니다."
-                            : "옷은 삭제했지만 서버 사진 일부를 정리하지 못했습니다.");
+                    UiUtils.toast(this, "옷을 삭제했습니다.");
                     showCloset();
                 });
             } catch (Exception error) {

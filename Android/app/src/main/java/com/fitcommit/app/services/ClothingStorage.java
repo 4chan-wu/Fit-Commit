@@ -14,6 +14,7 @@ import java.util.List;
 public final class ClothingStorage {
     private static final String PREF_NAME = "fitcommit_closet";
     private static final String KEY_ITEMS = "items";
+    private static final String KEY_TRASHED_ITEMS = "trashed_items";
 
     private ClothingStorage() {
     }
@@ -106,14 +107,32 @@ public final class ClothingStorage {
         persist(context, items);
     }
 
+    public static void moveToTrash(Context context, String localId, String remoteId) {
+        List<ClosetItem> activeItems = load(context);
+        List<ClosetItem> trashedItems = loadFromKey(context, KEY_TRASHED_ITEMS);
+        for (int i = activeItems.size() - 1; i >= 0; i--) {
+            ClosetItem item = activeItems.get(i);
+            if (matches(item.localId, localId) || matches(item.remoteId, remoteId)) {
+                trashedItems.add(0, item);
+                activeItems.remove(i);
+            }
+        }
+        persist(context, activeItems, KEY_ITEMS);
+        persist(context, trashedItems, KEY_TRASHED_ITEMS);
+    }
+
     private static boolean matches(String value, String target) {
         return value != null && target != null && !target.trim().isEmpty() && value.equals(target);
     }
 
     public static List<ClosetItem> load(Context context) {
+        return loadFromKey(context, KEY_ITEMS);
+    }
+
+    private static List<ClosetItem> loadFromKey(Context context, String key) {
         List<ClosetItem> items = new ArrayList<>();
         SharedPreferences prefs = context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE);
-        String raw = prefs.getString(KEY_ITEMS, "[]");
+        String raw = prefs.getString(key, "[]");
         try {
             JSONArray array = new JSONArray(raw);
             for (int i = 0; i < array.length(); i++) {
@@ -149,6 +168,10 @@ public final class ClothingStorage {
     }
 
     private static void persist(Context context, List<ClosetItem> items) {
+        persist(context, items, KEY_ITEMS);
+    }
+
+    private static void persist(Context context, List<ClosetItem> items, String key) {
         JSONArray array = new JSONArray();
         for (ClosetItem item : items) {
             JSONObject object = new JSONObject();
@@ -174,7 +197,7 @@ public final class ClothingStorage {
         }
         context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
                 .edit()
-                .putString(KEY_ITEMS, array.toString())
+                .putString(key, array.toString())
                 .apply();
     }
 }

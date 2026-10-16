@@ -229,7 +229,7 @@ public class AnalysisResultActivity extends Activity {
     private void confirmDeleteClothing() {
         AlertDialog dialog = new AlertDialog.Builder(this)
                 .setTitle("옷을 삭제할까요?")
-                .setMessage("옷장과 서버에 저장된 사진에서 모두 삭제됩니다.")
+                .setMessage("선택한 옷을 삭제하시겠습니까?")
                 .setNegativeButton("취소", null)
                 .setPositiveButton("삭제", (prompt, which) -> deleteClothing())
                 .create();
@@ -241,10 +241,8 @@ public class AnalysisResultActivity extends Activity {
     private void deleteClothing() {
         boolean hasRemoteId = serverClothingId != null && !serverClothingId.trim().isEmpty();
         if (!hasRemoteId) {
-            ClothingStorage.delete(this, localItemId, serverClothingId);
-            deleteLocalImage(imagePath);
-            if (!valueOrDefault(originalImagePath, "").equals(imagePath)) deleteLocalImage(originalImagePath);
-            UiUtils.toast(this, "옷장에서 삭제했습니다.");
+            ClothingStorage.moveToTrash(this, localItemId, serverClothingId);
+            UiUtils.toast(this, "옷을 삭제했습니다.");
             finish();
             return;
         }
@@ -252,13 +250,11 @@ public class AnalysisResultActivity extends Activity {
             UiUtils.toast(this, "서버에 연결한 후 다시 삭제해주세요.");
             return;
         }
-        setLoading(true, "옷과 사진을 삭제하고 있습니다...");
+        setLoading(true, "옷을 삭제하고 있습니다...");
         new Thread(() -> {
             try {
                 clothesBackendService.deleteClothing(serverClothingId);
-                ClothingStorage.delete(this, localItemId, serverClothingId);
-                deleteLocalImage(imagePath);
-                if (!valueOrDefault(originalImagePath, "").equals(imagePath)) deleteLocalImage(originalImagePath);
+                ClothingStorage.moveToTrash(this, localItemId, serverClothingId);
                 runOnUiThread(() -> {
                     UiUtils.toast(this, "옷을 삭제했습니다.");
                     finish();

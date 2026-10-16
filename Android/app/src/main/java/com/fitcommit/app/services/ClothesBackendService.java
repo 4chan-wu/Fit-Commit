@@ -343,35 +343,13 @@ public class ClothesBackendService {
             throw new IllegalArgumentException("삭제할 서버 의류 ID가 없습니다.");
         }
         requireAuthenticatedUserId();
-        String filter = "?id=eq." + urlEncode(clothingId);
-        List<String> storagePaths = fetchClothingStoragePaths(filter);
-
-        HttpURLConnection connection = (HttpURLConnection) new URL(ApiClient.BASE_URL + "/clothes" + filter).openConnection();
-        connection.setRequestMethod("DELETE");
-        connection.setConnectTimeout(10_000);
-        connection.setReadTimeout(15_000);
-        connection.setRequestProperty("Accept", "application/json");
-        connection.setRequestProperty("Prefer", "return=representation");
-        applyAuthHeaders(connection);
-        int statusCode = connection.getResponseCode();
-        String body = readResponse(connection, statusCode);
-        if (statusCode < 200 || statusCode >= 300) {
-            throw new IllegalStateException("Supabase 의류 삭제 실패: " + statusCode + " " + body);
-        }
-        JSONArray deletedRows = body == null || body.trim().isEmpty() ? new JSONArray() : new JSONArray(body);
-        if (deletedRows.length() == 0) {
-            throw new IllegalStateException("삭제할 의류를 찾지 못했습니다.");
-        }
-
-        if (!storagePaths.isEmpty()) {
-            try {
-                deleteStorageObjects(storagePaths);
-            } catch (Exception cleanupError) {
-                System.out.println("[ClothesBackendService] Deleted clothing row, but image cleanup failed: "
-                        + cleanupError.getMessage());
-                return false;
-            }
-        }
+        JSONObject payload = new JSONObject();
+        payload.put("deleted_at", isoNow());
+        requestJson(
+                "PATCH",
+                ApiClient.BASE_URL + "/clothes?id=eq." + urlEncode(clothingId) + "&deleted_at=is.null",
+                payload
+        );
         return true;
     }
 
@@ -436,7 +414,7 @@ public class ClothesBackendService {
 
     public List<ClosetItem> fetchClothes(String wardrobeId) throws Exception {
         requireAuthenticatedUserId();
-        String url = ApiClient.BASE_URL + "/clothes?select=*&order=created_at.desc";
+        String url = ApiClient.BASE_URL + "/clothes?select=*&deleted_at=is.null&order=created_at.desc";
         if (wardrobeId != null && !wardrobeId.trim().isEmpty()) {
             url += "&wardrobe_id=eq." + urlEncode(wardrobeId);
         }
