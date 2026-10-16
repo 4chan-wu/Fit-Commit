@@ -14,6 +14,12 @@
             android:layout_width="match_parent"
             android:layout_height="match_parent" />
 
+        <android.opengl.GLSurfaceView
+            android:id="@+id/bodyArCameraPreview"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:visibility="gone" />
+
         <com.fitcommit.app.views.PoseOverlayView
             android:id="@+id/poseOverlay"
             android:layout_width="match_parent"
@@ -81,9 +87,10 @@
             android:padding="18dp">
 
             <TextView
+                android:id="@+id/measurementModeText"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="실시간 예상 키"
+                android:text="측정 방식 확인 중"
                 android:textColor="@color/fit_text_secondary"
                 android:textSize="12sp"
                 android:textStyle="bold" />
@@ -107,6 +114,34 @@
                 android:text="머리부터 발끝까지 전신이 화면에 들어오도록 2~3m 떨어져 서 주세요."
                 android:textColor="@color/fit_text_secondary"
                 android:textSize="13sp" />
+
+            <EditText
+                android:id="@+id/manualHeightInput"
+                android:layout_width="match_parent"
+                android:layout_height="50dp"
+                android:layout_marginTop="12dp"
+                android:background="@drawable/bg_input"
+                android:hint="키 입력 (cm)"
+                android:inputType="numberDecimal"
+                android:maxLength="5"
+                android:paddingHorizontal="16dp"
+                android:textColor="@color/fit_text"
+                android:textColorHint="@color/fit_text_secondary"
+                android:textSize="15sp"
+                android:visibility="gone" />
+
+            <Button
+                android:id="@+id/useManualHeightButton"
+                android:layout_width="match_parent"
+                android:layout_height="44dp"
+                android:layout_marginTop="10dp"
+                android:background="@drawable/bg_soft_button"
+                android:text="키 직접 입력으로 분석"
+                android:textAllCaps="false"
+                android:textColor="@color/fit_primary"
+                android:textSize="13sp"
+                android:textStyle="bold"
+                android:visibility="gone" />
 
             <Button
                 android:id="@+id/measureBodyButton"

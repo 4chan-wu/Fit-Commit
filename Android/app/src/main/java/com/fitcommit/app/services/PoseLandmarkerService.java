@@ -28,7 +28,9 @@ public final class PoseLandmarkerService implements ImageAnalysis.Analyzer, Auto
     private static final String MODEL_NAME = "pose_landmarker_full.task";
     private final Listener listener;
     private final AtomicLong lastTimestamp = new AtomicLong(0L);
+    private final java.util.concurrent.atomic.AtomicBoolean processing = new java.util.concurrent.atomic.AtomicBoolean(false);
     private PoseLandmarker landmarker;
+    private Bitmap inFlightBitmap;
 
     public PoseLandmarkerService(Context context, Listener listener) {
         this.listener = listener;
@@ -46,7 +48,10 @@ public final class PoseLandmarkerService implements ImageAnalysis.Analyzer, Auto
                             .setMinPosePresenceConfidence(0.65f)
                             .setMinTrackingConfidence(0.65f)
                             .setResultListener(this::onResult)
-                            .setErrorListener(error -> listener.onPoseError(safeMessage(error)))
+                            .setErrorListener(error -> {
+                                releaseInFlightBitmap();
+                                listener.onPoseError(safeMessage(error));
+                            })
                             .build();
             landmarker = PoseLandmarker.createFromOptions(context.getApplicationContext(), options);
         } catch (RuntimeException error) {
@@ -65,6 +70,11 @@ public final class PoseLandmarkerService implements ImageAnalysis.Analyzer, Auto
             return;
         }
 
+        if (processing.get()) {
+            imageProxy.close();
+            return;
+        }
+
         int rotation = imageProxy.getImageInfo().getRotationDegrees();
         try {
             Bitmap source = Bitmap.createBitmap(
@@ -74,9 +84,19 @@ public final class PoseLandmarkerService implements ImageAnalysis.Analyzer, Auto
             );
             imageProxy.getPlanes()[0].getBuffer().rewind();
             source.copyPixelsFromBuffer(imageProxy.getPlanes()[0].getBuffer());
+            if (!analyzeBitmap(source, rotation)) source.recycle();
+        } catch (RuntimeException error) {
+            listener.onPoseError(safeMessage(error));
+        } finally {
+            imageProxy.close();
+        }
+    }
 
+    public boolean analyzeBitmap(Bitmap source, int rotationDegrees) {
+        if (landmarker == null || source == null || !processing.compareAndSet(false, true)) return false;
+        try {
             Matrix matrix = new Matrix();
-            matrix.postRotate(rotation);
+            matrix.postRotate(rotationDegrees);
             Bitmap rotated = Bitmap.createBitmap(
                     source,
                     0,
@@ -87,19 +107,34 @@ public final class PoseLandmarkerService implements ImageAnalysis.Analyzer, Auto
                     true
             );
             if (rotated != source) source.recycle();
-
+            synchronized (this) {
+                inFlightBitmap = rotated;
+            }
             MPImage image = new BitmapImageBuilder(rotated).build();
-            long timestamp = nextTimestamp();
-            landmarker.detectAsync(image, timestamp);
+            landmarker.detectAsync(image, nextTimestamp());
+            return true;
         } catch (RuntimeException error) {
+            releaseInFlightBitmap();
             listener.onPoseError(safeMessage(error));
-        } finally {
-            imageProxy.close();
+            return true;
         }
     }
 
     private void onResult(PoseLandmarkerResult result, MPImage image) {
-        listener.onPoseResult(result, image.getWidth(), image.getHeight());
+        try {
+            listener.onPoseResult(result, image.getWidth(), image.getHeight());
+        } finally {
+            image.close();
+            releaseInFlightBitmap();
+        }
+    }
+
+    private void releaseInFlightBitmap() {
+        synchronized (this) {
+            if (inFlightBitmap != null && !inFlightBitmap.isRecycled()) inFlightBitmap.recycle();
+            inFlightBitmap = null;
+        }
+        processing.set(false);
     }
 
     private long nextTimestamp() {
@@ -121,5 +156,6 @@ public final class PoseLandmarkerService implements ImageAnalysis.Analyzer, Auto
             landmarker.close();
             landmarker = null;
         }
+        releaseInFlightBitmap();
     }
 }

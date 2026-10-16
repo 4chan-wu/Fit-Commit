@@ -85,6 +85,28 @@ public final class BodyMeasurementCalculator {
         return "직사각형/스탠다드";
     }
 
+    public static BodyMeasurement calibratedToHeight(BodyMeasurement measurement, float heightMeters) {
+        if (measurement == null || measurement.heightMeters <= 0f || heightMeters < 1.0f || heightMeters > 2.3f) {
+            return measurement;
+        }
+        float scale = heightMeters / measurement.heightMeters;
+        float shoulder = measurement.shoulderWidthMeters * scale;
+        float hip = measurement.hipWidthMeters * scale;
+        float arm = measurement.armLengthMeters * scale;
+        float leg = measurement.legLengthMeters * scale;
+        String shape = classifyBodyShape(shoulder, hip);
+        return new BodyMeasurement(
+                System.currentTimeMillis(),
+                heightMeters,
+                shoulder,
+                hip,
+                arm,
+                leg,
+                shape,
+                recommendationFor(shape)
+        );
+    }
+
     public static String recommendationFor(String shape) {
         if ("역삼각형".equals(shape)) {
             return "시선을 아래로 분산하고 하체 볼륨을 살리는 와이드 팬츠나 카고 팬츠를 추천해요. 상의는 브이넥이나 깊은 U넥으로 균형을 잡아보세요.";
