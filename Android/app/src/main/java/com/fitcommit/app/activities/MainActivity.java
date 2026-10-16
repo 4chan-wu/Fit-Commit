@@ -8,6 +8,7 @@ import android.os.Bundle;
 import android.view.Gravity;
 import android.view.LayoutInflater;
 import android.view.View;
+import android.view.ViewGroup;
 import android.widget.EditText;
 import android.widget.FrameLayout;
 import android.widget.LinearLayout;
@@ -65,6 +66,7 @@ public class MainActivity extends Activity {
         clothesBackendService = new ClothesBackendService(this);
 
         contentFrame = findViewById(R.id.contentFrame);
+        applySystemBarInsets();
         tabHome = findViewById(R.id.tabHome);
         tabCloset = findViewById(R.id.tabCloset);
         tabAi = findViewById(R.id.tabAi);
@@ -76,6 +78,28 @@ public class MainActivity extends Activity {
         tabProfile.setOnClickListener(v -> showProfile());
 
         showHome();
+    }
+
+    @SuppressWarnings("deprecation")
+    private void applySystemBarInsets() {
+        View root = findViewById(R.id.mainRoot);
+        View bottomWrapper = findViewById(R.id.bottomTabWrapper);
+        int horizontalPadding = dpToPx(12);
+        int minimumBottomPadding = dpToPx(8);
+        int tabBarHeight = dpToPx(64);
+        root.setOnApplyWindowInsetsListener((view, insets) -> {
+            int topInset = insets.getSystemWindowInsetTop();
+            int bottomInset = insets.getSystemWindowInsetBottom();
+            int bottomPadding = Math.max(minimumBottomPadding, bottomInset);
+            view.setPadding(0, topInset, 0, 0);
+            bottomWrapper.setPadding(horizontalPadding, 0, horizontalPadding, bottomPadding);
+            ViewGroup.LayoutParams params = bottomWrapper.getLayoutParams();
+            params.height = tabBarHeight + bottomPadding;
+            bottomWrapper.setLayoutParams(params);
+            contentFrame.setPadding(0, 0, 0, tabBarHeight + bottomPadding);
+            return insets;
+        });
+        root.requestApplyInsets();
     }
 
     @Override
@@ -155,6 +179,7 @@ public class MainActivity extends Activity {
         TextView sortButton = view.findViewById(R.id.closetSortButton);
         TextView backendSyncStatusText = view.findViewById(R.id.backendSyncStatusText);
         TextView backendRefreshButton = view.findViewById(R.id.backendRefreshButton);
+        View backendStatusContainer = view.findViewById(R.id.backendStatusContainer);
         LinearLayout wardrobeRow = view.findViewById(R.id.wardrobeFilterRow);
         LinearLayout categoryRow = view.findViewById(R.id.categoryFilterRow);
         List<ClosetItem> sourceItems = new ArrayList<>();
@@ -163,9 +188,8 @@ public class MainActivity extends Activity {
         String[] searchQuery = {""};
         String[] sortMode = {"recent"};
 
-        countText.setText("불러오는 중");
-        backendSyncStatusText.setText("● 서버 연결 확인 중");
-        backendSyncStatusText.setTextColor(getColor(R.color.fit_text_secondary));
+        countText.setText("옷을 불러오는 중이에요");
+        backendStatusContainer.setVisibility(View.GONE);
         backendRefreshButton.setOnClickListener(v -> showCloset());
         bindWardrobeFilters(wardrobeRow, Collections.emptyList());
 
@@ -181,8 +205,10 @@ public class MainActivity extends Activity {
         );
         bindCategoryFilters(categoryRow, selectedCategory, refresh);
 
-        view.findViewById(R.id.addClothingButton)
-                .setOnClickListener(v -> startActivity(new Intent(this, AddClothingActivity.class)));
+        View.OnClickListener addClothing = v -> startActivity(new Intent(this, AddClothingActivity.class));
+        view.findViewById(R.id.addClothingButton).setOnClickListener(addClothing);
+        emptyText.setOnClickListener(addClothing);
+        view.findViewById(R.id.createWardrobeButton).setOnClickListener(v -> showCreateWardrobeDialog());
         view.findViewById(R.id.bodyMeasureButton)
                 .setOnClickListener(v -> startActivity(new Intent(this, BodyMeasureActivity.class)));
         view.findViewById(R.id.spaceScanButton)
@@ -201,10 +227,9 @@ public class MainActivity extends Activity {
                     refresh.run();
                 }
         ));
-        view.findViewById(R.id.closetMoreButton).setOnClickListener(v -> showClosetToolsDialog());
         sortButton.setOnClickListener(v -> showClosetSortDialog(sortMode[0], mode -> {
             sortMode[0] = mode;
-            sortButton.setText("name".equals(mode) ? "이름순 ⌄" : "최근 추가순 ⌄");
+            sortButton.setText("name".equals(mode) ? "이름순 ︾" : "최신순 ︾");
             refresh.run();
         }));
 
@@ -229,14 +254,13 @@ public class MainActivity extends Activity {
                         bindWardrobeFilters(wardrobeRow, fetchedWardrobes);
                         sourceItems.clear();
                         sourceItems.addAll(mergeBackendAndLocalItems(backendItems));
-                        String status = "● 서버 연결됨 · 서버 의류 " + backendItems.size() + "개";
                         if (!fetchedWardrobesSuccessfully) {
-                            status += " · 옷장 목록 오류";
+                            backendStatusContainer.setVisibility(View.VISIBLE);
+                            backendSyncStatusText.setText("옷장 목록을 불러오지 못했어요");
+                            backendSyncStatusText.setTextColor(getColor(R.color.fit_accent));
+                        } else {
+                            backendStatusContainer.setVisibility(View.GONE);
                         }
-                        backendSyncStatusText.setText(status);
-                        backendSyncStatusText.setTextColor(getColor(
-                                fetchedWardrobesSuccessfully ? R.color.fit_green : R.color.fit_accent
-                        ));
                         refresh.run();
                     });
                 } catch (Exception error) {
@@ -247,7 +271,8 @@ public class MainActivity extends Activity {
                         }
                         sourceItems.clear();
                         sourceItems.addAll(loadLocalClosetItems());
-                        backendSyncStatusText.setText("● 서버 조회 실패 · 기기에 저장된 데이터 표시 중");
+                        backendStatusContainer.setVisibility(View.VISIBLE);
+                        backendSyncStatusText.setText("연결이 불안정해 기기에 저장된 옷을 보여드려요");
                         backendSyncStatusText.setTextColor(getColor(R.color.fit_danger));
                         refresh.run();
                     });
@@ -255,7 +280,8 @@ public class MainActivity extends Activity {
             }).start();
         } else {
             sourceItems.addAll(loadLocalClosetItems());
-            backendSyncStatusText.setText("● 서버 설정 없음 · 기기에 저장된 데이터 표시 중");
+            backendStatusContainer.setVisibility(View.VISIBLE);
+            backendSyncStatusText.setText("기기에 저장된 옷을 보여드려요");
             backendSyncStatusText.setTextColor(getColor(R.color.fit_danger));
             refresh.run();
         }
@@ -350,8 +376,11 @@ public class MainActivity extends Activity {
 
         adapter.submitList(visibleItems);
         countText.setText(visibleItems.size() == sourceItems.size()
-                ? visibleItems.size() + "개 아이템"
-                : visibleItems.size() + " / " + sourceItems.size() + "개 아이템");
+                ? "총 " + visibleItems.size() + "벌"
+                : visibleItems.size() + "벌 표시 · 전체 " + sourceItems.size() + "벌");
+        emptyText.setText(sourceItems.isEmpty()
+                ? "아직 등록한 옷이 없어요.\n눌러서 첫 옷을 추가해보세요."
+                : "선택한 조건에 맞는 옷이 없어요.\n필터를 바꿔보세요.");
         emptyText.setVisibility(visibleItems.isEmpty() ? View.VISIBLE : View.GONE);
     }
 
@@ -503,9 +532,9 @@ public class MainActivity extends Activity {
 
     private void bindWardrobeFilters(LinearLayout row, List<Wardrobe> wardrobes) {
         row.removeAllViews();
-        addWardrobeFilterButton(row, "전체", "", null);
+        addWardrobeFilterButton(row, "모든 옷", "", null);
         for (Wardrobe wardrobe : wardrobes) {
-            addWardrobeFilterButton(row, wardrobe.toString(), wardrobe.id, wardrobe);
+            addWardrobeFilterButton(row, wardrobe.name, wardrobe.id, wardrobe);
         }
     }
 

@@ -1,30 +1,30 @@
 <?xml version="1.0" encoding="utf-8"?>
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/mainRoot"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@color/fit_bg"
-    android:clipToPadding="false"
-    android:paddingTop="24dp">
+    android:clipToPadding="false">
 
     <FrameLayout
         android:id="@+id/contentFrame"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:paddingBottom="92dp" />
+        android:paddingBottom="80dp" />
 
     <FrameLayout
         android:id="@+id/bottomTabWrapper"
         android:layout_width="match_parent"
-        android:layout_height="88dp"
+        android:layout_height="80dp"
         android:layout_gravity="bottom"
         android:paddingStart="12dp"
         android:paddingEnd="12dp"
-        android:paddingBottom="12dp">
+        android:paddingBottom="8dp">
 
         <LinearLayout
             android:id="@+id/bottomTabBar"
             android:layout_width="match_parent"
-            android:layout_height="72dp"
+            android:layout_height="64dp"
             android:layout_gravity="bottom"
             android:background="@drawable/bg_tab_bar"
             android:elevation="10dp"

@@ -23,6 +23,7 @@ import com.fitcommit.app.utils.UiUtils;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 
 /**
  * 실제 의류 사진을 중심으로 보여주는 2열 옷장 어댑터입니다.
@@ -58,8 +59,8 @@ public class ClosetCardAdapter extends RecyclerView.Adapter<ClosetCardAdapter.Cl
     @Override
     public void onBindViewHolder(@NonNull ClothingViewHolder holder, int position) {
         ClosetItem item = items.get(position);
-        holder.name.setText(item.name);
-        holder.meta.setText(item.category + " · " + item.season);
+        holder.name.setText(displayName(item));
+        holder.meta.setText(categoryLabel(item.category) + " · " + seasonLabel(item.season));
 
         int itemColor = UiUtils.parseColorOrDefault(item.color, Color.LTGRAY);
         GradientDrawable colorDot = new GradientDrawable();
@@ -116,6 +117,45 @@ public class ClosetCardAdapter extends RecyclerView.Adapter<ClosetCardAdapter.Cl
 
     private int withSoftAlpha(int color) {
         return Color.argb(54, Color.red(color), Color.green(color), Color.blue(color));
+    }
+
+    private String displayName(ClosetItem item) {
+        String name = item.name == null ? "" : item.name.trim();
+        String normalized = name.toLowerCase(Locale.ROOT);
+        if (name.isEmpty() || normalized.equals("top") || normalized.equals("bottom")
+                || normalized.equals("outer") || normalized.equals("shoes")
+                || normalized.equals("hat") || normalized.equals("bag")
+                || normalized.equals("dress")) {
+            return categoryLabel(item.category);
+        }
+        return name;
+    }
+
+    private String categoryLabel(String category) {
+        String value = category == null ? "" : category.toLowerCase(Locale.ROOT);
+        if (value.contains("top") || value.contains("shirt") || value.contains("상의")) return "상의";
+        if (value.contains("bottom") || value.contains("pants") || value.contains("skirt") || value.contains("하의")) return "하의";
+        if (value.contains("outer") || value.contains("jacket") || value.contains("coat") || value.contains("아우터")) return "아우터";
+        if (value.contains("shoe") || value.contains("신발")) return "신발";
+        if (value.contains("hat") || value.contains("모자")) return "모자";
+        if (value.contains("bag") || value.contains("가방")) return "가방";
+        if (value.contains("dress") || value.contains("원피스")) return "원피스";
+        return category == null || category.trim().isEmpty() ? "기타" : category;
+    }
+
+    private String seasonLabel(String season) {
+        String value = season == null ? "" : season.toLowerCase(Locale.ROOT);
+        if (value.isEmpty() || value.contains("all-season")
+                || (value.contains("spring") && value.contains("summer")
+                && value.contains("fall") && value.contains("winter"))) {
+            return "사계절";
+        }
+        List<String> labels = new ArrayList<>();
+        if (value.contains("spring") || value.contains("봄")) labels.add("봄");
+        if (value.contains("summer") || value.contains("여름")) labels.add("여름");
+        if (value.contains("fall") || value.contains("autumn") || value.contains("가을")) labels.add("가을");
+        if (value.contains("winter") || value.contains("겨울")) labels.add("겨울");
+        return labels.isEmpty() ? season : android.text.TextUtils.join("·", labels);
     }
 
     private void openItem(ClosetItem item) {
