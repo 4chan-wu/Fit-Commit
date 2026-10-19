@@ -4,6 +4,8 @@ import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.ImageDecoder;
+import android.graphics.Matrix;
+import android.media.ExifInterface;
 import android.net.Uri;
 import android.os.Build;
 
@@ -56,10 +58,48 @@ public final class BackgroundRemover {
         return file.getAbsolutePath();
     }
 
+    public static String normalizeCapturedFile(Context context, String imagePath) throws Exception {
+        if (imagePath == null || imagePath.trim().isEmpty()) {
+            throw new IllegalArgumentException("촬영 이미지 경로가 없습니다.");
+        }
+        File originalFile = new File(imagePath);
+        if (!originalFile.exists()) {
+            throw new IllegalArgumentException("촬영 이미지를 찾을 수 없습니다.");
+        }
+        String normalizedPath = saveOriginalBitmap(context, loadOrientedBitmap(imagePath, 2000));
+        if (!originalFile.getAbsolutePath().equals(normalizedPath) && !originalFile.delete()) {
+            System.out.println("[BackgroundRemover] High-resolution original cleanup failed: " + imagePath);
+        }
+        return normalizedPath;
+    }
+
+    public static Bitmap loadOrientedBitmap(String imagePath, int maxSize) throws Exception {
+        BitmapFactory.Options bounds = new BitmapFactory.Options();
+        bounds.inJustDecodeBounds = true;
+        BitmapFactory.decodeFile(imagePath, bounds);
+        if (bounds.outWidth <= 0 || bounds.outHeight <= 0) {
+            throw new IllegalArgumentException("이미지를 읽을 수 없습니다.");
+        }
+
+        BitmapFactory.Options options = new BitmapFactory.Options();
+        options.inSampleSize = sampleSize(bounds.outWidth, bounds.outHeight, maxSize);
+        options.inPreferredConfig = Bitmap.Config.ARGB_8888;
+        Bitmap decoded = BitmapFactory.decodeFile(imagePath, options);
+        if (decoded == null) {
+            throw new IllegalArgumentException("이미지를 읽을 수 없습니다.");
+        }
+
+        Bitmap oriented = applyExifOrientation(decoded, imagePath);
+        if (oriented != decoded) decoded.recycle();
+        Bitmap scaled = scaleToMax(oriented, maxSize);
+        if (scaled != oriented) oriented.recycle();
+        return scaled;
+    }
+
     public static void processFile(Context context, String originalImagePath, Callback callback) {
         Bitmap decoded;
         try {
-            decoded = decodeFile(originalImagePath, 1600);
+            decoded = loadOrientedBitmap(originalImagePath, 1600);
             if (decoded == null) throw new IllegalArgumentException("이미지를 읽을 수 없습니다.");
         } catch (Exception error) {
             callback.onError(safeMessage(error));
@@ -108,6 +148,60 @@ public final class BackgroundRemover {
         return Bitmap.createScaledBitmap(source, Math.round(width * ratio), Math.round(height * ratio), true);
     }
 
+    private static Bitmap scaleToMax(Bitmap source, int maxSize) {
+        int longest = Math.max(source.getWidth(), source.getHeight());
+        if (longest <= maxSize) return source;
+        float ratio = maxSize / (float) longest;
+        return Bitmap.createScaledBitmap(
+                source,
+                Math.max(1, Math.round(source.getWidth() * ratio)),
+                Math.max(1, Math.round(source.getHeight() * ratio)),
+                true
+        );
+    }
+
+    private static Bitmap applyExifOrientation(Bitmap bitmap, String imagePath) {
+        int orientation;
+        try {
+            orientation = new ExifInterface(imagePath).getAttributeInt(
+                    ExifInterface.TAG_ORIENTATION,
+                    ExifInterface.ORIENTATION_NORMAL
+            );
+        } catch (Exception ignored) {
+            return bitmap;
+        }
+
+        Matrix matrix = new Matrix();
+        switch (orientation) {
+            case ExifInterface.ORIENTATION_FLIP_HORIZONTAL:
+                matrix.setScale(-1f, 1f);
+                break;
+            case ExifInterface.ORIENTATION_ROTATE_180:
+                matrix.setRotate(180f);
+                break;
+            case ExifInterface.ORIENTATION_FLIP_VERTICAL:
+                matrix.setScale(1f, -1f);
+                break;
+            case ExifInterface.ORIENTATION_TRANSPOSE:
+                matrix.setRotate(90f);
+                matrix.postScale(-1f, 1f);
+                break;
+            case ExifInterface.ORIENTATION_ROTATE_90:
+                matrix.setRotate(90f);
+                break;
+            case ExifInterface.ORIENTATION_TRANSVERSE:
+                matrix.setRotate(-90f);
+                matrix.postScale(-1f, 1f);
+                break;
+            case ExifInterface.ORIENTATION_ROTATE_270:
+                matrix.setRotate(-90f);
+                break;
+            default:
+                return bitmap;
+        }
+        return Bitmap.createBitmap(bitmap, 0, 0, bitmap.getWidth(), bitmap.getHeight(), matrix, true);
+    }
+
     private static Bitmap decodeUri(Context context, Uri uri, int maxSize) throws Exception {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
             return ImageDecoder.decodeBitmap(
@@ -129,25 +223,6 @@ public final class BackgroundRemover {
         try (InputStream inputStream = context.getContentResolver().openInputStream(uri)) {
             return BitmapFactory.decodeStream(inputStream, null, options);
         }
-    }
-
-    private static Bitmap decodeFile(String path, int maxSize) throws Exception {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-            return ImageDecoder.decodeBitmap(
-                    ImageDecoder.createSource(new File(path)),
-                    (decoder, info, source) -> {
-                        decoder.setAllocator(ImageDecoder.ALLOCATOR_SOFTWARE);
-                        setDecoderTargetSize(decoder, info, maxSize);
-                    }
-            );
-        }
-        BitmapFactory.Options bounds = new BitmapFactory.Options();
-        bounds.inJustDecodeBounds = true;
-        BitmapFactory.decodeFile(path, bounds);
-        BitmapFactory.Options options = new BitmapFactory.Options();
-        options.inSampleSize = sampleSize(bounds.outWidth, bounds.outHeight, maxSize);
-        options.inPreferredConfig = Bitmap.Config.ARGB_8888;
-        return BitmapFactory.decodeFile(path, options);
     }
 
     @RequiresApi(Build.VERSION_CODES.P)

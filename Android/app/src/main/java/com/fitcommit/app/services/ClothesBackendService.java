@@ -444,8 +444,10 @@ public class ClothesBackendService {
             String cutoutStoragePath = row.optString("background_removed_image_path", "");
             String localImagePath = row.optString("local_image_path", "");
             if (localImagePath.isEmpty() || !new File(localImagePath).exists()) {
-                String preferredStoragePath = cutoutStoragePath.isEmpty() ? originalStoragePath : cutoutStoragePath;
-                localImagePath = downloadStorageImage(preferredStoragePath);
+                localImagePath = cutoutStoragePath.isEmpty() ? "" : downloadStorageImage(cutoutStoragePath);
+                if (localImagePath.isEmpty()) {
+                    localImagePath = downloadStorageImage(originalStoragePath);
+                }
             }
             String status = row.optString("analysis_status", "completed");
             String syncStatus = row.optString("sync_status", "synced");
@@ -840,8 +842,7 @@ public class ClothesBackendService {
     }
 
     private byte[] optimizedJpeg(File file) throws Exception {
-        Bitmap source = BitmapFactory.decodeFile(file.getAbsolutePath());
-        if (source == null) throw new IllegalArgumentException("이미지를 읽을 수 없습니다.");
+        Bitmap source = BackgroundRemover.loadOrientedBitmap(file.getAbsolutePath(), 1600);
         int width = source.getWidth();
         int height = source.getHeight();
         int longest = Math.max(width, height);
@@ -889,7 +890,8 @@ public class ClothesBackendService {
             String extension = storagePath.toLowerCase().endsWith(".webp") ? ".webp"
                     : storagePath.toLowerCase().endsWith(".png") ? ".png" : ".jpg";
             File cached = new File(directory, Integer.toHexString(storagePath.hashCode()) + extension);
-            if (cached.exists() && cached.length() > 0) return cached.getAbsolutePath();
+            if (isDecodableImage(cached)) return cached.getAbsolutePath();
+            if (cached.exists() && !cached.delete()) return "";
 
             HttpURLConnection connection = (HttpURLConnection) new URL(
                     ApiClient.STORAGE_URL + "/object/authenticated/" + ApiClient.SUPABASE_CLOTHING_BUCKET
@@ -910,10 +912,24 @@ public class ClothesBackendService {
                 int read;
                 while ((read = input.read(buffer)) != -1) output.write(buffer, 0, read);
             }
+            if (!isDecodableImage(cached)) {
+                if (cached.exists() && !cached.delete()) {
+                    System.out.println("[ClothesBackendService] Invalid image cache cleanup failed: " + cached);
+                }
+                return "";
+            }
             return cached.getAbsolutePath();
         } catch (Exception error) {
             System.out.println("[ClothesBackendService] Private image download failed: " + error.getMessage());
             return "";
         }
+    }
+
+    private boolean isDecodableImage(File file) {
+        if (file == null || !file.exists() || file.length() <= 0) return false;
+        BitmapFactory.Options bounds = new BitmapFactory.Options();
+        bounds.inJustDecodeBounds = true;
+        BitmapFactory.decodeFile(file.getAbsolutePath(), bounds);
+        return bounds.outWidth > 0 && bounds.outHeight > 0;
     }
 }

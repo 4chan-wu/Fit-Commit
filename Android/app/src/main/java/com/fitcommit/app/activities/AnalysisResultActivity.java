@@ -3,7 +3,6 @@ package com.fitcommit.app.activities;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
 import android.os.Bundle;
 import android.view.View;
 import android.widget.ArrayAdapter;
@@ -16,6 +15,7 @@ import android.widget.TextView;
 import com.fitcommit.app.R;
 import com.fitcommit.app.models.AnalysisResult;
 import com.fitcommit.app.services.ApiClient;
+import com.fitcommit.app.services.BackgroundRemover;
 import com.fitcommit.app.models.ClosetItem;
 import com.fitcommit.app.models.Wardrobe;
 import com.fitcommit.app.services.ClothesBackendService;
@@ -89,7 +89,11 @@ public class AnalysisResultActivity extends Activity {
         findViewById(R.id.resultBackText).setOnClickListener(v -> finish());
         ImageView preview = findViewById(R.id.resultPreviewImage);
         if (imagePath != null && !imagePath.isEmpty()) {
-            preview.setImageBitmap(BitmapFactory.decodeFile(imagePath));
+            try {
+                preview.setImageBitmap(BackgroundRemover.loadOrientedBitmap(imagePath, 1600));
+            } catch (Exception error) {
+                System.out.println("[AnalysisResultActivity] Preview decode failed: " + error.getMessage());
+            }
         }
 
         setupStaticForm();
@@ -614,7 +618,7 @@ public class AnalysisResultActivity extends Activity {
 
     private String dominantColorName() {
         try {
-            Bitmap bitmap = BitmapFactory.decodeFile(imagePath);
+            Bitmap bitmap = BackgroundRemover.loadOrientedBitmap(imagePath, 128);
             if (bitmap == null) {
                 return "gray";
             }

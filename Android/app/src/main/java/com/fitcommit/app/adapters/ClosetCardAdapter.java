@@ -2,7 +2,6 @@ package com.fitcommit.app.adapters;
 
 import android.content.Context;
 import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
 import android.graphics.Color;
 import android.graphics.drawable.GradientDrawable;
 import android.view.LayoutInflater;
@@ -16,6 +15,7 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import com.fitcommit.app.R;
 import com.fitcommit.app.models.ClosetItem;
+import com.fitcommit.app.services.BackgroundRemover;
 import com.fitcommit.app.utils.UiUtils;
 
 import java.io.File;
@@ -69,31 +69,28 @@ public class ClosetCardAdapter extends RecyclerView.Adapter<ClosetCardAdapter.Cl
 
         File imageFile = item.imagePath == null ? null : new File(item.imagePath);
         if (imageFile != null && imageFile.exists()) {
-            Bitmap bitmap = BitmapFactory.decodeFile(imageFile.getAbsolutePath());
-            holder.image.clearColorFilter();
-            holder.image.setPadding(
-                    UiUtils.dp(context, 10),
-                    UiUtils.dp(context, 10),
-                    UiUtils.dp(context, 10),
-                    UiUtils.dp(context, 10)
-            );
-            holder.image.setScaleType(ImageView.ScaleType.FIT_CENTER);
-            holder.image.setImageBitmap(bitmap);
-            holder.image.setBackgroundResource(R.drawable.bg_image_tile);
+            Bitmap bitmap = null;
+            try {
+                bitmap = BackgroundRemover.loadOrientedBitmap(imageFile.getAbsolutePath(), 720);
+            } catch (Exception error) {
+                System.out.println("[ClosetCardAdapter] Image decode failed: " + error.getMessage());
+            }
+            if (bitmap != null) {
+                holder.image.clearColorFilter();
+                holder.image.setPadding(
+                        UiUtils.dp(context, 10),
+                        UiUtils.dp(context, 10),
+                        UiUtils.dp(context, 10),
+                        UiUtils.dp(context, 10)
+                );
+                holder.image.setScaleType(ImageView.ScaleType.FIT_CENTER);
+                holder.image.setImageBitmap(bitmap);
+                holder.image.setBackgroundResource(R.drawable.bg_image_tile);
+            } else {
+                bindPlaceholder(holder, itemColor);
+            }
         } else {
-            holder.image.setColorFilter(context.getColor(R.color.fit_text_secondary));
-            holder.image.setPadding(
-                    UiUtils.dp(context, 38),
-                    UiUtils.dp(context, 38),
-                    UiUtils.dp(context, 38),
-                    UiUtils.dp(context, 38)
-            );
-            holder.image.setScaleType(ImageView.ScaleType.FIT_CENTER);
-            holder.image.setImageResource(R.drawable.ic_garment);
-            GradientDrawable placeholder = new GradientDrawable();
-            placeholder.setColor(withSoftAlpha(itemColor));
-            placeholder.setCornerRadius(UiUtils.dp(context, 14));
-            holder.image.setBackground(placeholder);
+            bindPlaceholder(holder, itemColor);
         }
 
         boolean analysisFailed = "failed".equals(item.analysisStatus);
@@ -116,6 +113,22 @@ public class ClosetCardAdapter extends RecyclerView.Adapter<ClosetCardAdapter.Cl
 
     private int withSoftAlpha(int color) {
         return Color.argb(54, Color.red(color), Color.green(color), Color.blue(color));
+    }
+
+    private void bindPlaceholder(ClothingViewHolder holder, int itemColor) {
+        holder.image.setColorFilter(context.getColor(R.color.fit_text_secondary));
+        holder.image.setPadding(
+                UiUtils.dp(context, 38),
+                UiUtils.dp(context, 38),
+                UiUtils.dp(context, 38),
+                UiUtils.dp(context, 38)
+        );
+        holder.image.setScaleType(ImageView.ScaleType.FIT_CENTER);
+        holder.image.setImageResource(R.drawable.ic_garment);
+        GradientDrawable placeholder = new GradientDrawable();
+        placeholder.setColor(withSoftAlpha(itemColor));
+        placeholder.setCornerRadius(UiUtils.dp(context, 14));
+        holder.image.setBackground(placeholder);
     }
 
     private String displayName(ClosetItem item) {

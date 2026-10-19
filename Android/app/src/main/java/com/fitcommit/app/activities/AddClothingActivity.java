@@ -121,7 +121,16 @@ public class AddClothingActivity extends Activity {
                 showProcessingError("촬영한 이미지를 불러오지 못했습니다.");
                 return;
             }
-            removeBackground(originalPath);
+            new Thread(() -> {
+                try {
+                    String normalizedPath = BackgroundRemover.normalizeCapturedFile(this, originalPath);
+                    runOnUiThread(() -> removeBackground(normalizedPath));
+                } catch (Exception error) {
+                    runOnUiThread(() -> showProcessingError(
+                            "촬영한 이미지를 준비하지 못했습니다. " + safeMessage(error)
+                    ));
+                }
+            }).start();
             return;
         }
         dismissProgressDialog();

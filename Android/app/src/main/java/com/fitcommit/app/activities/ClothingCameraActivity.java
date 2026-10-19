@@ -5,6 +5,7 @@ import android.app.Activity;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.os.Bundle;
+import android.view.OrientationEventListener;
 import android.view.Surface;
 import android.view.View;
 import android.widget.Button;
@@ -32,6 +33,9 @@ public class ClothingCameraActivity extends ComponentActivity {
     private TextView statusText;
     private Button captureButton;
     private ImageCapture imageCapture;
+    private OrientationEventListener orientationListener;
+    private boolean cameraReady;
+    private boolean capturing;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -44,6 +48,21 @@ public class ClothingCameraActivity extends ComponentActivity {
         captureButton = findViewById(R.id.captureClothingButton);
         findViewById(R.id.clothingCameraBackText).setOnClickListener(v -> finish());
         captureButton.setOnClickListener(v -> capturePhoto());
+        orientationListener = new OrientationEventListener(this) {
+            @Override
+            public void onOrientationChanged(int orientation) {
+                if (!cameraReady || capturing || orientation == ORIENTATION_UNKNOWN) return;
+                if (imageCapture != null) {
+                    imageCapture.setTargetRotation(captureRotationFor(orientation));
+                }
+                boolean landscape = (orientation >= 60 && orientation <= 120)
+                        || (orientation >= 240 && orientation <= 300);
+                statusText.setVisibility(landscape ? View.VISIBLE : View.GONE);
+                if (landscape) {
+                    statusText.setText("옷 전체가 잘 보이도록 휴대전화를 세로로 세워주세요.");
+                }
+            }
+        };
 
         if (checkSelfPermission(Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) {
             startCamera();
@@ -68,6 +87,7 @@ public class ClothingCameraActivity extends ComponentActivity {
                         .build();
                 provider.unbindAll();
                 provider.bindToLifecycle(this, CameraSelector.DEFAULT_BACK_CAMERA, preview, imageCapture);
+                cameraReady = true;
                 statusText.setVisibility(View.GONE);
                 captureButton.setEnabled(true);
             } catch (Exception error) {
@@ -78,6 +98,7 @@ public class ClothingCameraActivity extends ComponentActivity {
 
     private void capturePhoto() {
         if (imageCapture == null) return;
+        capturing = true;
         captureButton.setEnabled(false);
         statusText.setVisibility(View.VISIBLE);
         statusText.setText("고해상도 사진을 저장하고 있습니다...");
@@ -113,10 +134,32 @@ public class ClothingCameraActivity extends ComponentActivity {
         return previewView.getDisplay() == null ? Surface.ROTATION_0 : previewView.getDisplay().getRotation();
     }
 
+    private int captureRotationFor(int orientation) {
+        if (orientation >= 45 && orientation < 135) return Surface.ROTATION_270;
+        if (orientation >= 135 && orientation < 225) return Surface.ROTATION_180;
+        if (orientation >= 225 && orientation < 315) return Surface.ROTATION_90;
+        return Surface.ROTATION_0;
+    }
+
     private void showError(String message) {
+        capturing = false;
         statusText.setVisibility(View.VISIBLE);
         statusText.setText(message);
         captureButton.setEnabled(imageCapture != null);
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        if (orientationListener != null && orientationListener.canDetectOrientation()) {
+            orientationListener.enable();
+        }
+    }
+
+    @Override
+    protected void onPause() {
+        if (orientationListener != null) orientationListener.disable();
+        super.onPause();
     }
 
     private String safeMessage(Throwable error) {
