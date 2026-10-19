@@ -6,6 +6,8 @@ import android.view.View;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import java.util.Locale;
+
 /**
  * 반복되는 Android UI 보조 작업을 모은 유틸리티입니다.
  */
@@ -29,7 +31,7 @@ public final class UiUtils {
 
     public static int parseColorOrDefault(String hex, int fallback) {
         if (hex != null) {
-            switch (hex.trim().toLowerCase()) {
+            switch (hex.trim().toLowerCase(Locale.ROOT)) {
                 case "black":
                     return Color.BLACK;
                 case "white":

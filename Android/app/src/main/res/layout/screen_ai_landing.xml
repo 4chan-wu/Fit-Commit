@@ -17,7 +17,7 @@
             android:layout_height="104dp"
             android:background="@drawable/bg_card"
             android:gravity="center"
-            android:text="✦\n👤"
+            android:text="@string/ui_091"
             android:textSize="30sp" />
 
         <TextView
@@ -25,7 +25,7 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="18dp"
             android:gravity="center"
-            android:text="패트리(AI 코디)"
+            android:text="@string/ui_092"
             android:textColor="@color/fit_text"
             android:textSize="30sp"
             android:textStyle="bold" />
@@ -35,7 +35,7 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="10dp"
             android:gravity="center"
-            android:text="AI 패션 어시스턴트, 패트리에게 물어보세요!"
+            android:text="@string/ui_093"
             android:textColor="@color/fit_text_secondary"
             android:textSize="14sp"
             android:textStyle="bold" />
@@ -46,7 +46,7 @@
             android:layout_height="72dp"
             android:layout_marginTop="32dp"
             android:background="@drawable/bg_card"
-            android:text="새로운 코디 시작하기\n패트리에게 오늘의 상황과 스타일을 물어보세요."
+            android:text="@string/ui_094"
             android:textAllCaps="false"
             android:textColor="@color/fit_text" />
 
@@ -56,7 +56,7 @@
             android:layout_height="72dp"
             android:layout_marginTop="14dp"
             android:background="@drawable/bg_card"
-            android:text="채팅 히스토리 보기\n이전에 나눈 스타일 상담을 다시 확인해요."
+            android:text="@string/ui_095"
             android:textAllCaps="false"
             android:textColor="@color/fit_text" />
     </LinearLayout>

@@ -20,7 +20,7 @@
             android:layout_width="56dp"
             android:layout_height="match_parent"
             android:gravity="center_vertical"
-            android:text="‹ AI"
+            android:text="@string/ui_001"
             android:textColor="@color/fit_primary"
             android:textSize="17sp"
             android:textStyle="bold" />
@@ -30,7 +30,7 @@
             android:layout_height="match_parent"
             android:layout_weight="1"
             android:gravity="center"
-            android:text="AI 패트리"
+            android:text="@string/ui_002"
             android:textColor="@color/fit_text"
             android:textSize="18sp"
             android:textStyle="bold" />
@@ -70,7 +70,7 @@
             android:layout_width="46dp"
             android:layout_height="46dp"
             android:background="@drawable/bg_soft_button"
-            android:text="+"
+            android:text="@string/ui_003"
             android:textAllCaps="false"
             android:textColor="@color/fit_text"
             android:textSize="20sp" />
@@ -82,7 +82,7 @@
             android:layout_marginStart="10dp"
             android:layout_weight="1"
             android:background="@drawable/bg_input"
-            android:hint="메시지"
+            android:hint="@string/ui_004"
             android:paddingHorizontal="14dp"
             android:singleLine="true" />
 
@@ -92,7 +92,7 @@
             android:layout_height="46dp"
             android:layout_marginStart="10dp"
             android:background="@drawable/bg_primary_button"
-            android:text="전송"
+            android:text="@string/ui_005"
             android:textAllCaps="false"
             android:textColor="#FFFFFF"
             android:textSize="13sp"

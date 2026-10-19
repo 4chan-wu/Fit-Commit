@@ -41,7 +41,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="40dp"
                 android:gravity="center_vertical"
-                android:text="← 뒤로"
+                android:text="@string/ui_028"
                 android:textColor="#FFFFFF"
                 android:textSize="16sp"
                 android:textStyle="bold" />
@@ -50,7 +50,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="6dp"
-                android:text="신체 비율 측정"
+                android:text="@string/ui_029"
                 android:textColor="#FFFFFF"
                 android:textSize="25sp"
                 android:textStyle="bold" />
@@ -59,7 +59,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="7dp"
-                android:text="전신 관절을 분석해 나에게 맞는 실루엣을 찾아드려요."
+                android:text="@string/ui_030"
                 android:textColor="#D7DCEC"
                 android:textSize="14sp" />
         </LinearLayout>
@@ -90,7 +90,7 @@
                 android:id="@+id/measurementModeText"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="측정 방식 확인 중"
+                android:text="@string/ui_031"
                 android:textColor="@color/fit_text_secondary"
                 android:textSize="12sp"
                 android:textStyle="bold" />
@@ -100,7 +100,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="2dp"
-                android:text="--.- cm"
+                android:text="@string/ui_032"
                 android:textColor="@color/fit_text"
                 android:textSize="30sp"
                 android:textStyle="bold" />
@@ -111,7 +111,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginTop="6dp"
                 android:lineSpacingExtra="3dp"
-                android:text="머리부터 발끝까지 전신이 화면에 들어오도록 2~3m 떨어져 서 주세요."
+                android:text="@string/ui_033"
                 android:textColor="@color/fit_text_secondary"
                 android:textSize="13sp" />
 
@@ -121,7 +121,7 @@
                 android:layout_height="50dp"
                 android:layout_marginTop="12dp"
                 android:background="@drawable/bg_input"
-                android:hint="키 입력 (cm)"
+                android:hint="@string/ui_034"
                 android:inputType="numberDecimal"
                 android:maxLength="5"
                 android:paddingHorizontal="16dp"
@@ -136,7 +136,7 @@
                 android:layout_height="44dp"
                 android:layout_marginTop="10dp"
                 android:background="@drawable/bg_soft_button"
-                android:text="키 직접 입력으로 분석"
+                android:text="@string/ui_035"
                 android:textAllCaps="false"
                 android:textColor="@color/fit_primary"
                 android:textSize="13sp"
@@ -150,7 +150,7 @@
                 android:layout_marginTop="15dp"
                 android:background="@drawable/bg_primary_button"
                 android:enabled="false"
-                android:text="전신 인식 대기 중"
+                android:text="@string/ui_036"
                 android:textAllCaps="false"
                 android:textColor="#FFFFFF"
                 android:textStyle="bold" />
@@ -180,7 +180,7 @@
                 android:background="@drawable/bg_chip_selected"
                 android:paddingHorizontal="12dp"
                 android:paddingVertical="7dp"
-                android:text="BODY PROFILE"
+                android:text="@string/ui_037"
                 android:textColor="#FFFFFF"
                 android:textSize="11sp"
                 android:textStyle="bold" />
@@ -189,7 +189,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="18dp"
-                android:text="신체 비율 분석이\n완료됐어요"
+                android:text="@string/ui_038"
                 android:textColor="@color/fit_text"
                 android:textSize="34sp"
                 android:textStyle="bold" />
@@ -214,7 +214,7 @@
                 <TextView
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="예상 측정값"
+                    android:text="@string/ui_039"
                     android:textColor="@color/fit_text"
                     android:textSize="16sp"
                     android:textStyle="bold" />
@@ -237,7 +237,7 @@
                 <TextView
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="✦ 스타일 제안"
+                    android:text="@string/ui_040"
                     android:textColor="@color/fit_text"
                     android:textSize="16sp"
                     android:textStyle="bold" />
@@ -258,7 +258,7 @@
                 android:layout_marginTop="14dp"
                 android:background="@color/fit_primary_soft"
                 android:padding="14dp"
-                android:text="카메라 기반 AI 추정값으로 자세·거리·의상에 따라 오차가 발생할 수 있으며 의료 또는 맞춤 제작용 실측값이 아닙니다."
+                android:text="@string/ui_041"
                 android:textColor="@color/fit_primary_dark"
                 android:textSize="12sp" />
 
@@ -268,7 +268,7 @@
                 android:layout_height="56dp"
                 android:layout_marginTop="24dp"
                 android:background="@drawable/bg_primary_button"
-                android:text="저장 및 완료"
+                android:text="@string/ui_042"
                 android:textAllCaps="false"
                 android:textColor="#FFFFFF"
                 android:textStyle="bold" />
@@ -279,7 +279,7 @@
                 android:layout_height="54dp"
                 android:layout_marginTop="10dp"
                 android:background="@drawable/bg_soft_button"
-                android:text="다시 측정"
+                android:text="@string/ui_043"
                 android:textAllCaps="false"
                 android:textColor="@color/fit_primary"
                 android:textStyle="bold" />

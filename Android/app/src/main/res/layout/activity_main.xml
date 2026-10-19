@@ -31,14 +31,14 @@
             android:orientation="horizontal"
             android:padding="6dp">
 
-            <TextView android:id="@+id/tabHome" style="@style/FitTabText" android:text="홈" />
-            <TextView android:id="@+id/tabCloset" style="@style/FitTabText" android:text="내 옷장" />
+            <TextView android:id="@+id/tabHome" style="@style/FitTabText" android:text="@string/ui_075" />
+            <TextView android:id="@+id/tabCloset" style="@style/FitTabText" android:text="@string/ui_076" />
             <TextView
                 android:id="@+id/tabAi"
                 style="@style/FitTabText"
-                android:text="AI 코디"
+                android:text="@string/ui_077"
                 android:visibility="gone" />
-            <TextView android:id="@+id/tabProfile" style="@style/FitTabText" android:text="마이" />
+            <TextView android:id="@+id/tabProfile" style="@style/FitTabText" android:text="@string/ui_078" />
         </LinearLayout>
     </FrameLayout>
 </FrameLayout>

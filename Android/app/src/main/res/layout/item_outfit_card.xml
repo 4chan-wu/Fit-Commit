@@ -12,7 +12,7 @@
         android:layout_width="match_parent"
         android:layout_height="136dp"
         android:background="@drawable/bg_image_tile"
-        android:contentDescription="추천 코디"
+        android:contentDescription="@string/ui_088"
         android:padding="24dp"
         android:src="@drawable/ic_garment" />
 
@@ -23,7 +23,7 @@
         android:layout_marginTop="12dp"
         android:ellipsize="end"
         android:maxLines="1"
-        android:text="오피스 캐주얼"
+        android:text="@string/ui_089"
         android:textColor="@color/fit_text"
         android:textSize="15sp"
         android:textStyle="bold" />
@@ -35,7 +35,7 @@
         android:layout_marginTop="5dp"
         android:ellipsize="end"
         android:maxLines="1"
-        android:text="내 옷 3개 조합"
+        android:text="@string/ui_090"
         android:textColor="@color/fit_text_secondary"
         android:textSize="12sp" />
 </LinearLayout>

@@ -21,7 +21,7 @@
             android:gravity="center_vertical"
             android:includeFontPadding="false"
             android:letterSpacing="0.08"
-            android:text="FITCOMMIT"
+            android:text="@string/ui_113"
             android:textColor="@color/fit_text"
             android:textSize="17sp"
             android:textStyle="bold" />
@@ -31,7 +31,7 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="24dp"
             android:includeFontPadding="false"
-            android:text="내 옷을 한곳에\n차곡차곡 모아보세요"
+            android:text="@string/ui_114"
             android:textColor="@color/fit_text"
             android:textSize="30sp"
             android:textStyle="bold" />
@@ -41,7 +41,7 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="14dp"
             android:lineSpacingExtra="4dp"
-            android:text="사진으로 옷을 등록하고 카테고리와 계절별로 빠르게 찾아볼 수 있어요."
+            android:text="@string/ui_115"
             android:textColor="@color/fit_text_secondary"
             android:textSize="15sp" />
 
@@ -57,7 +57,7 @@
             <ImageView
                 android:layout_width="128dp"
                 android:layout_height="128dp"
-                android:contentDescription="옷장"
+                android:contentDescription="@string/ui_102"
                 android:src="@drawable/ic_garment" />
 
             <TextView
@@ -65,7 +65,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginTop="20dp"
                 android:gravity="center"
-                android:text="오늘 입을 옷부터 새로 산 옷까지\n나만의 디지털 옷장에 기록하세요."
+                android:text="@string/ui_116"
                 android:textColor="@color/fit_on_dark"
                 android:textSize="15sp"
                 android:textStyle="bold" />
@@ -78,7 +78,7 @@
             android:layout_marginTop="24dp"
             android:background="@drawable/bg_primary_button"
             android:gravity="center"
-            android:text="내 옷장 열기"
+            android:text="@string/ui_117"
             android:textColor="@color/fit_on_dark"
             android:textSize="15sp"
             android:textStyle="bold" />

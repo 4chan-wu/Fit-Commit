@@ -11,7 +11,7 @@
     <TextView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="의류 이미지 추가"
+        android:text="@string/ui_079"
         android:textColor="@color/fit_text"
         android:textSize="24sp"
         android:textStyle="bold" />
@@ -20,7 +20,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="10dp"
-        android:text="옷 한 벌만 화면 중앙에 놓아주세요.\n단순한 배경과 밝은 조명에서 더 정확해요."
+        android:text="@string/ui_080"
         android:textColor="@color/fit_text_secondary"
         android:textSize="15sp"
         android:lineSpacingExtra="3dp" />
@@ -31,7 +31,7 @@
         android:layout_height="56dp"
         android:layout_marginTop="24dp"
         android:background="@drawable/bg_primary_button"
-        android:text="카메라로 촬영"
+        android:text="@string/ui_081"
         android:textAllCaps="false"
         android:textColor="#FFFFFF"
         android:textSize="16sp"
@@ -43,7 +43,7 @@
         android:layout_height="56dp"
         android:layout_marginTop="10dp"
         android:background="@drawable/bg_soft_button"
-        android:text="갤러리에서 선택"
+        android:text="@string/ui_082"
         android:textAllCaps="false"
         android:textColor="@color/fit_primary"
         android:textSize="16sp"
@@ -55,7 +55,7 @@
         android:layout_height="48dp"
         android:layout_marginTop="6dp"
         android:gravity="center"
-        android:text="취소"
+        android:text="@string/ui_083"
         android:textColor="@color/fit_text_secondary"
         android:textSize="14sp" />
 

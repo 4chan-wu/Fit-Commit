@@ -31,7 +31,7 @@
             android:layout_width="wrap_content"
             android:layout_height="42dp"
             android:gravity="center_vertical"
-            android:text="← 뒤로"
+            android:text="@string/ui_028"
             android:textColor="#FFFFFF"
             android:textSize="16sp"
             android:textStyle="bold" />
@@ -40,7 +40,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="4dp"
-            android:text="옷 촬영"
+            android:text="@string/ui_044"
             android:textColor="#FFFFFF"
             android:textSize="26sp"
             android:textStyle="bold" />
@@ -49,7 +49,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="7dp"
-            android:text="옷 한 벌이 가이드 안에 들어오도록 놓아주세요.\n단색 배경과 밝은 조명에서 가장 정확해요."
+            android:text="@string/ui_045"
             android:textColor="#DDE3F0"
             android:textSize="14sp" />
     </LinearLayout>
@@ -61,7 +61,7 @@
         android:layout_gravity="center"
         android:gravity="center"
         android:padding="24dp"
-        android:text="카메라를 준비하고 있습니다..."
+        android:text="@string/ui_046"
         android:textColor="#FFFFFF"
         android:textSize="15sp"
         android:textStyle="bold" />
@@ -80,7 +80,7 @@
             android:background="#99000000"
             android:paddingHorizontal="14dp"
             android:paddingVertical="8dp"
-            android:text="촬영 후 기기에서 자동으로 배경을 제거합니다"
+            android:text="@string/ui_047"
             android:textColor="#FFFFFF"
             android:textSize="12sp" />
 
@@ -90,9 +90,9 @@
             android:layout_height="82dp"
             android:layout_marginTop="14dp"
             android:background="@drawable/bg_camera_capture_button"
-            android:contentDescription="의류 사진 촬영"
+            android:contentDescription="@string/ui_048"
             android:enabled="false"
-            android:text=""
+            android:text="@string/ui_049"
             android:textAllCaps="false" />
     </LinearLayout>
 </FrameLayout>

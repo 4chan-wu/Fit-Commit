@@ -9,8 +9,11 @@
 
     <application
         android:allowBackup="false"
+        android:dataExtractionRules="@xml/data_extraction_rules"
+        android:fullBackupContent="false"
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
+        android:localeConfig="@xml/locales_config"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:usesCleartextTraffic="false"
@@ -24,8 +27,7 @@
 
         <activity
             android:name=".activities.ClothingCameraActivity"
-            android:exported="false"
-            android:screenOrientation="portrait" />
+            android:exported="false" />
         <activity
             android:name=".activities.LegalActivity"
             android:exported="false" />
@@ -40,12 +42,10 @@
             android:exported="false" />
         <activity
             android:name=".activities.BodyMeasureActivity"
-            android:exported="false"
-            android:screenOrientation="portrait" />
+            android:exported="false" />
         <activity
             android:name=".activities.SpaceScanActivity"
-            android:exported="false"
-            android:screenOrientation="portrait" />
+            android:exported="false" />
         <activity
             android:name=".activities.AIChatActivity"
             android:exported="false" />

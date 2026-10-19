@@ -28,7 +28,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:includeFontPadding="false"
-                    android:text="내 옷장"
+                    android:text="@string/ui_076"
                     android:textColor="@color/fit_text"
                     android:textSize="28sp"
                     android:textStyle="bold" />
@@ -39,7 +39,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="6dp"
-                    android:text="옷을 불러오는 중이에요" />
+                    android:text="@string/ui_096" />
             </LinearLayout>
 
             <ImageView
@@ -47,7 +47,7 @@
                 android:layout_width="48dp"
                 android:layout_height="48dp"
                 android:background="@drawable/bg_toolbar_action"
-                android:contentDescription="옷 검색"
+                android:contentDescription="@string/ui_097"
                 android:padding="12dp"
                 android:src="@drawable/ic_search" />
 
@@ -57,7 +57,7 @@
                 android:layout_height="48dp"
                 android:layout_marginStart="8dp"
                 android:background="@drawable/bg_toolbar_action"
-                android:contentDescription="계절 필터"
+                android:contentDescription="@string/ui_098"
                 android:padding="12dp"
                 android:src="@drawable/ic_filter" />
         </LinearLayout>
@@ -80,7 +80,7 @@
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
                 android:includeFontPadding="false"
-                android:text="데이터를 불러오지 못했어요"
+                android:text="@string/ui_099"
                 android:textColor="@color/fit_danger"
                 android:textSize="12sp"
                 android:textStyle="bold" />
@@ -89,9 +89,9 @@
                 android:id="@+id/backendRefreshButton"
                 android:layout_width="64dp"
                 android:layout_height="36dp"
-                android:contentDescription="데이터 다시 불러오기"
+                android:contentDescription="@string/ui_100"
                 android:gravity="center"
-                android:text="다시 시도"
+                android:text="@string/ui_101"
                 android:textColor="@color/fit_primary"
                 android:textSize="12sp"
                 android:textStyle="bold" />
@@ -130,7 +130,7 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="옷장"
+                    android:text="@string/ui_102"
                     android:textColor="@color/fit_text"
                     android:textSize="16sp"
                     android:textStyle="bold" />
@@ -139,7 +139,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="3dp"
-                    android:text="옷을 보관할 공간을 선택하세요"
+                    android:text="@string/ui_103"
                     android:textColor="@color/fit_text_secondary"
                     android:textSize="12sp" />
             </LinearLayout>
@@ -151,7 +151,7 @@
                 android:gravity="center"
                 android:minWidth="56dp"
                 android:paddingHorizontal="10dp"
-                android:text="관리"
+                android:text="@string/ui_104"
                 android:textColor="@color/fit_text_secondary"
                 android:textSize="13sp"
                 android:textStyle="bold" />
@@ -165,7 +165,7 @@
                 android:gravity="center"
                 android:minWidth="96dp"
                 android:paddingHorizontal="14dp"
-                android:text="＋ 새 옷장"
+                android:text="@string/ui_105"
                 android:textColor="@color/fit_primary"
                 android:textSize="13sp"
                 android:textStyle="bold" />
@@ -190,7 +190,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="18dp"
-            android:text="카테고리"
+            android:text="@string/ui_011"
             android:textColor="@color/fit_text"
             android:textSize="16sp"
             android:textStyle="bold" />
@@ -222,7 +222,7 @@
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:text="내 아이템" />
+                android:text="@string/ui_106" />
 
             <TextView
                 android:id="@+id/closetSortButton"
@@ -231,7 +231,7 @@
                 android:gravity="center"
                 android:paddingStart="14dp"
                 android:paddingEnd="4dp"
-                android:text="최신순 ︾"
+                android:text="@string/ui_107"
                 android:textColor="@color/fit_text_secondary"
                 android:textSize="13sp" />
         </LinearLayout>
@@ -262,7 +262,7 @@
                     android:layout_width="88dp"
                     android:layout_height="88dp"
                     android:background="@drawable/bg_closet_empty_icon"
-                    android:contentDescription=""
+                    android:contentDescription="@null"
                     android:padding="20dp"
                     android:src="@drawable/ic_closet_empty" />
 
@@ -272,7 +272,7 @@
                     android:layout_height="wrap_content"
                     android:layout_marginTop="22dp"
                     android:includeFontPadding="false"
-                    android:text="첫 번째 옷을 등록해보세요"
+                    android:text="@string/ui_108"
                     android:textColor="@color/fit_text"
                     android:textSize="20sp"
                     android:textStyle="bold" />
@@ -284,7 +284,7 @@
                     android:layout_marginTop="9dp"
                     android:gravity="center"
                     android:lineSpacingExtra="3dp"
-                    android:text="사진 한 장이면 내 옷장을\n간편하게 정리할 수 있어요."
+                    android:text="@string/ui_109"
                     android:textColor="@color/fit_text_secondary"
                     android:textSize="14sp" />
 
@@ -297,7 +297,7 @@
                     android:drawableStart="@drawable/ic_add_garment_white"
                     android:drawablePadding="9dp"
                     android:gravity="center"
-                    android:text="첫 번째 옷 등록하기"
+                    android:text="@string/ui_110"
                     android:textColor="@color/fit_on_dark"
                     android:textSize="15sp"
                     android:textStyle="bold" />
@@ -310,7 +310,7 @@
                 android:gravity="center"
                 android:lineSpacingExtra="6dp"
                 android:padding="32dp"
-                android:text="조건에 맞는 옷이 없어요.\n검색어나 필터를 바꿔보세요."
+                android:text="@string/ui_111"
                 android:textColor="@color/fit_text_secondary"
                 android:textSize="15sp"
                 android:visibility="gone" />
@@ -325,14 +325,14 @@
         android:layout_marginEnd="20dp"
         android:layout_marginBottom="20dp"
         android:background="@drawable/bg_add_clothing_button"
-        android:contentDescription="새 옷 등록"
+        android:contentDescription="@string/ui_112"
         android:drawableStart="@drawable/ic_add_garment_white"
         android:drawablePadding="8dp"
         android:elevation="3dp"
         android:gravity="center"
         android:paddingStart="17dp"
         android:paddingEnd="19dp"
-        android:text="새 옷 등록"
+        android:text="@string/ui_112"
         android:textColor="@color/fit_on_dark"
         android:textSize="15sp"
         android:textStyle="bold" />

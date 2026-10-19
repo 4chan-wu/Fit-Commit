@@ -19,7 +19,7 @@
             android:layout_width="72dp"
             android:layout_height="72dp"
             android:layout_gravity="center_horizontal"
-            android:contentDescription="Fitcommit"
+            android:contentDescription="@string/ui_058"
             android:src="@mipmap/ic_launcher_round" />
 
         <TextView
@@ -28,7 +28,7 @@
             android:layout_marginTop="22dp"
             android:gravity="center"
             android:includeFontPadding="false"
-            android:text="당신의 옷장,\n더 똑똑하게."
+            android:text="@string/ui_059"
             android:textColor="@color/fit_text"
             android:textSize="30sp"
             android:textStyle="bold" />
@@ -40,7 +40,7 @@
             android:layout_marginTop="12dp"
             android:gravity="center"
             android:lineSpacingExtra="3dp"
-            android:text="내 옷을 간편하게 기록하고\n언제든 옷장을 확인해보세요."
+            android:text="@string/ui_060"
             android:textColor="@color/fit_text_secondary"
             android:textSize="14sp" />
 
@@ -49,7 +49,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="34dp"
-            android:text="간편하게 시작하기"
+            android:text="@string/ui_061"
             android:textColor="@color/fit_text"
             android:textSize="15sp"
             android:textStyle="bold"
@@ -68,7 +68,7 @@
             android:paddingHorizontal="17dp"
             android:visibility="gone">
             <ImageView android:layout_width="24dp" android:layout_height="24dp" android:contentDescription="@null" android:src="@drawable/ic_social_kakao" />
-            <TextView android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1" android:gravity="center" android:text="카카오로 계속하기" android:textColor="#191919" android:textSize="15sp" android:textStyle="bold" />
+            <TextView android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1" android:gravity="center" android:text="@string/ui_062" android:textColor="#191919" android:textSize="15sp" android:textStyle="bold" />
             <Space android:layout_width="24dp" android:layout_height="24dp" />
         </LinearLayout>
 
@@ -85,7 +85,7 @@
             android:paddingHorizontal="17dp"
             android:visibility="gone">
             <ImageView android:layout_width="24dp" android:layout_height="24dp" android:contentDescription="@null" android:src="@drawable/ic_social_naver" />
-            <TextView android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1" android:gravity="center" android:text="네이버로 계속하기" android:textColor="#FFFFFF" android:textSize="15sp" android:textStyle="bold" />
+            <TextView android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1" android:gravity="center" android:text="@string/ui_063" android:textColor="#FFFFFF" android:textSize="15sp" android:textStyle="bold" />
             <Space android:layout_width="24dp" android:layout_height="24dp" />
         </LinearLayout>
 
@@ -102,7 +102,7 @@
             android:paddingHorizontal="17dp"
             android:visibility="gone">
             <ImageView android:layout_width="24dp" android:layout_height="24dp" android:contentDescription="@null" android:src="@drawable/ic_social_google" />
-            <TextView android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1" android:gravity="center" android:text="Google로 계속하기" android:textColor="@color/fit_text" android:textSize="15sp" android:textStyle="bold" />
+            <TextView android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1" android:gravity="center" android:text="@string/ui_064" android:textColor="@color/fit_text" android:textSize="15sp" android:textStyle="bold" />
             <Space android:layout_width="24dp" android:layout_height="24dp" />
         </LinearLayout>
 
@@ -119,7 +119,7 @@
             android:paddingHorizontal="17dp"
             android:visibility="gone">
             <ImageView android:layout_width="24dp" android:layout_height="24dp" android:contentDescription="@null" android:src="@drawable/ic_social_apple" />
-            <TextView android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1" android:gravity="center" android:text="Apple로 계속하기" android:textColor="#FFFFFF" android:textSize="15sp" android:textStyle="bold" />
+            <TextView android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1" android:gravity="center" android:text="@string/ui_065" android:textColor="#FFFFFF" android:textSize="15sp" android:textStyle="bold" />
             <Space android:layout_width="24dp" android:layout_height="24dp" />
         </LinearLayout>
 
@@ -132,7 +132,7 @@
             android:orientation="horizontal"
             android:visibility="gone">
             <View android:layout_width="0dp" android:layout_height="1dp" android:layout_weight="1" android:background="@color/fit_border" />
-            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:paddingHorizontal="14dp" android:text="또는 이메일로 계속" android:textColor="@color/fit_text_secondary" android:textSize="12sp" />
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:paddingHorizontal="14dp" android:text="@string/ui_066" android:textColor="@color/fit_text_secondary" android:textSize="12sp" />
             <View android:layout_width="0dp" android:layout_height="1dp" android:layout_weight="1" android:background="@color/fit_border" />
         </LinearLayout>
 
@@ -142,7 +142,7 @@
             android:layout_height="54dp"
             android:layout_marginTop="4dp"
             android:background="@drawable/bg_input"
-            android:hint="이름"
+            android:hint="@string/ui_067"
             android:inputType="textPersonName"
             android:paddingHorizontal="16dp"
             android:singleLine="true"
@@ -155,7 +155,7 @@
             android:layout_marginTop="10dp"
             android:autofillHints="emailAddress"
             android:background="@drawable/bg_input"
-            android:hint="이메일"
+            android:hint="@string/ui_068"
             android:inputType="textEmailAddress"
             android:paddingHorizontal="16dp"
             android:singleLine="true" />
@@ -166,7 +166,7 @@
             android:layout_height="54dp"
             android:layout_marginTop="10dp"
             android:background="@drawable/bg_input"
-            android:hint="휴대전화"
+            android:hint="@string/ui_069"
             android:inputType="phone"
             android:paddingHorizontal="16dp"
             android:singleLine="true"
@@ -179,7 +179,7 @@
             android:layout_marginTop="10dp"
             android:autofillHints="password"
             android:background="@drawable/bg_input"
-            android:hint="비밀번호"
+            android:hint="@string/ui_070"
             android:inputType="textPassword"
             android:paddingHorizontal="16dp"
             android:singleLine="true" />
@@ -190,7 +190,7 @@
             android:layout_height="54dp"
             android:layout_marginTop="10dp"
             android:background="@drawable/bg_input"
-            android:hint="비밀번호 확인"
+            android:hint="@string/ui_071"
             android:inputType="textPassword"
             android:paddingHorizontal="16dp"
             android:singleLine="true"
@@ -211,7 +211,7 @@
             android:layout_height="56dp"
             android:layout_marginTop="16dp"
             android:background="@drawable/bg_primary_button"
-            android:text="이메일로 로그인"
+            android:text="@string/ui_072"
             android:textAllCaps="false"
             android:textColor="#FFFFFF"
             android:textSize="15sp"
@@ -222,7 +222,7 @@
             android:layout_width="match_parent"
             android:layout_height="52dp"
             android:gravity="center"
-            android:text="처음이신가요?  회원가입"
+            android:text="@string/ui_073"
             android:textColor="@color/fit_primary"
             android:textSize="14sp"
             android:textStyle="bold" />
@@ -233,7 +233,7 @@
             android:layout_height="wrap_content"
             android:gravity="center"
             android:lineSpacingExtra="3dp"
-            android:text="개인정보처리방침 보기"
+            android:text="@string/ui_074"
             android:textColor="@color/fit_text_secondary"
             android:textSize="12sp" />
     </LinearLayout>

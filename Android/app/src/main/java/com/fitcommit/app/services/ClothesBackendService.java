@@ -24,6 +24,7 @@ import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 
 import okhttp3.MediaType;
 import okhttp3.Request;
@@ -664,7 +665,7 @@ public class ClothesBackendService {
             array.put("winter");
         } else if (season != null && !season.trim().isEmpty()) {
             for (String value : season.split("[/, ]+")) {
-                String normalized = value.trim().toLowerCase();
+                String normalized = value.trim().toLowerCase(Locale.ROOT);
                 if (!normalized.isEmpty()) {
                     array.put(normalized);
                 }
@@ -887,8 +888,9 @@ public class ClothesBackendService {
         try {
             File directory = new File(context.getFilesDir(), "closet_remote_cache");
             if (!directory.exists() && !directory.mkdirs()) return "";
-            String extension = storagePath.toLowerCase().endsWith(".webp") ? ".webp"
-                    : storagePath.toLowerCase().endsWith(".png") ? ".png" : ".jpg";
+            String normalizedPath = storagePath.toLowerCase(Locale.ROOT);
+            String extension = normalizedPath.endsWith(".webp") ? ".webp"
+                    : normalizedPath.endsWith(".png") ? ".png" : ".jpg";
             File cached = new File(directory, Integer.toHexString(storagePath.hashCode()) + extension);
             if (isDecodableImage(cached)) return cached.getAbsolutePath();
             if (cached.exists() && !cached.delete()) return "";

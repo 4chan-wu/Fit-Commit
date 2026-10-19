@@ -13,7 +13,7 @@
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="마이"
+            android:text="@string/ui_078"
             android:textColor="@color/fit_text"
             android:textSize="28sp"
             android:textStyle="bold" />
@@ -22,7 +22,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="10dp"
-            android:text="계정과 개인정보 설정을 관리합니다."
+            android:text="@string/ui_118"
             android:textColor="@color/fit_text_secondary"
             android:textSize="14sp" />
 
@@ -30,7 +30,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="30dp"
-            android:text="나의 신체 분석"
+            android:text="@string/ui_119"
             android:textColor="@color/fit_text_secondary"
             android:textStyle="bold" />
 
@@ -45,7 +45,7 @@
             <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="BODY PROFILE"
+                android:text="@string/ui_037"
                 android:textColor="@color/fit_primary"
                 android:textSize="12sp"
                 android:textStyle="bold" />
@@ -65,7 +65,7 @@
                 android:layout_height="52dp"
                 android:layout_marginTop="16dp"
                 android:background="@drawable/bg_primary_button"
-                android:text="신체 비율 측정하기"
+                android:text="@string/ui_120"
                 android:textAllCaps="false"
                 android:textColor="#FFFFFF"
                 android:textStyle="bold" />
@@ -75,7 +75,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="26dp"
-            android:text="정보 및 약관"
+            android:text="@string/ui_121"
             android:textColor="@color/fit_text_secondary"
             android:textStyle="bold" />
 
@@ -85,7 +85,7 @@
             android:layout_height="54dp"
             android:layout_marginTop="12dp"
             android:background="@drawable/bg_card"
-            android:text="개인정보처리방침  ›"
+            android:text="@string/ui_122"
             android:textAllCaps="false"
             android:textColor="@color/fit_text" />
 
@@ -96,7 +96,7 @@
             android:background="@drawable/bg_card"
             android:gravity="center_vertical"
             android:paddingHorizontal="18dp"
-            android:text="앱 버전    1.0"
+            android:text="@string/ui_123"
             android:textColor="@color/fit_text" />
 
         <Button
@@ -105,7 +105,7 @@
             android:layout_height="54dp"
             android:layout_marginTop="30dp"
             android:background="@drawable/bg_card"
-            android:text="로그아웃"
+            android:text="@string/ui_124"
             android:textAllCaps="false"
             android:textColor="@color/fit_text"
             android:textStyle="bold" />
@@ -116,7 +116,7 @@
             android:layout_height="54dp"
             android:layout_marginTop="8dp"
             android:background="@drawable/bg_card"
-            android:text="계정 삭제"
+            android:text="@string/ui_125"
             android:textAllCaps="false"
             android:textColor="@color/fit_danger"
             android:textStyle="bold" />

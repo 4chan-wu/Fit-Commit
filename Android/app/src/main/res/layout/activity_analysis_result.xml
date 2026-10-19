@@ -16,7 +16,7 @@
             android:layout_width="match_parent"
             android:layout_height="48dp"
             android:gravity="center_vertical"
-            android:text="‹ 내 옷장"
+            android:text="@string/ui_006"
             android:textColor="@color/fit_primary"
             android:textSize="17sp"
             android:textStyle="bold" />
@@ -27,7 +27,7 @@
             android:layout_height="280dp"
             android:layout_marginTop="8dp"
             android:background="@drawable/bg_card"
-            android:contentDescription="등록할 의류 이미지"
+            android:contentDescription="@string/ui_007"
             android:padding="14dp"
             android:scaleType="fitCenter" />
 
@@ -36,7 +36,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="12dp"
-            android:text="의류 정보를 준비하고 있습니다..."
+            android:text="@string/ui_008"
             android:textColor="@color/fit_text_secondary"
             android:textSize="13sp" />
 
@@ -50,7 +50,7 @@
             <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="이대로 옷장에 추가할까요?"
+                android:text="@string/ui_009"
                 android:textColor="@color/fit_text"
                 android:textSize="20sp"
                 android:textStyle="bold" />
@@ -59,7 +59,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="4dp"
-                android:text="카테고리와 색상만 확인하면 바로 저장할 수 있어요."
+                android:text="@string/ui_010"
                 android:textColor="@color/fit_text_secondary"
                 android:textSize="13sp" />
 
@@ -79,7 +79,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="20dp"
-                android:text="카테고리"
+                android:text="@string/ui_011"
                 android:textColor="@color/fit_text"
                 android:textSize="14sp"
                 android:textStyle="bold" />
@@ -96,7 +96,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="18dp"
-                android:text="저장할 옷장"
+                android:text="@string/ui_012"
                 android:textColor="@color/fit_text"
                 android:textSize="14sp"
                 android:textStyle="bold" />
@@ -114,7 +114,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="18dp"
-                android:text="사진에서 찾은 대표 색상"
+                android:text="@string/ui_013"
                 android:textColor="@color/fit_text"
                 android:textSize="14sp"
                 android:textStyle="bold" />
@@ -144,7 +144,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="22dp"
-                    android:text="상세 정보"
+                    android:text="@string/ui_014"
                     android:textColor="@color/fit_text"
                     android:textSize="16sp"
                     android:textStyle="bold" />
@@ -153,7 +153,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="3dp"
-                    android:text="필요한 내용만 선택해서 추가할 수 있어요."
+                    android:text="@string/ui_015"
                     android:textColor="@color/fit_text_secondary"
                     android:textSize="12sp" />
 
@@ -161,7 +161,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="14dp"
-                    android:text="옷 이름 (선택)"
+                    android:text="@string/ui_016"
                     android:textColor="@color/fit_text"
                     android:textSize="14sp"
                     android:textStyle="bold" />
@@ -172,7 +172,7 @@
                     android:layout_height="52dp"
                     android:layout_marginTop="8dp"
                     android:background="@drawable/bg_input"
-                    android:hint="예: 네이비 오버핏 티셔츠"
+                    android:hint="@string/ui_017"
                     android:paddingHorizontal="14dp"
                     android:singleLine="true" />
 
@@ -182,7 +182,7 @@
                     android:layout_height="52dp"
                     android:layout_marginTop="10dp"
                     android:background="@drawable/bg_input"
-                    android:hint="세부 종류 (선택)"
+                    android:hint="@string/ui_018"
                     android:paddingHorizontal="14dp"
                     android:singleLine="true" />
 
@@ -190,7 +190,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="16dp"
-                    android:text="입기 좋은 계절 (선택)"
+                    android:text="@string/ui_019"
                     android:textColor="@color/fit_text"
                     android:textSize="14sp"
                     android:textStyle="bold" />
@@ -207,28 +207,28 @@
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
-                        android:text="봄" />
+                        android:text="@string/ui_020" />
 
                     <CheckBox
                         android:id="@+id/seasonSummer"
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
-                        android:text="여름" />
+                        android:text="@string/ui_021" />
 
                     <CheckBox
                         android:id="@+id/seasonFall"
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
-                        android:text="가을" />
+                        android:text="@string/ui_022" />
 
                     <CheckBox
                         android:id="@+id/seasonWinter"
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
-                        android:text="겨울" />
+                        android:text="@string/ui_023" />
                 </LinearLayout>
 
                 <EditText
@@ -237,7 +237,7 @@
                     android:layout_height="52dp"
                     android:layout_marginTop="10dp"
                     android:background="@drawable/bg_input"
-                    android:hint="스타일 태그 (선택)"
+                    android:hint="@string/ui_024"
                     android:paddingHorizontal="14dp"
                     android:singleLine="true" />
             </LinearLayout>
@@ -248,7 +248,7 @@
                 android:layout_height="48dp"
                 android:layout_marginTop="14dp"
                 android:background="@drawable/bg_soft_button"
-                android:text="상세 정보 추가"
+                android:text="@string/ui_025"
                 android:textAllCaps="false"
                 android:textColor="@color/fit_primary"
                 android:textStyle="bold" />
@@ -259,7 +259,7 @@
                 android:layout_height="56dp"
                 android:layout_marginTop="10dp"
                 android:background="@drawable/bg_primary_button"
-                android:text="옷장에 저장"
+                android:text="@string/ui_026"
                 android:textAllCaps="false"
                 android:textColor="#FFFFFF"
                 android:textSize="16sp"
@@ -271,7 +271,7 @@
                 android:layout_height="52dp"
                 android:layout_marginTop="12dp"
                 android:background="@drawable/bg_danger_soft_button"
-                android:text="−  옷 삭제"
+                android:text="@string/ui_027"
                 android:textAllCaps="false"
                 android:textColor="@color/fit_danger"
                 android:textStyle="bold"

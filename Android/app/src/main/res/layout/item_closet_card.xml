@@ -17,7 +17,7 @@
             android:id="@+id/closetItemImage"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
-            android:contentDescription="의류 이미지"
+            android:contentDescription="@string/ui_084"
             android:padding="14dp"
             android:scaleType="fitCenter" />
         <TextView
@@ -27,7 +27,7 @@
             android:layout_gravity="top|start"
             android:layout_margin="8dp"
             android:background="@drawable/bg_status_badge"
-            android:text="저장 중"
+            android:text="@string/ui_085"
             android:textColor="@color/fit_on_dark"
             android:textSize="11sp"
             android:textStyle="bold"
@@ -40,9 +40,9 @@
             android:layout_gravity="top|end"
             android:layout_margin="8dp"
             android:background="@drawable/bg_card_action"
-            android:contentDescription="옷 관리"
+            android:contentDescription="@string/ui_086"
             android:gravity="center"
-            android:text="⋮"
+            android:text="@string/ui_087"
             android:textColor="@color/fit_text"
             android:textSize="24sp"
             android:textStyle="bold" />

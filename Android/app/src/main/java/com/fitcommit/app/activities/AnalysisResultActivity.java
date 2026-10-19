@@ -27,6 +27,7 @@ import java.io.File;
 import java.util.Arrays;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 
 /**
  * CLIP/FashionCLIP 분석 결과를 확정 전 확인하고 수정하는 화면입니다.
@@ -583,7 +584,7 @@ public class AnalysisResultActivity extends Activity {
         ((CheckBox) findViewById(R.id.seasonFall)).setChecked(false);
         ((CheckBox) findViewById(R.id.seasonWinter)).setChecked(false);
 
-        String normalized = season == null ? "" : season.toLowerCase();
+        String normalized = season == null ? "" : season.toLowerCase(Locale.ROOT);
         if (normalized.contains("all-season")) {
             ((CheckBox) findViewById(R.id.seasonSpring)).setChecked(true);
             ((CheckBox) findViewById(R.id.seasonSummer)).setChecked(true);
@@ -613,7 +614,7 @@ public class AnalysisResultActivity extends Activity {
         if (color == null || color.trim().isEmpty() || "#CCCCCC".equalsIgnoreCase(color.trim())) {
             return dominantColorName();
         }
-        return color.trim().toLowerCase();
+        return color.trim().toLowerCase(Locale.ROOT);
     }
 
     private String dominantColorName() {
