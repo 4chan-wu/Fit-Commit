@@ -46,7 +46,7 @@
                 android:id="@+id/searchClosetButton"
                 android:layout_width="48dp"
                 android:layout_height="48dp"
-                android:background="@drawable/bg_chip"
+                android:background="@drawable/bg_toolbar_action"
                 android:contentDescription="옷 검색"
                 android:padding="12dp"
                 android:src="@drawable/ic_search" />
@@ -56,7 +56,7 @@
                 android:layout_width="48dp"
                 android:layout_height="48dp"
                 android:layout_marginStart="8dp"
-                android:background="@drawable/bg_chip"
+                android:background="@drawable/bg_toolbar_action"
                 android:contentDescription="계절 필터"
                 android:padding="12dp"
                 android:src="@drawable/ic_filter" />
@@ -249,14 +249,68 @@
                 android:paddingBottom="96dp"
                 android:scrollbars="none" />
 
-            <TextView
-                android:id="@+id/closetEmptyText"
+            <LinearLayout
+                android:id="@+id/closetEmptyState"
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
                 android:gravity="center"
-                android:lineSpacingExtra="7dp"
+                android:orientation="vertical"
                 android:padding="32dp"
-                android:text="아직 등록한 옷이 없어요.\n아래 ‘옷 추가’ 버튼으로 시작해보세요."
+                android:visibility="gone">
+
+                <ImageView
+                    android:layout_width="88dp"
+                    android:layout_height="88dp"
+                    android:background="@drawable/bg_closet_empty_icon"
+                    android:contentDescription=""
+                    android:padding="20dp"
+                    android:src="@drawable/ic_closet_empty" />
+
+                <TextView
+                    android:id="@+id/closetEmptyTitle"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="22dp"
+                    android:includeFontPadding="false"
+                    android:text="첫 번째 옷을 등록해보세요"
+                    android:textColor="@color/fit_text"
+                    android:textSize="20sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/closetEmptyDescription"
+                    android:layout_width="260dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="9dp"
+                    android:gravity="center"
+                    android:lineSpacingExtra="3dp"
+                    android:text="사진 한 장이면 내 옷장을\n간편하게 정리할 수 있어요."
+                    android:textColor="@color/fit_text_secondary"
+                    android:textSize="14sp" />
+
+                <TextView
+                    android:id="@+id/firstClothingButton"
+                    android:layout_width="240dp"
+                    android:layout_height="52dp"
+                    android:layout_marginTop="22dp"
+                    android:background="@drawable/bg_add_clothing_button"
+                    android:drawableStart="@drawable/ic_add_garment_white"
+                    android:drawablePadding="9dp"
+                    android:gravity="center"
+                    android:text="첫 번째 옷 등록하기"
+                    android:textColor="@color/fit_on_dark"
+                    android:textSize="15sp"
+                    android:textStyle="bold" />
+            </LinearLayout>
+
+            <TextView
+                android:id="@+id/closetNoResultsText"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:gravity="center"
+                android:lineSpacingExtra="6dp"
+                android:padding="32dp"
+                android:text="조건에 맞는 옷이 없어요.\n검색어나 필터를 바꿔보세요."
                 android:textColor="@color/fit_text_secondary"
                 android:textSize="15sp"
                 android:visibility="gone" />
@@ -265,18 +319,20 @@
 
     <TextView
         android:id="@+id/addClothingButton"
-        android:layout_width="wrap_content"
-        android:layout_height="56dp"
+        android:layout_width="140dp"
+        android:layout_height="52dp"
         android:layout_gravity="bottom|end"
-        android:layout_marginEnd="22dp"
-        android:layout_marginBottom="22dp"
+        android:layout_marginEnd="20dp"
+        android:layout_marginBottom="20dp"
         android:background="@drawable/bg_add_clothing_button"
-        android:contentDescription="새 옷 추가"
-        android:elevation="10dp"
+        android:contentDescription="새 옷 등록"
+        android:drawableStart="@drawable/ic_add_garment_white"
+        android:drawablePadding="8dp"
+        android:elevation="3dp"
         android:gravity="center"
-        android:minWidth="112dp"
-        android:paddingHorizontal="20dp"
-        android:text="옷 추가"
+        android:paddingStart="17dp"
+        android:paddingEnd="19dp"
+        android:text="새 옷 등록"
         android:textColor="@color/fit_on_dark"
         android:textSize="15sp"
         android:textStyle="bold" />

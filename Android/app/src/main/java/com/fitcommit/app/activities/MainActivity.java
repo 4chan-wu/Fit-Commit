@@ -5,7 +5,10 @@ import android.app.AlertDialog;
 import android.content.Intent;
 import android.graphics.drawable.Drawable;
 import android.os.Bundle;
+import android.transition.ChangeBounds;
+import android.transition.TransitionManager;
 import android.view.Gravity;
+import android.view.HapticFeedbackConstants;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -186,7 +189,9 @@ public class MainActivity extends Activity {
         grid.setAdapter(adapter);
 
         TextView countText = view.findViewById(R.id.closetCountText);
-        TextView emptyText = view.findViewById(R.id.closetEmptyText);
+        View emptyState = view.findViewById(R.id.closetEmptyState);
+        TextView noResultsText = view.findViewById(R.id.closetNoResultsText);
+        TextView addClothingButton = view.findViewById(R.id.addClothingButton);
         TextView sortButton = view.findViewById(R.id.closetSortButton);
         TextView backendSyncStatusText = view.findViewById(R.id.backendSyncStatusText);
         TextView backendRefreshButton = view.findViewById(R.id.backendRefreshButton);
@@ -208,7 +213,9 @@ public class MainActivity extends Activity {
                 sourceItems,
                 adapter,
                 countText,
-                emptyText,
+                emptyState,
+                noResultsText,
+                addClothingButton,
                 selectedCategory[0],
                 selectedSeason[0],
                 searchQuery[0],
@@ -216,9 +223,23 @@ public class MainActivity extends Activity {
         );
         bindCategoryFilters(categoryRow, selectedCategory, refresh);
 
-        View.OnClickListener addClothing = v -> openAddClothing();
-        view.findViewById(R.id.addClothingButton).setOnClickListener(addClothing);
-        emptyText.setOnClickListener(addClothing);
+        View.OnClickListener addClothing = v -> {
+            v.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP);
+            openAddClothing();
+        };
+        addClothingButton.setTag(true);
+        addClothingButton.setOnClickListener(addClothing);
+        view.findViewById(R.id.firstClothingButton).setOnClickListener(addClothing);
+        grid.addOnScrollListener(new RecyclerView.OnScrollListener() {
+            @Override
+            public void onScrolled(RecyclerView recyclerView, int dx, int dy) {
+                super.onScrolled(recyclerView, dx, dy);
+                if (Math.abs(dy) < dpToPx(2) || addClothingButton.getVisibility() != View.VISIBLE) {
+                    return;
+                }
+                setClothingAddButtonExpanded(addClothingButton, dy < 0);
+            }
+        });
         view.findViewById(R.id.createWardrobeButton).setOnClickListener(v -> showCreateWardrobeDialog());
         view.findViewById(R.id.wardrobeManageButton).setOnClickListener(v -> showWardrobeManagerDialog());
         view.findViewById(R.id.bodyMeasureButton)
@@ -456,7 +477,9 @@ public class MainActivity extends Activity {
             List<ClosetItem> sourceItems,
             ClosetCardAdapter adapter,
             TextView countText,
-            TextView emptyText,
+            View emptyState,
+            TextView noResultsText,
+            TextView addClothingButton,
             String category,
             String season,
             String query,
@@ -485,10 +508,32 @@ public class MainActivity extends Activity {
         countText.setText(visibleItems.size() == sourceItems.size()
                 ? "총 " + visibleItems.size() + "벌"
                 : visibleItems.size() + "벌 표시 · 전체 " + sourceItems.size() + "벌");
-        emptyText.setText(sourceItems.isEmpty()
-                ? "아직 등록한 옷이 없어요.\n눌러서 첫 옷을 추가해보세요."
-                : "선택한 조건에 맞는 옷이 없어요.\n필터를 바꿔보세요.");
-        emptyText.setVisibility(visibleItems.isEmpty() ? View.VISIBLE : View.GONE);
+        boolean closetIsEmpty = sourceItems.isEmpty();
+        boolean filtersHaveNoResults = !closetIsEmpty && visibleItems.isEmpty();
+        emptyState.setVisibility(closetIsEmpty ? View.VISIBLE : View.GONE);
+        noResultsText.setVisibility(filtersHaveNoResults ? View.VISIBLE : View.GONE);
+        addClothingButton.setVisibility(closetIsEmpty ? View.GONE : View.VISIBLE);
+    }
+
+    private void setClothingAddButtonExpanded(TextView button, boolean expanded) {
+        Object currentState = button.getTag();
+        if (currentState instanceof Boolean && (Boolean) currentState == expanded) {
+            return;
+        }
+        button.setTag(expanded);
+
+        ViewGroup parent = (ViewGroup) button.getParent();
+        ChangeBounds transition = new ChangeBounds();
+        transition.setDuration(180);
+        TransitionManager.beginDelayedTransition(parent, transition);
+
+        ViewGroup.LayoutParams params = button.getLayoutParams();
+        params.width = dpToPx(expanded ? 140 : 52);
+        button.setLayoutParams(params);
+        button.setText(expanded ? "새 옷 등록" : "");
+        button.setCompoundDrawablePadding(expanded ? dpToPx(8) : 0);
+        button.setPadding(expanded ? dpToPx(17) : 0, 0, expanded ? dpToPx(19) : 0, 0);
+        button.setContentDescription(expanded ? "새 옷 등록" : "새 옷 등록 버튼");
     }
 
     private boolean matchesClosetCategory(ClosetItem item, String selected) {
