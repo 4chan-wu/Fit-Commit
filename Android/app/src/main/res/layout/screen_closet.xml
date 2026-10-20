@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent">
 
@@ -176,6 +177,7 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="10dp"
             android:clipToPadding="false"
+            android:paddingStart="0dp"
             android:paddingEnd="12dp"
             android:scrollbars="none">
 
@@ -200,6 +202,7 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="10dp"
             android:clipToPadding="false"
+            android:paddingStart="0dp"
             android:paddingEnd="12dp"
             android:scrollbars="none">
 
@@ -300,7 +303,8 @@
                     android:text="@string/ui_110"
                     android:textColor="@color/fit_on_dark"
                     android:textSize="15sp"
-                    android:textStyle="bold" />
+                    android:textStyle="bold"
+                    tools:ignore="UseCompatTextViewDrawableXml" />
             </LinearLayout>
 
             <TextView
@@ -335,5 +339,6 @@
         android:text="@string/ui_112"
         android:textColor="@color/fit_on_dark"
         android:textSize="15sp"
-        android:textStyle="bold" />
+        android:textStyle="bold"
+        tools:ignore="UseCompatTextViewDrawableXml" />
 </FrameLayout>

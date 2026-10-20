@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string-array name="clothing_category_labels"><item>상의</item><item>하의</item><item>아우터</item><item>신발</item><item>모자</item><item>가방</item><item>원피스</item></string-array>
+    <string-array name="clothing_color_labels"><item>블랙</item><item>화이트</item><item>그레이</item><item>네이비</item><item>블루</item><item>브라운</item><item>베이지</item><item>레드</item><item>핑크</item><item>그린</item><item>옐로</item><item>퍼플</item></string-array>
+    <string-array name="closet_category_filter_labels"><item>전체</item><item>상의</item><item>하의</item><item>아우터</item><item>신발</item><item>가방·소품</item><item>원피스</item></string-array>
+    <string-array name="closet_season_filter_labels"><item>전체 계절</item><item>봄</item><item>여름</item><item>가을</item><item>겨울</item></string-array>
+    <string-array name="closet_sort_labels"><item>최근 추가순</item><item>이름순</item></string-array>
+</resources>

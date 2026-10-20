@@ -47,9 +47,9 @@ public class AnalysisResultActivity extends Activity {
     public static final String EXTRA_WARDROBE_ID = "wardrobeId";
 
     private static final String[] CATEGORIES = {"top", "bottom", "outer", "shoes", "hat", "bag", "dress"};
-    private static final String[] CATEGORY_LABELS = {"상의", "하의", "아우터", "신발", "모자", "가방", "원피스"};
     private static final String[] COLORS = {"black", "white", "gray", "navy", "blue", "brown", "beige", "red", "pink", "green", "yellow", "purple"};
-    private static final String[] COLOR_LABELS = {"블랙", "화이트", "그레이", "네이비", "블루", "브라운", "베이지", "레드", "핑크", "그린", "옐로", "퍼플"};
+    private String[] categoryLabels;
+    private String[] colorLabels;
     private final FashionAiService fashionAiService = new FashionAiService();
     private ClothesBackendService clothesBackendService;
 
@@ -70,6 +70,8 @@ public class AnalysisResultActivity extends Activity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_analysis_result);
         clothesBackendService = new ClothesBackendService(this);
+        categoryLabels = getResources().getStringArray(R.array.clothing_category_labels);
+        colorLabels = getResources().getStringArray(R.array.clothing_color_labels);
 
         imagePath = getIntent().getStringExtra(EXTRA_IMAGE_PATH);
         originalImagePath = valueOrDefault(
@@ -111,13 +113,13 @@ public class AnalysisResultActivity extends Activity {
 
     private void setupStaticForm() {
         Spinner categorySpinner = findViewById(R.id.categorySpinner);
-        ArrayAdapter<String> adapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_dropdown_item, CATEGORY_LABELS);
+        ArrayAdapter<String> adapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_dropdown_item, categoryLabels);
         categorySpinner.setAdapter(adapter);
         int hintIndex = Arrays.asList(CATEGORIES).indexOf(categoryHint);
         categorySpinner.setSelection(Math.max(hintIndex, 0));
 
         Spinner colorSpinner = findViewById(R.id.colorSpinner);
-        ArrayAdapter<String> colorAdapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_dropdown_item, COLOR_LABELS);
+        ArrayAdapter<String> colorAdapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_dropdown_item, colorLabels);
         colorSpinner.setAdapter(colorAdapter);
         colorSpinner.setOnItemSelectedListener(new android.widget.AdapterView.OnItemSelectedListener() {
             @Override
@@ -134,7 +136,7 @@ public class AnalysisResultActivity extends Activity {
         findViewById(R.id.saveResultButton).setOnClickListener(v -> saveConfirmedResult());
         findViewById(R.id.deleteResultButton).setOnClickListener(v -> confirmDeleteClothing());
         Spinner wardrobeSpinner = findViewById(R.id.wardrobeSpinner);
-        ArrayAdapter<String> wardrobeAdapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_dropdown_item, new String[]{"옷장 불러오는 중..."});
+        ArrayAdapter<String> wardrobeAdapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_dropdown_item, new String[]{getString(R.string.wardrobe_loading)});
         wardrobeSpinner.setAdapter(wardrobeAdapter);
         wardrobeSpinner.setEnabled(false);
         wardrobeSpinner.setOnItemSelectedListener(new android.widget.AdapterView.OnItemSelectedListener() {
@@ -156,7 +158,7 @@ public class AnalysisResultActivity extends Activity {
         if (!clothesBackendService.isConfigured()) {
             wardrobesReady = true;
             Spinner spinner = findViewById(R.id.wardrobeSpinner);
-            spinner.setAdapter(new ArrayAdapter<>(this, android.R.layout.simple_spinner_dropdown_item, new String[]{"기기에 임시 저장"}));
+            spinner.setAdapter(new ArrayAdapter<>(this, android.R.layout.simple_spinner_dropdown_item, new String[]{getString(R.string.save_on_device)}));
             spinner.setEnabled(false);
             return;
         }
@@ -170,7 +172,7 @@ public class AnalysisResultActivity extends Activity {
                     int selectedIndex = 0;
                     for (int i = 0; i < wardrobes.size(); i++) {
                         Wardrobe wardrobe = wardrobes.get(i);
-                        labels.add(wardrobe.isDefault ? wardrobe.name + " (기본)" : wardrobe.name);
+                        labels.add(wardrobe.isDefault ? getString(R.string.default_suffix, wardrobe.name) : wardrobe.name);
                         if (!selectedWardrobeId.trim().isEmpty() && selectedWardrobeId.equals(wardrobe.id)) {
                             selectedIndex = i;
                         } else if (selectedWardrobeId.trim().isEmpty() && wardrobe.isDefault) {
@@ -180,10 +182,10 @@ public class AnalysisResultActivity extends Activity {
                     }
                     Spinner spinner = findViewById(R.id.wardrobeSpinner);
                     if (labels.isEmpty()) {
-                        spinner.setAdapter(new ArrayAdapter<>(this, android.R.layout.simple_spinner_dropdown_item, new String[]{"사용 가능한 옷장이 없습니다"}));
+                        spinner.setAdapter(new ArrayAdapter<>(this, android.R.layout.simple_spinner_dropdown_item, new String[]{getString(R.string.no_available_wardrobe)}));
                         spinner.setEnabled(false);
                         wardrobesReady = false;
-                        setLoading(false, "먼저 내 옷장에서 새 옷장을 만들어주세요.");
+                        setLoading(false, getString(R.string.create_wardrobe_first));
                     } else {
                         spinner.setAdapter(new ArrayAdapter<>(this, android.R.layout.simple_spinner_dropdown_item, labels));
                         spinner.setSelection(selectedIndex);
@@ -196,7 +198,7 @@ public class AnalysisResultActivity extends Activity {
                 System.out.println("[AnalysisResultActivity] Backend wardrobes fetch failed: " + error.getMessage());
                 runOnUiThread(() -> {
                     wardrobesReady = false;
-                    setLoading(false, "옷장 목록을 불러오지 못했습니다. 잠시 후 다시 시도해주세요.");
+                    setLoading(false, getString(R.string.wardrobe_load_failed_retry));
                 });
             }
         }).start();
@@ -233,10 +235,10 @@ public class AnalysisResultActivity extends Activity {
 
     private void confirmDeleteClothing() {
         AlertDialog dialog = new AlertDialog.Builder(this)
-                .setTitle("옷을 삭제할까요?")
-                .setMessage("선택한 옷을 삭제하시겠습니까?")
-                .setNegativeButton("취소", null)
-                .setPositiveButton("삭제", (prompt, which) -> deleteClothing())
+                .setTitle(R.string.delete_item_title)
+                .setMessage(R.string.delete_item_message)
+                .setNegativeButton(R.string.action_cancel, null)
+                .setPositiveButton(R.string.action_delete, (prompt, which) -> deleteClothing())
                 .create();
         dialog.setOnShowListener(ignored -> dialog.getButton(AlertDialog.BUTTON_POSITIVE)
                 .setTextColor(getColor(R.color.fit_danger)));
@@ -247,27 +249,27 @@ public class AnalysisResultActivity extends Activity {
         boolean hasRemoteId = serverClothingId != null && !serverClothingId.trim().isEmpty();
         if (!hasRemoteId) {
             ClothingStorage.moveToTrash(this, localItemId, serverClothingId);
-            UiUtils.toast(this, "옷을 삭제했습니다.");
+            UiUtils.toast(this, getString(R.string.item_deleted));
             finish();
             return;
         }
         if (!clothesBackendService.isConfigured()) {
-            UiUtils.toast(this, "서버에 연결한 후 다시 삭제해주세요.");
+            UiUtils.toast(this, getString(R.string.delete_requires_server));
             return;
         }
-        setLoading(true, "옷을 삭제하고 있습니다...");
+        setLoading(true, getString(R.string.item_deleting));
         new Thread(() -> {
             try {
                 clothesBackendService.deleteClothing(serverClothingId);
                 ClothingStorage.moveToTrash(this, localItemId, serverClothingId);
                 runOnUiThread(() -> {
-                    UiUtils.toast(this, "옷을 삭제했습니다.");
+                    UiUtils.toast(this, getString(R.string.item_deleted));
                     finish();
                 });
             } catch (Exception error) {
                 runOnUiThread(() -> {
-                    setLoading(false, "삭제하지 못했습니다. 다시 시도해주세요.");
-                    UiUtils.toast(this, "옷 삭제 실패: " + error.getMessage());
+                    setLoading(false, getString(R.string.delete_retry));
+                    UiUtils.toast(this, getString(R.string.item_delete_failed, error.getMessage()));
                 });
             }
         }).start();
@@ -294,12 +296,12 @@ public class AnalysisResultActivity extends Activity {
             setLoading(false, "");
             return;
         }
-        setLoading(true, "Backend /clothes 저장을 먼저 진행 중입니다...");
+        setLoading(true, getString(R.string.backend_saving_first));
 
         new Thread(() -> {
             try {
                 if (imagePath == null || imagePath.trim().isEmpty()) {
-                    throw new IllegalStateException("이미지 파일이 없습니다.");
+                    throw new IllegalStateException(getString(R.string.image_missing));
                 }
                 ensurePendingClothingRow();
 
@@ -318,7 +320,7 @@ public class AnalysisResultActivity extends Activity {
                 runOnUiThread(() -> {
                     result = AnalysisResult.fallback(categoryHint);
                     bindResult(result);
-                    setLoading(false, "분석 실패 상태로 저장되었습니다. 나중에 다시 분석할 수 있습니다.");
+                    setLoading(false, getString(R.string.analysis_failed_saved));
                 });
             }
         }).start();
@@ -327,13 +329,17 @@ public class AnalysisResultActivity extends Activity {
     private void bindResult(AnalysisResult result) {
         int categoryIndex = Arrays.asList(CATEGORIES).indexOf(result.mainCategory);
         ((TextView) findViewById(R.id.resultCategoryText)).setText(
-                categoryIndex >= 0 ? CATEGORY_LABELS[categoryIndex] : result.mainCategory
+                categoryIndex >= 0 ? categoryLabels[categoryIndex] : result.mainCategory
         );
-        ((TextView) findViewById(R.id.resultConfidenceText)).setText(Math.round(result.confidence * 100) + "% confidence");
+        ((TextView) findViewById(R.id.resultConfidenceText)).setText(
+                getString(R.string.analysis_confidence, Math.round(result.confidence * 100))
+        );
         String color = normalizeColor(result.mainColor);
         int colorIndex = Arrays.asList(COLORS).indexOf(color);
-        String colorLabel = colorIndex >= 0 ? COLOR_LABELS[colorIndex] : color;
-        ((TextView) findViewById(R.id.colorSummaryText)).setText("대표 색상 · " + colorLabel);
+        String colorLabel = colorIndex >= 0 ? colorLabels[colorIndex] : color;
+        ((TextView) findViewById(R.id.colorSummaryText)).setText(
+                getString(R.string.analysis_color_summary, colorLabel)
+        );
         ((EditText) findViewById(R.id.clothingNameEditText)).setText(defaultNameFor(result.mainCategory));
         ((EditText) findViewById(R.id.subcategoryEditText)).setText(result.subcategory);
         ((EditText) findViewById(R.id.colorEditText)).setText(color);
@@ -359,13 +365,13 @@ public class AnalysisResultActivity extends Activity {
         detailsVisible = visible;
         findViewById(R.id.detailsContainer).setVisibility(visible ? View.VISIBLE : View.GONE);
         ((android.widget.Button) findViewById(R.id.editResultButton)).setText(
-                visible ? "상세 정보 접기" : "상세 정보 추가"
+                visible ? getString(R.string.analysis_hide_details) : getString(R.string.ui_025)
         );
     }
 
     private void saveConfirmedResult() {
         if (clothesBackendService.isConfigured() && selectedWardrobeId.trim().isEmpty()) {
-            UiUtils.toast(this, "저장할 옷장을 선택해주세요.");
+            UiUtils.toast(this, getString(R.string.select_wardrobe));
             return;
         }
         int categoryPosition = ((Spinner) findViewById(R.id.categorySpinner)).getSelectedItemPosition();
@@ -383,8 +389,8 @@ public class AnalysisResultActivity extends Activity {
 
         if (clothesBackendService.isConfigured()) {
             setLoading(true, backgroundRemoved
-                    ? "원본과 배경 제거 이미지를 안전하게 저장 중입니다..."
-                    : "원본 이미지를 안전하게 저장 중입니다...");
+                    ? getString(R.string.saving_original_and_cutout)
+                    : getString(R.string.saving_original));
             new Thread(() -> {
                 try {
                     if (serverClothingId == null || serverClothingId.trim().isEmpty()) {
@@ -407,14 +413,14 @@ public class AnalysisResultActivity extends Activity {
                     }
                     ClothingStorage.updateSync(this, localItemId, serverClothingId, "synced", "");
                     runOnUiThread(() -> {
-                        UiUtils.toast(this, "서버에 의류가 저장되었습니다.");
+                        UiUtils.toast(this, getString(R.string.server_item_saved));
                         finish();
                     });
                 } catch (Exception error) {
                     runOnUiThread(() -> {
                         System.out.println("[AnalysisResultActivity] Backend save failed, local item retained: " + error.getMessage());
                         ClothingStorage.updateSync(this, localItemId, serverClothingId, "sync_failed", error.getMessage());
-                        UiUtils.toast(this, "서버 저장 실패, 기기에 임시 저장되었습니다.");
+                        UiUtils.toast(this, getString(R.string.server_save_local_fallback));
                         finish();
                     });
                 }
@@ -422,7 +428,7 @@ public class AnalysisResultActivity extends Activity {
             return;
         }
 
-        UiUtils.toast(this, "기기에 임시 저장되었습니다.");
+        UiUtils.toast(this, getString(R.string.saved_on_device));
         finish();
     }
 
@@ -472,7 +478,7 @@ public class AnalysisResultActivity extends Activity {
                 System.currentTimeMillis()
         ));
         if (finishAfterSave) {
-            UiUtils.toast(this, "확정한 의류 정보가 기기에 저장되었습니다.");
+            UiUtils.toast(this, getString(R.string.confirmed_info_saved));
             finish();
         }
     }
@@ -485,7 +491,7 @@ public class AnalysisResultActivity extends Activity {
                 defaultNameFor(categoryHint),
                 categoryHint,
                 dominantColorName(),
-                "분석 대기",
+                getString(R.string.analysis_pending),
                 "created_before_ai_analysis",
                 imagePath,
                 "pending",
@@ -566,7 +572,7 @@ public class AnalysisResultActivity extends Activity {
                 defaultNameFor(categoryHint),
                 categoryHint,
                 "#CCCCCC",
-                "분석 실패",
+                getString(R.string.analysis_failed),
                 "retry_available=true",
                 imagePath,
                 "failed",
@@ -732,21 +738,21 @@ public class AnalysisResultActivity extends Activity {
     private String defaultNameFor(String category) {
         switch (category) {
             case "top":
-                return "새로운 상의";
+                return getString(R.string.new_top);
             case "bottom":
-                return "새로운 하의";
+                return getString(R.string.new_bottom);
             case "outer":
-                return "새로운 아우터";
+                return getString(R.string.new_outer);
             case "shoes":
-                return "새로운 신발";
+                return getString(R.string.new_shoes);
             case "hat":
-                return "새로운 모자";
+                return getString(R.string.new_hat);
             case "bag":
-                return "새로운 가방";
+                return getString(R.string.new_bag);
             case "dress":
-                return "새로운 원피스";
+                return getString(R.string.new_dress);
             default:
-                return "새 의류";
+                return getString(R.string.new_clothing);
         }
     }
 

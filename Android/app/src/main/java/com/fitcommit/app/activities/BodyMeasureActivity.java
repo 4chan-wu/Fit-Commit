@@ -12,6 +12,8 @@ import android.widget.TextView;
 import android.opengl.GLSurfaceView;
 
 import androidx.activity.ComponentActivity;
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.camera.core.CameraSelector;
 import androidx.camera.core.ImageAnalysis;
 import androidx.camera.core.Preview;
@@ -37,7 +39,6 @@ import java.util.concurrent.Executors;
 public class BodyMeasureActivity extends ComponentActivity implements
         PoseLandmarkerService.Listener,
         ArDepthMeasurementController.Listener {
-    private static final int CAMERA_PERMISSION_REQUEST = 4201;
     private static final int STABLE_FRAME_TARGET = 8;
 
     private PreviewView previewView;
@@ -62,10 +63,22 @@ public class BodyMeasureActivity extends ComponentActivity implements
     private boolean cameraXStarted;
     private float latestDepthHeightMeters;
     private long latestDepthHeightAt;
+    private ActivityResultLauncher<String> cameraPermissionLauncher;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        cameraPermissionLauncher = registerForActivityResult(
+                new ActivityResultContracts.RequestPermission(),
+                granted -> {
+                    if (granted) {
+                        startPreferredCamera();
+                    } else {
+                        statusText.setVisibility(View.VISIBLE);
+                        statusText.setText(R.string.body_permission_required);
+                    }
+                }
+        );
         setContentView(R.layout.activity_body_measure);
 
         previewView = findViewById(R.id.bodyCameraPreview);
@@ -103,11 +116,11 @@ public class BodyMeasureActivity extends ComponentActivity implements
             @Override public void afterTextChanged(Editable editable) { }
         });
         if (!poseService.isReady()) {
-            statusText.setText("신체 분석 모델을 불러오지 못했습니다.");
+            statusText.setText(R.string.body_model_failed);
             return;
         }
         if (checkSelfPermission(Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
-            requestPermissions(new String[]{Manifest.permission.CAMERA}, CAMERA_PERMISSION_REQUEST);
+            cameraPermissionLauncher.launch(Manifest.permission.CAMERA);
         }
     }
 
@@ -125,7 +138,7 @@ public class BodyMeasureActivity extends ComponentActivity implements
         ArDepthMeasurementController.StartResult result = arDepthController.start();
         if (result == ArDepthMeasurementController.StartResult.INSTALL_PENDING) {
             statusText.setVisibility(View.VISIBLE);
-            statusText.setText("AR 측정 기능을 준비하고 있습니다...");
+            statusText.setText(R.string.body_ar_preparing);
             return;
         }
         if (result == ArDepthMeasurementController.StartResult.ACTIVE) {
@@ -134,8 +147,8 @@ public class BodyMeasureActivity extends ComponentActivity implements
             findViewById(R.id.bodyArCameraPreview).setVisibility(View.VISIBLE);
             manualHeightInput.setVisibility(View.GONE);
             findViewById(R.id.useManualHeightButton).setVisibility(View.VISIBLE);
-            measurementModeText.setText("AR 깊이 기반 실시간 키");
-            liveGuideText.setText("휴대폰을 천천히 움직여 바닥을 인식한 뒤 전신을 화면에 맞춰주세요.");
+            measurementModeText.setText(R.string.body_ar_mode);
+            liveGuideText.setText(R.string.body_ar_guide);
             statusText.setVisibility(View.GONE);
             return;
         }
@@ -149,9 +162,9 @@ public class BodyMeasureActivity extends ComponentActivity implements
         findViewById(R.id.bodyCameraPreview).setVisibility(View.VISIBLE);
         manualHeightInput.setVisibility(View.VISIBLE);
         findViewById(R.id.useManualHeightButton).setVisibility(View.GONE);
-        measurementModeText.setText("입력한 키로 신체 비율 보정");
-        liveHeightText.setText("--.- cm");
-        liveGuideText.setText("정확한 비율 분석을 위해 실제 키를 입력하고 전신이 보이게 서 주세요.");
+        measurementModeText.setText(R.string.body_manual_mode);
+        liveHeightText.setText(R.string.ui_032);
+        liveGuideText.setText(R.string.body_manual_guide);
     }
 
     private void switchToManualHeightMode() {
@@ -170,7 +183,7 @@ public class BodyMeasureActivity extends ComponentActivity implements
         if (cameraXStarted) return;
         cameraXStarted = true;
         statusText.setVisibility(View.VISIBLE);
-        statusText.setText("카메라와 신체 분석 모델을 준비하고 있습니다...");
+        statusText.setText(R.string.body_camera_preparing);
         ListenableFuture<ProcessCameraProvider> providerFuture = ProcessCameraProvider.getInstance(this);
         providerFuture.addListener(() -> {
             try {
@@ -189,7 +202,7 @@ public class BodyMeasureActivity extends ComponentActivity implements
                 statusText.setVisibility(View.GONE);
             } catch (Exception error) {
                 statusText.setVisibility(View.VISIBLE);
-                statusText.setText("카메라를 시작할 수 없습니다.\n" + safeMessage(error));
+                statusText.setText(getString(R.string.body_camera_failed, safeMessage(error)));
             }
         }, ContextCompat.getMainExecutor(this));
     }
@@ -236,14 +249,14 @@ public class BodyMeasureActivity extends ComponentActivity implements
             stableFrames = 0;
             lastRawMeasurement = null;
             measureButton.setEnabled(false);
-            measureButton.setText("전신 인식 대기 중");
-            liveHeightText.setText("--.- cm");
+            measureButton.setText(R.string.body_waiting);
+            liveHeightText.setText(R.string.ui_032);
             if (latestPoseMeasurement != null && arDepthMode) {
-                liveGuideText.setText("깊이를 읽는 중입니다. 휴대폰을 천천히 좌우로 움직여주세요.");
+                liveGuideText.setText(R.string.body_depth_reading);
             } else if (latestPoseMeasurement != null) {
-                liveGuideText.setText("100~230cm 사이의 실제 키를 입력해주세요.");
+                liveGuideText.setText(R.string.body_height_invalid);
             } else {
-                liveGuideText.setText("머리부터 발끝, 양손까지 화면 안에 들어오게 서 주세요.");
+                liveGuideText.setText(R.string.body_pose_guide);
             }
             return;
         }
@@ -257,12 +270,12 @@ public class BodyMeasureActivity extends ComponentActivity implements
 
         if (stableFrames >= STABLE_FRAME_TARGET) {
             measureButton.setEnabled(true);
-            measureButton.setText("측정 및 분석");
-            liveGuideText.setText("측정 준비가 완료됐어요. 자세를 유지하고 버튼을 눌러주세요.");
+            measureButton.setText(R.string.body_measure_action);
+            liveGuideText.setText(R.string.body_ready);
         } else {
             measureButton.setEnabled(false);
-            measureButton.setText("자세 안정화 중 " + stableFrames + "/" + STABLE_FRAME_TARGET);
-            liveGuideText.setText("좋아요. 정면을 보고 잠시 같은 자세를 유지해주세요.");
+            measureButton.setText(getString(R.string.body_stabilizing, stableFrames, STABLE_FRAME_TARGET));
+            liveGuideText.setText(R.string.body_hold_pose);
         }
     }
 
@@ -302,11 +315,11 @@ public class BodyMeasureActivity extends ComponentActivity implements
         resultContainer.setVisibility(View.VISIBLE);
 
         setText(R.id.resultBodyShapeText, smoothedMeasurement.bodyShape);
-        setText(R.id.resultHeightText, "키  ·  " + formatCentimeters(smoothedMeasurement.heightMeters));
-        setText(R.id.resultShoulderText, "어깨 너비  ·  " + formatCentimeters(smoothedMeasurement.shoulderWidthMeters));
-        setText(R.id.resultHipText, "골반 너비  ·  " + formatCentimeters(smoothedMeasurement.hipWidthMeters));
-        setText(R.id.resultArmText, "팔 길이  ·  " + formatCentimeters(smoothedMeasurement.armLengthMeters));
-        setText(R.id.resultLegText, "다리 길이  ·  " + formatCentimeters(smoothedMeasurement.legLengthMeters));
+        setText(R.id.resultHeightText, getString(R.string.body_height_result, formatCentimeters(smoothedMeasurement.heightMeters)));
+        setText(R.id.resultShoulderText, getString(R.string.body_shoulders_result, formatCentimeters(smoothedMeasurement.shoulderWidthMeters)));
+        setText(R.id.resultHipText, getString(R.string.body_hips_result, formatCentimeters(smoothedMeasurement.hipWidthMeters)));
+        setText(R.id.resultArmText, getString(R.string.body_arm_result, formatCentimeters(smoothedMeasurement.armLengthMeters)));
+        setText(R.id.resultLegText, getString(R.string.body_leg_result, formatCentimeters(smoothedMeasurement.legLengthMeters)));
         setText(R.id.resultRecommendationText, smoothedMeasurement.recommendation);
     }
 
@@ -320,18 +333,18 @@ public class BodyMeasureActivity extends ComponentActivity implements
         resultContainer.setVisibility(View.GONE);
         findViewById(R.id.bodyCaptureContent).setVisibility(View.VISIBLE);
         measureButton.setEnabled(false);
-        measureButton.setText("전신 인식 대기 중");
-        liveHeightText.setText("--.- cm");
+        measureButton.setText(R.string.body_waiting);
+        liveHeightText.setText(R.string.ui_032);
         liveGuideText.setText(arDepthMode
-                ? "휴대폰을 천천히 움직여 바닥을 인식한 뒤 전신을 화면에 맞춰주세요."
-                : "실제 키를 입력하고 전신이 화면에 들어오도록 2~3m 떨어져 서 주세요.");
+                ? getString(R.string.body_ar_guide)
+                : getString(R.string.body_manual_reset_guide));
         if (!arDepthMode && imageAnalysis != null) imageAnalysis.setAnalyzer(cameraExecutor, poseService);
     }
 
     private void saveAndFinish() {
         if (smoothedMeasurement == null) return;
         BodyMeasurementStorage.save(this, smoothedMeasurement);
-        UiUtils.toast(this, "신체 분석 결과를 저장했습니다.");
+        UiUtils.toast(this, getString(R.string.body_saved));
         finish();
     }
 
@@ -340,7 +353,7 @@ public class BodyMeasureActivity extends ComponentActivity implements
     }
 
     private String formatCentimeters(float meters) {
-        return String.format(Locale.KOREA, "%.1f cm", meters * 100f);
+        return String.format(Locale.getDefault(), "%.1f cm", meters * 100f);
     }
 
     @Override
@@ -348,20 +361,8 @@ public class BodyMeasureActivity extends ComponentActivity implements
         runOnUiThread(() -> {
             if (isFinishing() || isDestroyed()) return;
             statusText.setVisibility(View.VISIBLE);
-            statusText.setText("신체 분석 중 오류가 발생했습니다.\n" + message);
+            statusText.setText(getString(R.string.body_error, message));
         });
-    }
-
-    @Override
-    public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
-        if (requestCode != CAMERA_PERMISSION_REQUEST) return;
-        if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-            startPreferredCamera();
-        } else {
-            statusText.setVisibility(View.VISIBLE);
-            statusText.setText("신체 측정을 사용하려면 카메라 권한이 필요합니다.");
-        }
     }
 
     @Override
@@ -380,7 +381,7 @@ public class BodyMeasureActivity extends ComponentActivity implements
     }
 
     private String safeMessage(Throwable error) {
-        return error.getMessage() == null ? "알 수 없는 오류" : error.getMessage();
+        return error.getMessage() == null ? getString(R.string.unknown_error) : error.getMessage();
     }
 
     @Override
@@ -389,7 +390,7 @@ public class BodyMeasureActivity extends ComponentActivity implements
             if (isFinishing() || isDestroyed() || resultShown) return;
             latestDepthHeightMeters = heightMeters;
             latestDepthHeightAt = System.currentTimeMillis();
-            measurementModeText.setText("AR 깊이 기반 실시간 키");
+            measurementModeText.setText(R.string.body_ar_mode);
             if (latestPoseMeasurement != null) {
                 updateStability(resolveMeasurement(latestPoseMeasurement));
             }

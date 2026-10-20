@@ -36,6 +36,7 @@
             android:layout_height="260dp"
             android:layout_marginTop="18dp"
             android:background="@drawable/bg_card"
+            android:contentDescription="@string/ui_007"
             android:padding="16dp"
             android:scaleType="fitCenter" />
 
@@ -46,6 +47,8 @@
             android:layout_marginTop="18dp"
             android:background="@drawable/bg_input"
             android:hint="@string/ui_052"
+            android:importantForAutofill="no"
+            android:inputType="textCapWords"
             android:paddingHorizontal="16dp"
             android:singleLine="true" />
 
@@ -56,6 +59,8 @@
             android:layout_marginTop="10dp"
             android:background="@drawable/bg_input"
             android:hint="@string/ui_053"
+            android:importantForAutofill="no"
+            android:inputType="textCapWords"
             android:paddingHorizontal="16dp"
             android:singleLine="true" />
 
@@ -66,6 +71,8 @@
             android:layout_marginTop="10dp"
             android:background="@drawable/bg_input"
             android:hint="@string/ui_054"
+            android:importantForAutofill="no"
+            android:inputType="textCapWords"
             android:paddingHorizontal="16dp"
             android:singleLine="true" />
 
@@ -77,6 +84,8 @@
             android:background="@drawable/bg_input"
             android:gravity="top"
             android:hint="@string/ui_055"
+            android:importantForAutofill="no"
+            android:inputType="textCapSentences|textMultiLine"
             android:padding="16dp" />
 
         <TextView

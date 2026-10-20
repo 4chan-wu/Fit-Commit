@@ -83,6 +83,8 @@
             android:layout_weight="1"
             android:background="@drawable/bg_input"
             android:hint="@string/ui_004"
+            android:importantForAutofill="no"
+            android:inputType="textCapSentences|textMultiLine"
             android:paddingHorizontal="14dp"
             android:singleLine="true" />
 

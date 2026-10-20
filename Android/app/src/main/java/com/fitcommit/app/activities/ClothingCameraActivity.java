@@ -59,7 +59,7 @@ public class ClothingCameraActivity extends ComponentActivity {
                         || (orientation >= 240 && orientation <= 300);
                 statusText.setVisibility(landscape ? View.VISIBLE : View.GONE);
                 if (landscape) {
-                    statusText.setText("옷 전체가 잘 보이도록 휴대전화를 세로로 세워주세요.");
+                    statusText.setText(R.string.clothing_camera_portrait_guide);
                 }
             }
         };
@@ -73,7 +73,7 @@ public class ClothingCameraActivity extends ComponentActivity {
 
     private void startCamera() {
         statusText.setVisibility(View.VISIBLE);
-        statusText.setText("카메라를 준비하고 있습니다...");
+        statusText.setText(R.string.camera_preparing);
         ListenableFuture<ProcessCameraProvider> providerFuture = ProcessCameraProvider.getInstance(this);
         providerFuture.addListener(() -> {
             try {
@@ -91,7 +91,7 @@ public class ClothingCameraActivity extends ComponentActivity {
                 statusText.setVisibility(View.GONE);
                 captureButton.setEnabled(true);
             } catch (Exception error) {
-                showError("카메라를 시작할 수 없습니다. " + safeMessage(error));
+                showError(getString(R.string.camera_start_error, safeMessage(error)));
             }
         }, ContextCompat.getMainExecutor(this));
     }
@@ -101,11 +101,11 @@ public class ClothingCameraActivity extends ComponentActivity {
         capturing = true;
         captureButton.setEnabled(false);
         statusText.setVisibility(View.VISIBLE);
-        statusText.setText("고해상도 사진을 저장하고 있습니다...");
+        statusText.setText(R.string.clothing_photo_saving);
 
         File directory = new File(getFilesDir(), "closet_originals");
         if (!directory.exists() && !directory.mkdirs()) {
-            showError("촬영 이미지를 저장할 폴더를 만들 수 없습니다.");
+            showError(getString(R.string.camera_folder_error));
             return;
         }
         File outputFile = new File(directory, "original_" + System.currentTimeMillis() + ".jpg");
@@ -124,7 +124,7 @@ public class ClothingCameraActivity extends ComponentActivity {
 
                     @Override
                     public void onError(ImageCaptureException exception) {
-                        showError("사진 촬영에 실패했습니다. " + safeMessage(exception));
+                        showError(getString(R.string.camera_capture_error, safeMessage(exception)));
                     }
                 }
         );
@@ -163,7 +163,7 @@ public class ClothingCameraActivity extends ComponentActivity {
     }
 
     private String safeMessage(Throwable error) {
-        return error.getMessage() == null ? "알 수 없는 오류" : error.getMessage();
+        return error.getMessage() == null ? getString(R.string.unknown_error) : error.getMessage();
     }
 
     @Override
@@ -173,7 +173,7 @@ public class ClothingCameraActivity extends ComponentActivity {
         if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
             startCamera();
         } else {
-            showError("옷을 촬영하려면 카메라 권한이 필요합니다.");
+            showError(getString(R.string.clothing_camera_permission));
         }
     }
 }

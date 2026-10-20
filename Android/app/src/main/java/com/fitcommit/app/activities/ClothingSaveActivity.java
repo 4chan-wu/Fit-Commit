@@ -36,21 +36,21 @@ public class ClothingSaveActivity extends Activity {
             preview.setImageBitmap(BitmapFactory.decodeFile(imagePath));
         }
 
-        categoryEditText.setText("상의");
-        colorEditText.setText("자동 분석 예정");
+        categoryEditText.setText(getString(R.string.new_top));
+        colorEditText.setText(getString(R.string.analysis_planned));
 
         findViewById(R.id.saveBackText).setOnClickListener(v -> finish());
         findViewById(R.id.saveClothingButton).setOnClickListener(v -> saveClothing());
     }
 
     private void saveClothing() {
-        String name = valueOrDefault(nameEditText.getText().toString(), "새 의류");
-        String category = valueOrDefault(categoryEditText.getText().toString(), "상의");
-        String color = valueOrDefault(colorEditText.getText().toString(), "자동 분석 예정");
-        String memo = valueOrDefault(memoEditText.getText().toString(), "AI 분석 예정");
+        String name = valueOrDefault(nameEditText.getText().toString(), getString(R.string.new_clothing));
+        String category = valueOrDefault(categoryEditText.getText().toString(), getString(R.string.new_top));
+        String color = valueOrDefault(colorEditText.getText().toString(), getString(R.string.analysis_planned));
+        String memo = valueOrDefault(memoEditText.getText().toString(), getString(R.string.ai_analysis_planned));
 
-        ClothingStorage.save(this, new ClosetItem(name, category, color, "등록됨", memo, imagePath));
-        UiUtils.toast(this, "의류가 저장되었습니다.");
+        ClothingStorage.save(this, new ClosetItem(name, category, color, getString(R.string.registered), memo, imagePath));
+        UiUtils.toast(this, getString(R.string.clothing_saved));
         finish();
     }
 

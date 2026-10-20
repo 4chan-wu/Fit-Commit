@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string-array name="clothing_category_labels"><item>Tops</item><item>Bottoms</item><item>Outerwear</item><item>Shoes</item><item>Hats</item><item>Bags</item><item>Dresses</item></string-array>
+    <string-array name="clothing_color_labels"><item>Black</item><item>White</item><item>Gray</item><item>Navy</item><item>Blue</item><item>Brown</item><item>Beige</item><item>Red</item><item>Pink</item><item>Green</item><item>Yellow</item><item>Purple</item></string-array>
+    <string-array name="closet_category_filter_labels"><item>All</item><item>Tops</item><item>Bottoms</item><item>Outerwear</item><item>Shoes</item><item>Bags &amp; accessories</item><item>Dresses</item></string-array>
+    <string-array name="closet_season_filter_labels"><item>All seasons</item><item>Spring</item><item>Summer</item><item>Fall</item><item>Winter</item></string-array>
+    <string-array name="closet_sort_labels"><item>Recently added</item><item>Name</item></string-array>
+</resources>

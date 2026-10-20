@@ -39,10 +39,10 @@ public class AIChatActivity extends Activity {
         messageEditText = findViewById(R.id.messageEditText);
 
         findViewById(R.id.backText).setOnClickListener(v -> finish());
-        findViewById(R.id.attachButton).setOnClickListener(v -> UiUtils.toast(this, "사진/파일 첨부는 추후 연결됩니다."));
+        findViewById(R.id.attachButton).setOnClickListener(v -> UiUtils.toast(this, getString(R.string.ai_attachment_later)));
         findViewById(R.id.sendButton).setOnClickListener(v -> sendMessage());
 
-        messages.add(new ChatMessage("안녕하세요! 저는 패션 전문 AI 패트리에요. 오늘 어떤 스타일을 완성해볼까요?", false));
+        messages.add(new ChatMessage(getString(R.string.ai_greeting), false));
         renderMessages();
     }
 

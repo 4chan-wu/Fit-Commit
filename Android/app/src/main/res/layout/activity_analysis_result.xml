@@ -131,6 +131,9 @@
                 android:id="@+id/colorEditText"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
+                android:importantForAutofill="no"
+                android:inputType="text"
+                android:hint="@string/ui_013"
                 android:visibility="gone" />
 
             <LinearLayout
@@ -173,6 +176,8 @@
                     android:layout_marginTop="8dp"
                     android:background="@drawable/bg_input"
                     android:hint="@string/ui_017"
+                    android:importantForAutofill="no"
+                    android:inputType="textCapWords"
                     android:paddingHorizontal="14dp"
                     android:singleLine="true" />
 
@@ -183,6 +188,8 @@
                     android:layout_marginTop="10dp"
                     android:background="@drawable/bg_input"
                     android:hint="@string/ui_018"
+                    android:importantForAutofill="no"
+                    android:inputType="textCapWords"
                     android:paddingHorizontal="14dp"
                     android:singleLine="true" />
 
@@ -238,6 +245,8 @@
                     android:layout_marginTop="10dp"
                     android:background="@drawable/bg_input"
                     android:hint="@string/ui_024"
+                    android:importantForAutofill="no"
+                    android:inputType="textCapWords"
                     android:paddingHorizontal="14dp"
                     android:singleLine="true" />
             </LinearLayout>

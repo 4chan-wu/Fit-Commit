@@ -69,8 +69,8 @@ public class LoginActivity extends Activity {
             signUpMode = !signUpMode;
             updateMode();
         });
-        findViewById(R.id.kakaoButton).setOnClickListener(v -> startSocialLogin("카카오"));
-        findViewById(R.id.naverButton).setOnClickListener(v -> startSocialLogin("네이버"));
+        findViewById(R.id.kakaoButton).setOnClickListener(v -> startSocialLogin("Kakao"));
+        findViewById(R.id.naverButton).setOnClickListener(v -> startSocialLogin("Naver"));
         findViewById(R.id.googleButton).setOnClickListener(v -> startSocialLogin("Google"));
         findViewById(R.id.appleButton).setOnClickListener(v -> startSocialLogin("Apple"));
         findViewById(R.id.privacyPolicyLink).setOnClickListener(v ->
@@ -81,13 +81,9 @@ public class LoginActivity extends Activity {
         nameEditText.setVisibility(signUpMode ? View.VISIBLE : View.GONE);
         phoneEditText.setVisibility(signUpMode ? View.VISIBLE : View.GONE);
         passwordConfirmEditText.setVisibility(signUpMode ? View.VISIBLE : View.GONE);
-        subtitleText.setText(signUpMode
-                ? "기본 정보를 입력하고 나만의 스마트 옷장을 시작하세요."
-                : "내 체형과 옷장을 연결해 매일 더 나은 코디를 만나보세요.");
-        submitButton.setText(signUpMode ? "이메일로 회원가입" : "이메일로 로그인");
-        modeSwitchText.setText(signUpMode
-                ? "이미 계정이 있나요?  로그인"
-                : "처음이신가요?  회원가입");
+        subtitleText.setText(signUpMode ? R.string.signup_subtitle : R.string.login_subtitle);
+        submitButton.setText(signUpMode ? R.string.signup_email : R.string.ui_072);
+        modeSwitchText.setText(signUpMode ? R.string.login_switch_login : R.string.ui_073);
         feedbackText.setVisibility(View.GONE);
         setLoading(false);
     }
@@ -97,11 +93,11 @@ public class LoginActivity extends Activity {
         String password = passwordEditText.getText().toString();
 
         if (!ValidationUtils.isEmailValid(email)) {
-            showFeedback("올바른 이메일 주소를 입력해주세요.");
+            showFeedback(getString(R.string.validation_email));
             return;
         }
         if (!ValidationUtils.isPasswordValid(password)) {
-            showFeedback("비밀번호는 8자 이상이며 문자 유형 3가지를 포함해야 합니다.");
+            showFeedback(getString(R.string.validation_password));
             return;
         }
 
@@ -118,7 +114,7 @@ public class LoginActivity extends Activity {
         String confirm = passwordConfirmEditText.getText().toString();
 
         if (name.isEmpty() || !ValidationUtils.isPhoneValid(phone) || !password.equals(confirm)) {
-            showFeedback("이름, 휴대전화 번호와 비밀번호 확인을 다시 확인해주세요.");
+            showFeedback(getString(R.string.validation_signup));
             return;
         }
 
@@ -133,12 +129,12 @@ public class LoginActivity extends Activity {
                 if (!result.hasUser()) {
                     signUpMode = false;
                     updateMode();
-                    showFeedback("이미 가입된 이메일일 수 있어요. 입력한 이메일과 비밀번호로 로그인해주세요.");
+                    showFeedback(getString(R.string.signup_existing_email));
                     return;
                 }
                 if (result.requiresEmailConfirmation()) {
                     setLoading(false);
-                    showFeedback("인증 메일을 보냈어요. 받은편지함과 스팸함을 확인한 뒤 로그인해주세요.");
+                    showFeedback(getString(R.string.signup_email_sent));
                 } else {
                     submitLogin(email, password);
                 }
@@ -172,15 +168,16 @@ public class LoginActivity extends Activity {
     private void setLoading(boolean loading) {
         submitButton.setEnabled(!loading);
         modeSwitchText.setEnabled(!loading);
-        submitButton.setText(loading ? "처리 중..." : (signUpMode ? "이메일로 회원가입" : "이메일로 로그인"));
+        submitButton.setText(loading
+                ? getString(R.string.loading)
+                : getString(signUpMode ? R.string.signup_email : R.string.ui_072));
     }
 
     private void startSocialLogin(String provider) {
         new AlertDialog.Builder(this)
-                .setTitle(provider + " 로그인 준비 중")
-                .setMessage(provider + " 개발자 앱과 Supabase OAuth 설정이 완료되면 사용할 수 있습니다. "
-                        + "계정 인증 없이 홈으로 이동하던 테스트 동작은 안전을 위해 제거했습니다.")
-                .setPositiveButton("확인", null)
+                .setTitle(getString(R.string.social_login_title, provider))
+                .setMessage(getString(R.string.social_login_message, provider))
+                .setPositiveButton(R.string.action_confirm, null)
                 .show();
     }
 
@@ -204,7 +201,7 @@ public class LoginActivity extends Activity {
             errorDescription = parameters.getQueryParameter("error");
         }
         if (errorDescription != null && !errorDescription.trim().isEmpty()) {
-            showFeedback("이메일 인증에 실패했습니다. " + errorDescription);
+            showFeedback(getString(R.string.email_verification_failed, errorDescription));
             return;
         }
 
@@ -212,7 +209,7 @@ public class LoginActivity extends Activity {
         String refreshToken = parameters.getQueryParameter("refresh_token");
         if (accessToken == null || accessToken.trim().isEmpty()
                 || refreshToken == null || refreshToken.trim().isEmpty()) {
-            showFeedback("인증 정보를 확인할 수 없습니다. 인증 메일을 다시 요청해주세요.");
+            showFeedback(getString(R.string.auth_details_missing));
             return;
         }
 
@@ -223,7 +220,7 @@ public class LoginActivity extends Activity {
         }
 
         new TokenManager(this).saveSupabaseSession(accessToken, refreshToken, expiresAt, null);
-        UiUtils.toast(this, "이메일 인증이 완료되었습니다.");
+        UiUtils.toast(this, getString(R.string.email_verified));
         openMain();
     }
 
@@ -241,7 +238,7 @@ public class LoginActivity extends Activity {
     }
 
     private void openMain() {
-        UiUtils.toast(this, "Fitcommit에 오신 것을 환영합니다.");
+        UiUtils.toast(this, getString(R.string.welcome));
         startActivity(new Intent(this, MainActivity.class));
         finish();
     }

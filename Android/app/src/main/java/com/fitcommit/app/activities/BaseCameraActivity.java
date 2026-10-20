@@ -41,7 +41,7 @@ public abstract class BaseCameraActivity extends ComponentActivity {
         if (hasCameraPermission()) {
             startCamera();
         } else {
-            statusText.setText("카메라 권한이 필요합니다.");
+            statusText.setText(R.string.camera_permission_required);
             requestPermissions(new String[]{Manifest.permission.CAMERA}, CAMERA_PERMISSION_REQUEST);
         }
     }
@@ -51,7 +51,7 @@ public abstract class BaseCameraActivity extends ComponentActivity {
     }
 
     private void startCamera() {
-        statusText.setText("카메라를 준비하고 있습니다...");
+        statusText.setText(R.string.camera_preparing);
 
         ListenableFuture<ProcessCameraProvider> cameraProviderFuture = ProcessCameraProvider.getInstance(this);
         cameraProviderFuture.addListener(() -> {
@@ -67,7 +67,7 @@ public abstract class BaseCameraActivity extends ComponentActivity {
                 onCameraReady();
             } catch (Exception e) {
                 statusText.setVisibility(View.VISIBLE);
-                statusText.setText("카메라를 시작할 수 없습니다.\n" + e.getMessage());
+                statusText.setText(getString(R.string.body_camera_failed, e.getMessage()));
             }
         }, ContextCompat.getMainExecutor(this));
     }
@@ -82,7 +82,7 @@ public abstract class BaseCameraActivity extends ComponentActivity {
         if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
             startCamera();
         } else {
-            statusText.setText("카메라 권한이 없어 기능을 사용할 수 없습니다.");
+            statusText.setText(R.string.camera_permission_denied);
         }
     }
 

@@ -10,31 +10,31 @@ import android.provider.MediaStore;
 import android.view.LayoutInflater;
 import android.view.View;
 
+import androidx.activity.ComponentActivity;
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
+
 import com.fitcommit.app.R;
 import com.fitcommit.app.services.BackgroundRemover;
 
-public class AddClothingActivity extends Activity {
+public class AddClothingActivity extends ComponentActivity {
     public static final String EXTRA_WARDROBE_ID = "wardrobeId";
     private static final int REQUEST_TAKE_PHOTO = 5102;
     private static final int REQUEST_PICK_IMAGE = 5103;
     private static final String[] CATEGORY_VALUES = {"top", "bottom", "outer", "shoes", "hat", "bag", "dress"};
-    private static final String[] CATEGORY_LABELS = {
-            "상의 (top)",
-            "하의 (bottom)",
-            "아우터 (outer)",
-            "신발 (shoes)",
-            "모자 (hat)",
-            "가방 (bag)",
-            "원피스 (dress)"
-    };
-
     private String selectedCategoryHint = CATEGORY_VALUES[0];
     private String selectedWardrobeId = "";
     private AlertDialog progressDialog;
+    private ActivityResultLauncher<Intent> activityResultLauncher;
+    private int pendingRequestCode;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        activityResultLauncher = registerForActivityResult(
+                new ActivityResultContracts.StartActivityForResult(),
+                result -> handleActivityResult(pendingRequestCode, result.getResultCode(), result.getData())
+        );
         selectedWardrobeId = getIntent().getStringExtra(EXTRA_WARDROBE_ID);
         if (selectedWardrobeId == null) selectedWardrobeId = "";
         showCategoryDialog();
@@ -42,10 +42,10 @@ public class AddClothingActivity extends Activity {
 
     private void showCategoryDialog() {
         new AlertDialog.Builder(this)
-                .setTitle("아이템 종류 선택")
-                .setSingleChoiceItems(CATEGORY_LABELS, 0, (dialog, which) -> selectedCategoryHint = CATEGORY_VALUES[which])
-                .setPositiveButton("다음", (dialog, which) -> showSourceDialog())
-                .setNegativeButton("취소", (dialog, which) -> finish())
+                .setTitle(R.string.add_item_type_title)
+                .setSingleChoiceItems(R.array.clothing_category_labels, 0, (dialog, which) -> selectedCategoryHint = CATEGORY_VALUES[which])
+                .setPositiveButton(R.string.action_next, (dialog, which) -> showSourceDialog())
+                .setNegativeButton(R.string.action_cancel, (dialog, which) -> finish())
                 .setOnCancelListener(dialog -> finish())
                 .show();
     }
@@ -73,7 +73,8 @@ public class AddClothingActivity extends Activity {
 
     private void openCamera() {
         Intent intent = new Intent(this, ClothingCameraActivity.class);
-        startActivityForResult(intent, REQUEST_TAKE_PHOTO);
+        pendingRequestCode = REQUEST_TAKE_PHOTO;
+        activityResultLauncher.launch(intent);
     }
 
     private void openGallery() {
@@ -86,22 +87,21 @@ public class AddClothingActivity extends Activity {
             intent.addCategory(Intent.CATEGORY_OPENABLE);
             intent.setType("image/*");
         }
-        startActivityForResult(intent, REQUEST_PICK_IMAGE);
+        pendingRequestCode = REQUEST_PICK_IMAGE;
+        activityResultLauncher.launch(intent);
     }
 
-    @Override
-    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
-        super.onActivityResult(requestCode, resultCode, data);
-        if (resultCode != RESULT_OK || data == null) {
+    private void handleActivityResult(int requestCode, int resultCode, Intent data) {
+        if (resultCode != Activity.RESULT_OK || data == null) {
             showSourceDialog();
             return;
         }
 
-        showProcessingDialog("원본 이미지를 준비하고 있습니다...");
+        showProcessingDialog(getString(R.string.source_preparing));
         if (requestCode == REQUEST_PICK_IMAGE) {
             Uri imageUri = data.getData();
             if (imageUri == null) {
-                showProcessingError("이미지를 선택하지 못했습니다.");
+                showProcessingError(getString(R.string.image_select_failed));
                 return;
             }
             new Thread(() -> {
@@ -109,7 +109,7 @@ public class AddClothingActivity extends Activity {
                     String originalPath = BackgroundRemover.saveOriginalUri(this, imageUri);
                     runOnUiThread(() -> removeBackground(originalPath));
                 } catch (Exception error) {
-                    runOnUiThread(() -> showProcessingError("이미지를 읽을 수 없습니다. " + safeMessage(error)));
+                    runOnUiThread(() -> showProcessingError(getString(R.string.image_read_failed, safeMessage(error))));
                 }
             }).start();
             return;
@@ -118,7 +118,7 @@ public class AddClothingActivity extends Activity {
         if (requestCode == REQUEST_TAKE_PHOTO) {
             String originalPath = data.getStringExtra(ClothingCameraActivity.EXTRA_CAPTURED_IMAGE_PATH);
             if (originalPath == null || originalPath.trim().isEmpty()) {
-                showProcessingError("촬영한 이미지를 불러오지 못했습니다.");
+                showProcessingError(getString(R.string.capture_load_failed));
                 return;
             }
             new Thread(() -> {
@@ -127,7 +127,7 @@ public class AddClothingActivity extends Activity {
                     runOnUiThread(() -> removeBackground(normalizedPath));
                 } catch (Exception error) {
                     runOnUiThread(() -> showProcessingError(
-                            "촬영한 이미지를 준비하지 못했습니다. " + safeMessage(error)
+                            getString(R.string.capture_prepare_failed, safeMessage(error))
                     ));
                 }
             }).start();
@@ -138,7 +138,7 @@ public class AddClothingActivity extends Activity {
     }
 
     private void removeBackground(String originalPath) {
-        showProcessingDialog("기기에서 옷과 배경을 분리하고 있습니다...");
+        showProcessingDialog(getString(R.string.background_removing));
         BackgroundRemover.processFile(this, originalPath, new BackgroundRemover.Callback() {
             @Override
             public void onSuccess(String processedImagePath) {
@@ -167,12 +167,12 @@ public class AddClothingActivity extends Activity {
     private void showBackgroundRemovalFallback(String originalPath, String message) {
         dismissProgressDialog();
         new AlertDialog.Builder(this)
-                .setTitle("배경 제거가 어려운 사진이에요")
-                .setMessage(message + "\n\n촬영한 원본 사진은 그대로 등록할 수 있습니다.")
-                .setPositiveButton("원본으로 등록", (dialog, which) ->
+                .setTitle(R.string.background_difficult_title)
+                .setMessage(getString(R.string.background_difficult_message, message))
+                .setPositiveButton(R.string.use_original, (dialog, which) ->
                         openAnalysisResult(originalPath, originalPath, false))
-                .setNeutralButton("다시 선택", (dialog, which) -> showSourceDialog())
-                .setNegativeButton("취소", (dialog, which) -> finish())
+                .setNeutralButton(R.string.action_retry, (dialog, which) -> showSourceDialog())
+                .setNegativeButton(R.string.action_cancel, (dialog, which) -> finish())
                 .setOnCancelListener(dialog -> finish())
                 .show();
     }
@@ -180,7 +180,7 @@ public class AddClothingActivity extends Activity {
     private void showProcessingDialog(String message) {
         dismissProgressDialog();
         progressDialog = new AlertDialog.Builder(this)
-                .setTitle("옷 사진 준비 중")
+                .setTitle(R.string.photo_preparing_title)
                 .setMessage(message)
                 .setCancelable(false)
                 .create();
@@ -190,10 +190,10 @@ public class AddClothingActivity extends Activity {
     private void showProcessingError(String message) {
         dismissProgressDialog();
         new AlertDialog.Builder(this)
-                .setTitle("배경을 제거하지 못했어요")
+                .setTitle(R.string.background_failed_title)
                 .setMessage(message)
-                .setPositiveButton("다시 선택", (dialog, which) -> showSourceDialog())
-                .setNegativeButton("취소", (dialog, which) -> finish())
+                .setPositiveButton(R.string.action_retry, (dialog, which) -> showSourceDialog())
+                .setNegativeButton(R.string.action_cancel, (dialog, which) -> finish())
                 .setOnCancelListener(dialog -> finish())
                 .show();
     }
@@ -204,7 +204,7 @@ public class AddClothingActivity extends Activity {
     }
 
     private String safeMessage(Throwable error) {
-        return error.getMessage() == null ? "알 수 없는 오류" : error.getMessage();
+        return error.getMessage() == null ? getString(R.string.unknown_error) : error.getMessage();
     }
 
     @Override

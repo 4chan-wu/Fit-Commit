@@ -11,6 +11,7 @@ import android.widget.ImageView;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
+import androidx.recyclerview.widget.DiffUtil;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.fitcommit.app.R;
@@ -22,6 +23,7 @@ import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.Objects;
 
 /**
  * 실제 의류 사진을 중심으로 보여주는 2열 옷장 어댑터입니다.
@@ -42,9 +44,42 @@ public class ClosetCardAdapter extends RecyclerView.Adapter<ClosetCardAdapter.Cl
     }
 
     public void submitList(List<ClosetItem> newItems) {
+        List<ClosetItem> oldItems = new ArrayList<>(items);
+        DiffUtil.DiffResult changes = DiffUtil.calculateDiff(new DiffUtil.Callback() {
+            @Override
+            public int getOldListSize() {
+                return oldItems.size();
+            }
+
+            @Override
+            public int getNewListSize() {
+                return newItems.size();
+            }
+
+            @Override
+            public boolean areItemsTheSame(int oldPosition, int newPosition) {
+                return Objects.equals(
+                        oldItems.get(oldPosition).localId,
+                        newItems.get(newPosition).localId
+                );
+            }
+
+            @Override
+            public boolean areContentsTheSame(int oldPosition, int newPosition) {
+                ClosetItem oldItem = oldItems.get(oldPosition);
+                ClosetItem newItem = newItems.get(newPosition);
+                return Objects.equals(oldItem.name, newItem.name)
+                        && Objects.equals(oldItem.category, newItem.category)
+                        && Objects.equals(oldItem.color, newItem.color)
+                        && Objects.equals(oldItem.season, newItem.season)
+                        && Objects.equals(oldItem.imagePath, newItem.imagePath)
+                        && Objects.equals(oldItem.analysisStatus, newItem.analysisStatus)
+                        && Objects.equals(oldItem.syncStatus, newItem.syncStatus);
+            }
+        });
         items.clear();
         items.addAll(newItems);
-        notifyDataSetChanged();
+        changes.dispatchUpdatesTo(this);
     }
 
     @NonNull
@@ -59,7 +94,11 @@ public class ClosetCardAdapter extends RecyclerView.Adapter<ClosetCardAdapter.Cl
     public void onBindViewHolder(@NonNull ClothingViewHolder holder, int position) {
         ClosetItem item = items.get(position);
         holder.name.setText(displayName(item));
-        holder.meta.setText(categoryLabel(item.category) + " · " + seasonLabel(item.season));
+        holder.meta.setText(context.getString(
+                R.string.item_meta,
+                categoryLabel(item.category),
+                seasonLabel(item.season)
+        ));
 
         int itemColor = UiUtils.parseColorOrDefault(item.color, Color.LTGRAY);
         GradientDrawable colorDot = new GradientDrawable();
@@ -98,7 +137,9 @@ public class ClosetCardAdapter extends RecyclerView.Adapter<ClosetCardAdapter.Cl
         boolean syncFailed = "sync_failed".equals(item.syncStatus);
         if (analysisFailed || analysisPending || syncFailed) {
             holder.status.setVisibility(View.VISIBLE);
-            holder.status.setText(syncFailed ? "동기화 필요" : analysisFailed ? "정보 확인 필요" : "저장 중");
+            holder.status.setText(syncFailed
+                    ? R.string.item_sync_required
+                    : analysisFailed ? R.string.item_review_required : R.string.item_saving);
         } else {
             holder.status.setVisibility(View.GONE);
         }
@@ -145,14 +186,15 @@ public class ClosetCardAdapter extends RecyclerView.Adapter<ClosetCardAdapter.Cl
 
     private String categoryLabel(String category) {
         String value = category == null ? "" : category.toLowerCase(Locale.ROOT);
-        if (value.contains("top") || value.contains("shirt") || value.contains("상의")) return "상의";
-        if (value.contains("bottom") || value.contains("pants") || value.contains("skirt") || value.contains("하의")) return "하의";
-        if (value.contains("outer") || value.contains("jacket") || value.contains("coat") || value.contains("아우터")) return "아우터";
-        if (value.contains("shoe") || value.contains("신발")) return "신발";
-        if (value.contains("hat") || value.contains("모자")) return "모자";
-        if (value.contains("bag") || value.contains("가방")) return "가방";
-        if (value.contains("dress") || value.contains("원피스")) return "원피스";
-        return category == null || category.trim().isEmpty() ? "기타" : category;
+        String[] labels = context.getResources().getStringArray(R.array.clothing_category_labels);
+        if (value.contains("top") || value.contains("shirt") || value.contains("상의")) return labels[0];
+        if (value.contains("bottom") || value.contains("pants") || value.contains("skirt") || value.contains("하의")) return labels[1];
+        if (value.contains("outer") || value.contains("jacket") || value.contains("coat") || value.contains("아우터")) return labels[2];
+        if (value.contains("shoe") || value.contains("신발")) return labels[3];
+        if (value.contains("hat") || value.contains("모자")) return labels[4];
+        if (value.contains("bag") || value.contains("가방")) return labels[5];
+        if (value.contains("dress") || value.contains("원피스")) return labels[6];
+        return category == null || category.trim().isEmpty() ? context.getString(R.string.category_other) : category;
     }
 
     private String seasonLabel(String season) {
@@ -160,13 +202,14 @@ public class ClosetCardAdapter extends RecyclerView.Adapter<ClosetCardAdapter.Cl
         if (value.isEmpty() || value.contains("all-season")
                 || (value.contains("spring") && value.contains("summer")
                 && value.contains("fall") && value.contains("winter"))) {
-            return "사계절";
+            return context.getString(R.string.season_all_year);
         }
         List<String> labels = new ArrayList<>();
-        if (value.contains("spring") || value.contains("봄")) labels.add("봄");
-        if (value.contains("summer") || value.contains("여름")) labels.add("여름");
-        if (value.contains("fall") || value.contains("autumn") || value.contains("가을")) labels.add("가을");
-        if (value.contains("winter") || value.contains("겨울")) labels.add("겨울");
+        String[] seasonLabels = context.getResources().getStringArray(R.array.closet_season_filter_labels);
+        if (value.contains("spring") || value.contains("봄")) labels.add(seasonLabels[1]);
+        if (value.contains("summer") || value.contains("여름")) labels.add(seasonLabels[2]);
+        if (value.contains("fall") || value.contains("autumn") || value.contains("가을")) labels.add(seasonLabels[3]);
+        if (value.contains("winter") || value.contains("겨울")) labels.add(seasonLabels[4]);
         return labels.isEmpty() ? season : android.text.TextUtils.join("·", labels);
     }
 

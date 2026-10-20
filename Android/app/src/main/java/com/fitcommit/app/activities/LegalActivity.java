@@ -22,7 +22,7 @@ public class LegalActivity extends Activity {
         content.setPadding(padding, padding, padding, padding);
 
         TextView back = new TextView(this);
-        back.setText("‹  돌아가기");
+        back.setText(R.string.legal_back);
         back.setTextColor(getColor(R.color.fit_primary));
         back.setTextSize(16);
         back.setPadding(0, 0, 0, padding);
@@ -30,7 +30,7 @@ public class LegalActivity extends Activity {
         content.addView(back);
 
         TextView title = new TextView(this);
-        title.setText("개인정보처리방침");
+        title.setText(R.string.privacy_policy_title);
         title.setTextColor(getColor(R.color.fit_text));
         title.setTextSize(26);
         title.setTypeface(Typeface.DEFAULT, Typeface.BOLD);

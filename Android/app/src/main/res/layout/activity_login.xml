@@ -2,7 +2,6 @@
 <ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/fit_bg"
     android:fillViewport="true"
     android:scrollbars="none">
 
@@ -142,6 +141,7 @@
             android:layout_height="54dp"
             android:layout_marginTop="4dp"
             android:background="@drawable/bg_input"
+            android:autofillHints="name"
             android:hint="@string/ui_067"
             android:inputType="textPersonName"
             android:paddingHorizontal="16dp"
@@ -166,6 +166,7 @@
             android:layout_height="54dp"
             android:layout_marginTop="10dp"
             android:background="@drawable/bg_input"
+            android:autofillHints="phone"
             android:hint="@string/ui_069"
             android:inputType="phone"
             android:paddingHorizontal="16dp"
@@ -190,6 +191,7 @@
             android:layout_height="54dp"
             android:layout_marginTop="10dp"
             android:background="@drawable/bg_input"
+            android:autofillHints="password"
             android:hint="@string/ui_071"
             android:inputType="textPassword"
             android:paddingHorizontal="16dp"
