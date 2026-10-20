@@ -15,181 +15,72 @@
         android:paddingEnd="20dp"
         android:paddingBottom="28dp">
 
-        <LinearLayout
+        <TextView
             android:layout_width="match_parent"
             android:layout_height="48dp"
             android:gravity="center_vertical"
-            android:orientation="horizontal">
-
-            <TextView
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:includeFontPadding="false"
-                android:letterSpacing="0.08"
-                android:text="FITCOMMIT"
-                android:textColor="@color/fit_text"
-                android:textSize="17sp"
-                android:textStyle="bold" />
-
-            <ImageView
-                android:layout_width="48dp"
-                android:layout_height="48dp"
-                android:background="@drawable/bg_chip"
-                android:contentDescription="알림"
-                android:padding="12dp"
-                android:src="@drawable/ic_bell" />
-        </LinearLayout>
+            android:includeFontPadding="false"
+            android:letterSpacing="0.08"
+            android:text="FITCOMMIT"
+            android:textColor="@color/fit_text"
+            android:textSize="17sp"
+            android:textStyle="bold" />
 
         <TextView
-            android:id="@+id/homeGreetingText"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="18dp"
+            android:layout_marginTop="24dp"
             android:includeFontPadding="false"
-            android:text="오늘 뭐 입을까요?"
+            android:text="내 옷을 한곳에\n차곡차곡 모아보세요"
             android:textColor="@color/fit_text"
             android:textSize="30sp"
             android:textStyle="bold" />
 
         <TextView
-            android:layout_width="wrap_content"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="12dp"
-            android:background="@drawable/bg_chip"
-            android:text="서울  24°  맑음"
-            android:textColor="@color/fit_text"
-            android:textSize="13sp"
-            android:textStyle="bold" />
+            android:layout_marginTop="14dp"
+            android:lineSpacingExtra="4dp"
+            android:text="사진으로 옷을 등록하고 카테고리와 계절별로 빠르게 찾아볼 수 있어요."
+            android:textColor="@color/fit_text_secondary"
+            android:textSize="15sp" />
 
         <LinearLayout
             android:layout_width="match_parent"
-            android:layout_height="330dp"
-            android:layout_marginTop="20dp"
+            android:layout_height="280dp"
+            android:layout_marginTop="28dp"
             android:background="@drawable/bg_hero"
+            android:gravity="center"
             android:orientation="vertical"
-            android:padding="22dp">
+            android:padding="28dp">
 
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="0dp"
-                android:layout_weight="1"
-                android:gravity="center"
-                android:orientation="horizontal">
-
-                <ImageView
-                    android:layout_width="128dp"
-                    android:layout_height="128dp"
-                    android:contentDescription="오늘의 추천 의류"
-                    android:src="@drawable/ic_garment" />
-
-                <LinearLayout
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_marginStart="18dp"
-                    android:layout_weight="1"
-                    android:orientation="vertical">
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:background="@drawable/bg_chip_selected"
-                        android:text="AI DAILY PICK"
-                        android:textColor="@color/fit_on_dark"
-                        android:textSize="11sp"
-                        android:textStyle="bold" />
-
-                    <TextView
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="14dp"
-                        android:lineSpacingExtra="2dp"
-                        android:text="시원한 셔츠로\n완성하는 데일리 룩"
-                        android:textColor="@color/fit_on_dark"
-                        android:textSize="22sp"
-                        android:textStyle="bold" />
-                </LinearLayout>
-            </LinearLayout>
+            <ImageView
+                android:layout_width="128dp"
+                android:layout_height="128dp"
+                android:contentDescription="옷장"
+                android:src="@drawable/ic_garment" />
 
             <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="맑고 더운 날씨에 맞춰 내 옷 3개를 골랐어요."
-                android:textColor="#BFC0C5"
-                android:textSize="13sp" />
-
-            <TextView
-                android:id="@+id/viewDailyOutfitButton"
-                android:layout_width="match_parent"
-                android:layout_height="48dp"
-                android:layout_marginTop="16dp"
-                android:background="@drawable/bg_primary_button"
+                android:layout_marginTop="20dp"
                 android:gravity="center"
-                android:text="오늘의 코디 자세히 보기"
+                android:text="오늘 입을 옷부터 새로 산 옷까지\n나만의 디지털 옷장에 기록하세요."
                 android:textColor="@color/fit_on_dark"
-                android:textSize="14sp"
+                android:textSize="15sp"
                 android:textStyle="bold" />
         </LinearLayout>
 
-        <HorizontalScrollView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="16dp"
-            android:scrollbars="none">
-            <LinearLayout
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:orientation="horizontal">
-                <TextView android:layout_width="wrap_content" android:layout_height="40dp" android:background="@drawable/bg_chip_selected" android:gravity="center" android:text="출근" android:textColor="@color/fit_on_dark" android:textStyle="bold" />
-                <TextView android:layout_width="wrap_content" android:layout_height="40dp" android:layout_marginStart="8dp" android:background="@drawable/bg_chip" android:gravity="center" android:text="데이트" android:textColor="@color/fit_text" />
-                <TextView android:layout_width="wrap_content" android:layout_height="40dp" android:layout_marginStart="8dp" android:background="@drawable/bg_chip" android:gravity="center" android:text="학교" android:textColor="@color/fit_text" />
-                <TextView android:layout_width="wrap_content" android:layout_height="40dp" android:layout_marginStart="8dp" android:background="@drawable/bg_chip" android:gravity="center" android:text="여행" android:textColor="@color/fit_text" />
-                <TextView android:layout_width="wrap_content" android:layout_height="40dp" android:layout_marginStart="8dp" android:background="@drawable/bg_chip" android:gravity="center" android:text="운동" android:textColor="@color/fit_text" />
-            </LinearLayout>
-        </HorizontalScrollView>
-
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="32dp"
-            android:gravity="center_vertical"
-            android:orientation="horizontal">
-            <TextView style="@style/FitSectionTitle" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="내 옷으로 만든 코디" />
-            <TextView android:layout_width="wrap_content" android:layout_height="48dp" android:gravity="center" android:text="전체보기  ›" android:textColor="@color/fit_text_secondary" android:textSize="13sp" />
-        </LinearLayout>
-
-        <HorizontalScrollView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="10dp"
-            android:scrollbars="none">
-            <LinearLayout android:layout_width="wrap_content" android:layout_height="wrap_content" android:orientation="horizontal">
-                <include layout="@layout/item_outfit_card" />
-                <include layout="@layout/item_outfit_card" />
-                <include layout="@layout/item_outfit_card" />
-            </LinearLayout>
-        </HorizontalScrollView>
-
         <TextView
-            style="@style/FitSectionTitle"
+            android:id="@+id/viewDailyOutfitButton"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="34dp"
-            android:text="이번 주 옷장" />
-
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="104dp"
-            android:layout_marginTop="14dp"
-            android:background="@drawable/bg_card"
+            android:layout_height="56dp"
+            android:layout_marginTop="24dp"
+            android:background="@drawable/bg_primary_button"
             android:gravity="center"
-            android:orientation="horizontal"
-            android:padding="8dp">
-            <TextView android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1" android:gravity="center" android:text="18회\n착용" android:textColor="@color/fit_text" android:textSize="15sp" android:textStyle="bold" />
-            <View android:layout_width="1dp" android:layout_height="38dp" android:background="@color/fit_border" />
-            <TextView android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1" android:gravity="center" android:text="7개\n안 입은 옷" android:textColor="@color/fit_text" android:textSize="15sp" android:textStyle="bold" />
-            <View android:layout_width="1dp" android:layout_height="38dp" android:background="@color/fit_border" />
-            <TextView android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1" android:gravity="center" android:text="NAVY\n최애 색상" android:textColor="@color/fit_text" android:textSize="15sp" android:textStyle="bold" />
-        </LinearLayout>
+            android:text="내 옷장 열기"
+            android:textColor="@color/fit_on_dark"
+            android:textSize="15sp"
+            android:textStyle="bold" />
     </LinearLayout>
 </ScrollView>

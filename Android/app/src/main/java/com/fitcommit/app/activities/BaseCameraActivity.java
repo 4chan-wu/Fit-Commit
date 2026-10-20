@@ -11,6 +11,7 @@ import androidx.camera.core.CameraSelector;
 import androidx.camera.core.Preview;
 import androidx.camera.lifecycle.ProcessCameraProvider;
 import androidx.camera.view.PreviewView;
+import androidx.core.content.ContextCompat;
 
 import com.fitcommit.app.R;
 import com.google.common.util.concurrent.ListenableFuture;
@@ -68,7 +69,7 @@ public abstract class BaseCameraActivity extends ComponentActivity {
                 statusText.setVisibility(View.VISIBLE);
                 statusText.setText("카메라를 시작할 수 없습니다.\n" + e.getMessage());
             }
-        }, getMainExecutor());
+        }, ContextCompat.getMainExecutor(this));
     }
 
     @Override

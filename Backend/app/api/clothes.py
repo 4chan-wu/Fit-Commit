@@ -15,9 +15,8 @@ router = APIRouter(prefix="/clothes", tags=["clothes"])
 
 @router.post("", response_model=ClothesResponse)
 async def create_clothing(body: ClothesCreate, request: Request):
-    if body.user_id is None:
-        user_id = await user_resolver.resolve_user_id(request)
-        body = body.model_copy(update={"user_id": user_id})
+    user_id = await _resolve_requested_user(request, body.user_id)
+    body = body.model_copy(update={"user_id": user_id})
     return await clothes_service.create(body)
 
 
@@ -29,7 +28,7 @@ async def upload_clothing_image(
     user_id: Optional[UUID] = Form(default=None),
     image_type: str = Form(default="original"),
 ):
-    resolved_user_id = user_id or await user_resolver.resolve_user_id(request)
+    resolved_user_id = await _resolve_requested_user(request, user_id)
     content = await file.read()
     return await clothes_service.upload_image(
         file_bytes=content,
@@ -42,9 +41,11 @@ async def upload_clothing_image(
 
 @router.get("", response_model=list[ClothesResponse])
 async def list_clothes(
+    request: Request,
     user_id: UUID = Query(...),
     wardrobe_id: Optional[UUID] = Query(default=None),
 ):
+    user_id = await _resolve_requested_user(request, user_id)
     if wardrobe_id is not None:
         return await clothes_service.list_by_wardrobe(wardrobe_id, user_id=user_id)
     return await clothes_service.list_by_user(user_id)
@@ -64,7 +65,7 @@ async def get_clothing(
     request: Request,
     user_id: Optional[UUID] = Query(default=None),
 ):
-    resolved_user_id = await _optional_user_id(request, user_id)
+    resolved_user_id = await _resolve_requested_user(request, user_id)
     return await clothes_service.get(clothing_id, user_id=resolved_user_id)
 
 
@@ -75,7 +76,7 @@ async def update_clothing(
     request: Request,
     user_id: Optional[UUID] = Query(default=None),
 ):
-    resolved_user_id = await _optional_user_id(request, user_id)
+    resolved_user_id = await _resolve_requested_user(request, user_id)
     return await clothes_service.update(clothing_id, body, user_id=resolved_user_id)
 
 
@@ -85,7 +86,7 @@ async def analyze_clothing(
     request: Request,
     user_id: Optional[UUID] = Query(default=None),
 ):
-    resolved_user_id = await _optional_user_id(request, user_id)
+    resolved_user_id = await _resolve_requested_user(request, user_id)
     row = await clothes_service.get(clothing_id, user_id=resolved_user_id)
     raise HTTPException(
         status_code=status.HTTP_501_NOT_IMPLEMENTED,
@@ -103,13 +104,15 @@ async def delete_clothing(
     request: Request,
     user_id: Optional[UUID] = Query(default=None),
 ):
-    resolved_user_id = await _optional_user_id(request, user_id)
+    resolved_user_id = await _resolve_requested_user(request, user_id)
     return await clothes_service.delete(clothing_id, user_id=resolved_user_id)
 
 
-async def _optional_user_id(request: Request, user_id: Optional[UUID]) -> Optional[UUID]:
-    if user_id is not None:
-        return user_id
-    if request.headers.get("Authorization") or request.headers.get("X-Test-User-Id"):
-        return await user_resolver.resolve_user_id(request)
-    return None
+async def _resolve_requested_user(request: Request, requested_user_id: Optional[UUID]) -> UUID:
+    authenticated_user_id = await user_resolver.resolve_user_id(request)
+    if requested_user_id is not None and requested_user_id != authenticated_user_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Requested user_id does not match the authenticated user.",
+        )
+    return authenticated_user_id

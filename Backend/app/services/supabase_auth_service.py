@@ -16,6 +16,66 @@ class SupabaseUserResolver:
     def __init__(self) -> None:
         self.supabase_url = os.getenv("SUPABASE_URL", "").rstrip("/")
         self.anon_key = os.getenv("SUPABASE_ANON_KEY", "")
+        self.allow_test_user_id = os.getenv("ALLOW_TEST_USER_ID", "false").lower() == "true"
+
+    def _auth_headers(self) -> dict[str, str]:
+        if not self.supabase_url or not self.anon_key:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Supabase Auth is not configured.",
+            )
+        return {"apikey": self.anon_key, "Content-Type": "application/json"}
+
+    async def sign_up(self, email: str, password: str, metadata: dict) -> dict:
+        return await self._auth_request(
+            "POST",
+            "/auth/v1/signup",
+            json={"email": email, "password": password, "data": metadata},
+        )
+
+    async def sign_in_with_password(self, email: str, password: str) -> dict:
+        return await self._auth_request(
+            "POST",
+            "/auth/v1/token",
+            params={"grant_type": "password"},
+            json={"email": email, "password": password},
+        )
+
+    async def refresh_session(self, refresh_token: str) -> dict:
+        return await self._auth_request(
+            "POST",
+            "/auth/v1/token",
+            params={"grant_type": "refresh_token"},
+            json={"refresh_token": refresh_token},
+        )
+
+    async def _auth_request(self, method: str, path: str, **kwargs) -> dict:
+        try:
+            async with httpx.AsyncClient(timeout=15) as client:
+                response = await client.request(
+                    method,
+                    f"{self.supabase_url}{path}",
+                    headers=self._auth_headers(),
+                    **kwargs,
+                )
+        except httpx.HTTPError as error:
+            logger.exception("[Auth] Supabase request failed: %s", error)
+            raise HTTPException(status_code=502, detail="Supabase Auth request failed.") from error
+
+        if response.status_code >= 400:
+            try:
+                error_body = response.json()
+                detail = (
+                    error_body.get("msg")
+                    or error_body.get("error_description")
+                    or error_body.get("message")
+                    or "Supabase authentication failed."
+                )
+            except ValueError:
+                detail = "Supabase authentication failed."
+            raise HTTPException(status_code=response.status_code, detail=detail)
+
+        return response.json()
 
     async def resolve_user_id(self, request: Request) -> UUID:
         token_user_id = await self._user_id_from_authorization(request)
@@ -23,12 +83,16 @@ class SupabaseUserResolver:
             return token_user_id
 
         test_user_id = request.headers.get("X-Test-User-Id") or request.query_params.get("user_id")
-        if test_user_id:
+        if self.allow_test_user_id and test_user_id:
             return self._parse_uuid(test_user_id, "Invalid X-Test-User-Id/user_id value.")
 
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Authorization Bearer token or X-Test-User-Id is required.",
+            detail=(
+                "Authorization Bearer token or X-Test-User-Id is required."
+                if self.allow_test_user_id
+                else "Authorization Bearer token is required."
+            ),
         )
 
     async def _user_id_from_authorization(self, request: Request) -> Optional[UUID]:

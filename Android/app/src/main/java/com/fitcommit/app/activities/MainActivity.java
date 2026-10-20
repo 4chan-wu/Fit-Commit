@@ -18,12 +18,16 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import com.fitcommit.app.R;
 import com.fitcommit.app.adapters.ClosetCardAdapter;
+import com.fitcommit.app.models.BodyMeasurement;
 import com.fitcommit.app.models.ClosetItem;
 import com.fitcommit.app.models.Wardrobe;
+import com.fitcommit.app.services.BodyMeasurementStorage;
 import com.fitcommit.app.services.ClothesBackendService;
 import com.fitcommit.app.services.ClothingStorage;
+import com.fitcommit.app.services.TokenManager;
 import com.fitcommit.app.utils.UiUtils;
 
+import java.io.File;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -52,12 +56,13 @@ public class MainActivity extends Activity {
     private TextView tabProfile;
     private String currentScreen = "";
     private String selectedWardrobeId = "";
-    private final ClothesBackendService clothesBackendService = new ClothesBackendService();
+    private ClothesBackendService clothesBackendService;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+        clothesBackendService = new ClothesBackendService(this);
 
         contentFrame = findViewById(R.id.contentFrame);
         tabHome = findViewById(R.id.tabHome);
@@ -78,6 +83,8 @@ public class MainActivity extends Activity {
         super.onResume();
         if ("closet".equals(currentScreen)) {
             showCloset();
+        } else if ("profile".equals(currentScreen)) {
+            showProfile();
         }
     }
 
@@ -126,7 +133,7 @@ public class MainActivity extends Activity {
         currentScreen = "home";
         setSelectedTab(tabHome);
         View view = inflate(R.layout.screen_home);
-        view.findViewById(R.id.viewDailyOutfitButton).setOnClickListener(v -> showAiLanding());
+        view.findViewById(R.id.viewDailyOutfitButton).setOnClickListener(v -> showCloset());
     }
 
     /**
@@ -140,7 +147,7 @@ public class MainActivity extends Activity {
         RecyclerView grid = view.findViewById(R.id.closetGrid);
         grid.setLayoutManager(new GridLayoutManager(this, 2));
         grid.setHasFixedSize(false);
-        ClosetCardAdapter adapter = new ClosetCardAdapter(this);
+        ClosetCardAdapter adapter = new ClosetCardAdapter(this, this::confirmDeleteClothing);
         grid.setAdapter(adapter);
 
         TextView countText = view.findViewById(R.id.closetCountText);
@@ -240,7 +247,7 @@ public class MainActivity extends Activity {
                         }
                         sourceItems.clear();
                         sourceItems.addAll(loadLocalClosetItems());
-                        backendSyncStatusText.setText("● 서버 조회 실패 · 로컬/샘플 데이터 표시 중");
+                        backendSyncStatusText.setText("● 서버 조회 실패 · 기기에 저장된 데이터 표시 중");
                         backendSyncStatusText.setTextColor(getColor(R.color.fit_danger));
                         refresh.run();
                     });
@@ -248,19 +255,68 @@ public class MainActivity extends Activity {
             }).start();
         } else {
             sourceItems.addAll(loadLocalClosetItems());
-            backendSyncStatusText.setText("● 서버 설정 없음 · 로컬/샘플 데이터 표시 중");
+            backendSyncStatusText.setText("● 서버 설정 없음 · 기기에 저장된 데이터 표시 중");
             backendSyncStatusText.setTextColor(getColor(R.color.fit_danger));
             refresh.run();
         }
     }
 
     private List<ClosetItem> loadLocalClosetItems() {
-        List<ClosetItem> items = new ArrayList<>();
-        items.addAll(ClothingStorage.load(this));
-        if (items.isEmpty()) {
-            items.addAll(sampleClosetItems());
+        return new ArrayList<>(ClothingStorage.load(this));
+    }
+
+    private void confirmDeleteClothing(ClosetItem item) {
+        new AlertDialog.Builder(this)
+                .setTitle("옷을 삭제할까요?")
+                .setMessage("\"" + safe(item.name) + "\"을 옷장에서 삭제합니다. 서버에 저장된 사진도 함께 정리됩니다.")
+                .setNegativeButton("취소", null)
+                .setPositiveButton("삭제", (dialog, which) -> deleteClothing(item))
+                .show();
+    }
+
+    private void deleteClothing(ClosetItem item) {
+        boolean hasRemoteId = item.remoteId != null && !item.remoteId.trim().isEmpty();
+        if (!hasRemoteId) {
+            ClothingStorage.delete(this, item.localId, item.remoteId);
+            deleteLocalClothingImage(item.imagePath);
+            UiUtils.toast(this, "옷장에서 삭제했습니다.");
+            showCloset();
+            return;
         }
-        return items;
+        if (!clothesBackendService.isConfigured()) {
+            UiUtils.toast(this, "서버에 연결한 후 다시 삭제해주세요.");
+            return;
+        }
+
+        UiUtils.toast(this, "옷을 삭제하고 있습니다...");
+        new Thread(() -> {
+            try {
+                boolean imagesDeleted = clothesBackendService.deleteClothing(item.remoteId);
+                ClothingStorage.delete(this, item.localId, item.remoteId);
+                deleteLocalClothingImage(item.imagePath);
+                runOnUiThread(() -> {
+                    UiUtils.toast(this, imagesDeleted
+                            ? "옷과 저장된 사진을 삭제했습니다."
+                            : "옷은 삭제했지만 서버 사진 일부를 정리하지 못했습니다.");
+                    showCloset();
+                });
+            } catch (Exception error) {
+                runOnUiThread(() -> UiUtils.toast(this, "옷 삭제 실패: " + error.getMessage()));
+            }
+        }).start();
+    }
+
+    private void deleteLocalClothingImage(String imagePath) {
+        if (imagePath == null || imagePath.trim().isEmpty()) return;
+        try {
+            File file = new File(imagePath);
+            String appFilesPath = getFilesDir().getCanonicalPath() + File.separator;
+            if (file.getCanonicalPath().startsWith(appFilesPath) && file.exists() && !file.delete()) {
+                System.out.println("[MainActivity] Local clothing image cleanup failed: " + imagePath);
+            }
+        } catch (Exception error) {
+            System.out.println("[MainActivity] Local clothing image cleanup failed: " + error.getMessage());
+        }
     }
 
     private void applyClosetFilters(
@@ -420,18 +476,9 @@ public class MainActivity extends Activity {
     }
 
     private void showClosetToolsDialog() {
-        String[] actions = {"3D 공간 스캔", "신체 비율 측정", "새 옷장 만들기"};
         new AlertDialog.Builder(this)
                 .setTitle("옷장 도구")
-                .setItems(actions, (dialog, which) -> {
-                    if (which == 0) {
-                        startActivity(new Intent(this, SpaceScanActivity.class));
-                    } else if (which == 1) {
-                        startActivity(new Intent(this, BodyMeasureActivity.class));
-                    } else {
-                        showCreateWardrobeDialog();
-                    }
-                })
+                .setItems(new String[]{"새 옷장 만들기"}, (dialog, which) -> showCreateWardrobeDialog())
                 .show();
     }
 
@@ -611,20 +658,56 @@ public class MainActivity extends Activity {
         currentScreen = "profile";
         setSelectedTab(tabProfile);
         View view = inflate(R.layout.screen_profile);
-        view.findViewById(R.id.scanHistoryButton).setOnClickListener(v -> UiUtils.toast(this, "스캔 히스토리는 로컬 저장소 연결 후 표시됩니다."));
-        view.findViewById(R.id.profileChatHistoryButton).setOnClickListener(v -> showAiLanding());
+        BodyMeasurement latestMeasurement = BodyMeasurementStorage.latest(this);
+        TextView measurementSummary = view.findViewById(R.id.bodyMeasurementSummaryText);
+        if (latestMeasurement == null) {
+            measurementSummary.setText("아직 저장된 측정 결과가 없어요.\n카메라로 전신 비율을 분석해 보세요.");
+        } else {
+            measurementSummary.setText(String.format(
+                    Locale.KOREA,
+                    "%s · 예상 키 %.1f cm\n어깨 %.1f cm · 골반 %.1f cm",
+                    latestMeasurement.bodyShape,
+                    latestMeasurement.heightMeters * 100f,
+                    latestMeasurement.shoulderWidthMeters * 100f,
+                    latestMeasurement.hipWidthMeters * 100f
+            ));
+        }
+        view.findViewById(R.id.startBodyMeasurementButton).setOnClickListener(v ->
+                startActivity(new Intent(this, BodyMeasureActivity.class)));
+        view.findViewById(R.id.privacyPolicyButton).setOnClickListener(v ->
+                startActivity(new Intent(this, LegalActivity.class)));
         view.findViewById(R.id.logoutButton).setOnClickListener(v -> {
+            new TokenManager(this).clear();
             startActivity(new Intent(this, LoginActivity.class));
             finish();
         });
+        view.findViewById(R.id.deleteAccountButton).setOnClickListener(v -> confirmAccountDeletion());
     }
 
-    private List<ClosetItem> sampleClosetItems() {
-        return Arrays.asList(
-                new ClosetItem("네이비 셔츠", "Shirt", "#1A237E", "All-Season"),
-                new ClosetItem("화이트 티셔츠", "T-shirt", "#F7F7F7", "Spring/Summer"),
-                new ClosetItem("그레이 슬랙스", "Pants", "#6D7280", "All-Season"),
-                new ClosetItem("블랙 후디", "Hoodie", "#20232A", "Fall/Winter")
-        );
+    private void confirmAccountDeletion() {
+        new AlertDialog.Builder(this)
+                .setTitle("계정을 삭제할까요?")
+                .setMessage("계정과 옷장 데이터, 업로드한 사진이 영구적으로 삭제됩니다. 이 작업은 되돌릴 수 없습니다.")
+                .setNegativeButton("취소", null)
+                .setPositiveButton("계정 삭제", (dialog, which) -> new com.fitcommit.app.services.AuthService(this)
+                        .deleteAccount(new com.fitcommit.app.services.AuthService.AuthCallback<Void>() {
+                            @Override
+                            public void onSuccess(Void result) {
+                                runOnUiThread(() -> {
+                                    ClothingStorage.clear(MainActivity.this);
+                                    BodyMeasurementStorage.clearAll(MainActivity.this);
+                                    UiUtils.toast(MainActivity.this, "계정이 삭제되었습니다.");
+                                    startActivity(new Intent(MainActivity.this, LoginActivity.class));
+                                    finish();
+                                });
+                            }
+
+                            @Override
+                            public void onError(String message) {
+                                runOnUiThread(() -> UiUtils.toast(MainActivity.this, "계정 삭제 실패: " + message));
+                            }
+                        }))
+                .show();
     }
+
 }

@@ -3,29 +3,34 @@ package com.fitcommit.app.services;
 import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
-import android.graphics.Color;
+import android.graphics.ImageDecoder;
 import android.net.Uri;
+import android.os.Build;
 
+import androidx.annotation.RequiresApi;
+
+import com.google.mlkit.vision.common.InputImage;
+import com.google.mlkit.vision.segmentation.subject.SubjectSegmentation;
+import com.google.mlkit.vision.segmentation.subject.SubjectSegmenter;
+import com.google.mlkit.vision.segmentation.subject.SubjectSegmenterOptions;
+
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.InputStream;
 
 public final class BackgroundRemover {
+    public interface Callback {
+        void onSuccess(String processedImagePath);
+
+        void onError(String message);
+    }
+
     private BackgroundRemover() {
     }
 
-    public static String processUri(Context context, Uri imageUri) throws Exception {
-        try (InputStream inputStream = context.getContentResolver().openInputStream(imageUri)) {
-            Bitmap bitmap = BitmapFactory.decodeStream(inputStream);
-            return processBitmap(context, bitmap);
-        }
-    }
-
     public static String saveOriginalUri(Context context, Uri imageUri) throws Exception {
-        try (InputStream inputStream = context.getContentResolver().openInputStream(imageUri)) {
-            Bitmap bitmap = BitmapFactory.decodeStream(inputStream);
-            return saveOriginalBitmap(context, bitmap);
-        }
+        return saveOriginalBitmap(context, decodeUri(context, imageUri, 2000));
     }
 
     public static String saveOriginalBitmap(Context context, Bitmap source) throws Exception {
@@ -33,36 +38,62 @@ public final class BackgroundRemover {
             throw new IllegalArgumentException("이미지를 읽을 수 없습니다.");
         }
 
-        Bitmap output = scaleDown(source, 1200);
-        File dir = new File(context.getFilesDir(), "closet_images");
+        Bitmap output = scaleDown(source, 2000);
+        File dir = new File(context.getFilesDir(), "closet_originals");
         if (!dir.exists() && !dir.mkdirs()) {
             throw new IllegalStateException("이미지 저장 폴더를 만들 수 없습니다.");
         }
 
         File file = new File(dir, "clothing_" + System.currentTimeMillis() + ".jpg");
         try (FileOutputStream outputStream = new FileOutputStream(file)) {
-            output.compress(Bitmap.CompressFormat.JPEG, 88, outputStream);
+            if (!output.compress(Bitmap.CompressFormat.JPEG, 88, outputStream)) {
+                throw new IllegalStateException("원본 이미지를 저장하지 못했습니다.");
+            }
+        } finally {
+            output.recycle();
+            source.recycle();
         }
         return file.getAbsolutePath();
     }
 
-    public static String processBitmap(Context context, Bitmap source) throws Exception {
-        if (source == null) {
-            throw new IllegalArgumentException("이미지를 읽을 수 없습니다.");
+    public static void processFile(Context context, String originalImagePath, Callback callback) {
+        Bitmap decoded;
+        try {
+            decoded = decodeFile(originalImagePath, 1600);
+            if (decoded == null) throw new IllegalArgumentException("이미지를 읽을 수 없습니다.");
+        } catch (Exception error) {
+            callback.onError(safeMessage(error));
+            return;
         }
 
-        Bitmap scaled = scaleDown(source, 1200);
-        Bitmap output = removeBrightBackground(scaled);
-        File dir = new File(context.getFilesDir(), "closet_images");
-        if (!dir.exists() && !dir.mkdirs()) {
-            throw new IllegalStateException("이미지 저장 폴더를 만들 수 없습니다.");
-        }
-
-        File file = new File(dir, "clothing_" + System.currentTimeMillis() + ".png");
-        try (FileOutputStream outputStream = new FileOutputStream(file)) {
-            output.compress(Bitmap.CompressFormat.PNG, 100, outputStream);
-        }
-        return file.getAbsolutePath();
+        Bitmap inputBitmap = scaleDown(decoded, 1600);
+        if (decoded != inputBitmap) decoded.recycle();
+        SubjectSegmenterOptions options = new SubjectSegmenterOptions.Builder()
+                .enableForegroundBitmap()
+                .build();
+        SubjectSegmenter segmenter = SubjectSegmentation.getClient(options);
+        segmenter.process(InputImage.fromBitmap(inputBitmap, 0))
+                .addOnSuccessListener(result -> {
+                    Bitmap foreground = result.getForegroundBitmap();
+                    try {
+                        if (foreground == null || !hasUsefulForeground(foreground)) {
+                            throw new IllegalStateException("옷을 분리하지 못했습니다. 단색 배경에서 다시 촬영해주세요.");
+                        }
+                        callback.onSuccess(saveTransparentWebp(context, foreground));
+                    } catch (Exception error) {
+                        callback.onError(safeMessage(error));
+                    } finally {
+                        if (foreground != null) foreground.recycle();
+                        inputBitmap.recycle();
+                        segmenter.close();
+                    }
+                })
+                .addOnFailureListener(error -> {
+                    inputBitmap.recycle();
+                    segmenter.close();
+                    callback.onError("배경 제거 모델을 준비하지 못했습니다. 인터넷 연결 후 다시 시도해주세요. "
+                            + safeMessage(error));
+                });
     }
 
     private static Bitmap scaleDown(Bitmap source, int maxSize) {
@@ -77,19 +108,111 @@ public final class BackgroundRemover {
         return Bitmap.createScaledBitmap(source, Math.round(width * ratio), Math.round(height * ratio), true);
     }
 
-    private static Bitmap removeBrightBackground(Bitmap source) {
-        Bitmap output = source.copy(Bitmap.Config.ARGB_8888, true);
-        for (int y = 0; y < output.getHeight(); y++) {
-            for (int x = 0; x < output.getWidth(); x++) {
-                int pixel = output.getPixel(x, y);
-                int red = Color.red(pixel);
-                int green = Color.green(pixel);
-                int blue = Color.blue(pixel);
-                if (red > 238 && green > 238 && blue > 238) {
-                    output.setPixel(x, y, Color.TRANSPARENT);
-                }
+    private static Bitmap decodeUri(Context context, Uri uri, int maxSize) throws Exception {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            return ImageDecoder.decodeBitmap(
+                    ImageDecoder.createSource(context.getContentResolver(), uri),
+                    (decoder, info, source) -> {
+                        decoder.setAllocator(ImageDecoder.ALLOCATOR_SOFTWARE);
+                        setDecoderTargetSize(decoder, info, maxSize);
+                    }
+            );
+        }
+        BitmapFactory.Options bounds = new BitmapFactory.Options();
+        bounds.inJustDecodeBounds = true;
+        try (InputStream inputStream = context.getContentResolver().openInputStream(uri)) {
+            BitmapFactory.decodeStream(inputStream, null, bounds);
+        }
+        BitmapFactory.Options options = new BitmapFactory.Options();
+        options.inSampleSize = sampleSize(bounds.outWidth, bounds.outHeight, maxSize);
+        options.inPreferredConfig = Bitmap.Config.ARGB_8888;
+        try (InputStream inputStream = context.getContentResolver().openInputStream(uri)) {
+            return BitmapFactory.decodeStream(inputStream, null, options);
+        }
+    }
+
+    private static Bitmap decodeFile(String path, int maxSize) throws Exception {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            return ImageDecoder.decodeBitmap(
+                    ImageDecoder.createSource(new File(path)),
+                    (decoder, info, source) -> {
+                        decoder.setAllocator(ImageDecoder.ALLOCATOR_SOFTWARE);
+                        setDecoderTargetSize(decoder, info, maxSize);
+                    }
+            );
+        }
+        BitmapFactory.Options bounds = new BitmapFactory.Options();
+        bounds.inJustDecodeBounds = true;
+        BitmapFactory.decodeFile(path, bounds);
+        BitmapFactory.Options options = new BitmapFactory.Options();
+        options.inSampleSize = sampleSize(bounds.outWidth, bounds.outHeight, maxSize);
+        options.inPreferredConfig = Bitmap.Config.ARGB_8888;
+        return BitmapFactory.decodeFile(path, options);
+    }
+
+    @RequiresApi(Build.VERSION_CODES.P)
+    private static void setDecoderTargetSize(
+            ImageDecoder decoder,
+            ImageDecoder.ImageInfo info,
+            int maxSize
+    ) {
+        int width = info.getSize().getWidth();
+        int height = info.getSize().getHeight();
+        int longest = Math.max(width, height);
+        if (longest <= maxSize) return;
+        float ratio = maxSize / (float) longest;
+        decoder.setTargetSize(
+                Math.max(1, Math.round(width * ratio)),
+                Math.max(1, Math.round(height * ratio))
+        );
+    }
+
+    private static int sampleSize(int width, int height, int maxSize) {
+        int sample = 1;
+        while (Math.max(width / sample, height / sample) > maxSize * 2) {
+            sample *= 2;
+        }
+        return sample;
+    }
+
+    private static boolean hasUsefulForeground(Bitmap bitmap) {
+        int step = Math.max(1, Math.min(bitmap.getWidth(), bitmap.getHeight()) / 160);
+        int foreground = 0;
+        int sampled = 0;
+        for (int y = 0; y < bitmap.getHeight(); y += step) {
+            for (int x = 0; x < bitmap.getWidth(); x += step) {
+                if (android.graphics.Color.alpha(bitmap.getPixel(x, y)) > 24) foreground++;
+                sampled++;
             }
         }
-        return output;
+        float coverage = foreground / (float) Math.max(sampled, 1);
+        return coverage >= 0.015f && coverage <= 0.98f;
+    }
+
+    private static String saveTransparentWebp(Context context, Bitmap foreground) throws Exception {
+        File directory = new File(context.getFilesDir(), "closet_cutouts");
+        if (!directory.exists() && !directory.mkdirs()) {
+            throw new IllegalStateException("배경 제거 이미지 폴더를 만들 수 없습니다.");
+        }
+        File file = new File(directory, "cutout_" + System.currentTimeMillis() + ".webp");
+        ByteArrayOutputStream encoded = new ByteArrayOutputStream();
+        Bitmap.CompressFormat format = Build.VERSION.SDK_INT >= Build.VERSION_CODES.R
+                ? Bitmap.CompressFormat.WEBP_LOSSY
+                : Bitmap.CompressFormat.WEBP;
+        if (!foreground.compress(format, 90, encoded)) {
+            throw new IllegalStateException("투명 이미지를 저장하지 못했습니다.");
+        }
+        byte[] bytes = encoded.toByteArray();
+        if (bytes.length > 2 * 1024 * 1024) {
+            throw new IllegalStateException("배경 제거 이미지가 2MB를 초과합니다.");
+        }
+        try (FileOutputStream output = new FileOutputStream(file)) {
+            output.write(bytes);
+        }
+        return file.getAbsolutePath();
+    }
+
+    private static String safeMessage(Throwable error) {
+        return error.getMessage() == null ? "알 수 없는 오류" : error.getMessage();
     }
 }

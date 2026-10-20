@@ -77,6 +77,16 @@ public final class ClothingStorage {
         saveOrReplace(context, updatedItem);
     }
 
+    public static void delete(Context context, String localId, String remoteId) {
+        List<ClosetItem> items = load(context);
+        items.removeIf(item -> matches(item.localId, localId) || matches(item.remoteId, remoteId));
+        persist(context, items);
+    }
+
+    private static boolean matches(String value, String target) {
+        return value != null && target != null && !target.trim().isEmpty() && value.equals(target);
+    }
+
     public static List<ClosetItem> load(Context context) {
         List<ClosetItem> items = new ArrayList<>();
         SharedPreferences prefs = context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE);
@@ -106,6 +116,13 @@ public final class ClothingStorage {
         } catch (Exception ignored) {
         }
         return items;
+    }
+
+    public static void clear(Context context) {
+        context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
+                .edit()
+                .clear()
+                .apply();
     }
 
     private static void persist(Context context, List<ClosetItem> items) {

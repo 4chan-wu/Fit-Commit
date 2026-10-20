@@ -105,10 +105,12 @@
         </LinearLayout>
 
         <LinearLayout
+            android:id="@+id/experimentalToolsRow"
             android:layout_width="match_parent"
             android:layout_height="76dp"
             android:layout_marginTop="10dp"
-            android:orientation="horizontal">
+            android:orientation="horizontal"
+            android:visibility="gone">
 
             <LinearLayout
                 android:id="@+id/bodyMeasureButton"

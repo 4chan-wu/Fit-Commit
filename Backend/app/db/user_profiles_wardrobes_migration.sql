@@ -44,7 +44,7 @@ CREATE TABLE IF NOT EXISTS public.user_profiles (
     nickname text,
     height_cm numeric,
     body_type text,
-    preferred_style text[] NOT NULL DEFAULT '{}',
+    preferred_styles text[] NOT NULL DEFAULT '{}',
     created_at timestamptz NOT NULL DEFAULT now(),
     updated_at timestamptz NOT NULL DEFAULT now()
 );
@@ -53,7 +53,7 @@ ALTER TABLE public.user_profiles
     ADD COLUMN IF NOT EXISTS nickname text,
     ADD COLUMN IF NOT EXISTS height_cm numeric,
     ADD COLUMN IF NOT EXISTS body_type text,
-    ADD COLUMN IF NOT EXISTS preferred_style text[] NOT NULL DEFAULT '{}',
+    ADD COLUMN IF NOT EXISTS preferred_styles text[] NOT NULL DEFAULT '{}',
     ADD COLUMN IF NOT EXISTS created_at timestamptz NOT NULL DEFAULT now(),
     ADD COLUMN IF NOT EXISTS updated_at timestamptz NOT NULL DEFAULT now();
 

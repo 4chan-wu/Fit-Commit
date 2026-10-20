@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
@@ -12,20 +12,18 @@ from app.services.chat_service import (
     make_chat_title,
 )
 from app.services.openai_service import call_openai_chat
+from app.services.supabase_auth_service import user_resolver
 
 router = APIRouter(prefix="/chat", tags=["chat"])
 
 
-def get_current_user_id() -> int:
-    return 1
-
-
 @router.post("/rooms")
-def create_chat_room(
+async def create_chat_room(
     body: CreateChatRoomRequest,
+    request: Request,
     db: Session = Depends(get_db),
 ):
-    user_id = get_current_user_id()
+    user_id = await user_resolver.resolve_user_id(request)
 
     result = db.execute(
         text("""
@@ -46,8 +44,8 @@ def create_chat_room(
 
 
 @router.get("/rooms")
-def get_chat_rooms(db: Session = Depends(get_db)):
-    user_id = get_current_user_id()
+async def get_chat_rooms(request: Request, db: Session = Depends(get_db)):
+    user_id = await user_resolver.resolve_user_id(request)
 
     rows = db.execute(
         text("""
@@ -63,8 +61,8 @@ def get_chat_rooms(db: Session = Depends(get_db)):
 
 
 @router.get("/rooms/{room_id}/messages")
-def get_chat_messages(room_id: int, db: Session = Depends(get_db)):
-    user_id = get_current_user_id()
+async def get_chat_messages(room_id: int, request: Request, db: Session = Depends(get_db)):
+    user_id = await user_resolver.resolve_user_id(request)
 
     room = db.execute(
         text("""
@@ -92,12 +90,13 @@ def get_chat_messages(room_id: int, db: Session = Depends(get_db)):
 
 
 @router.post("/rooms/{room_id}/messages")
-def send_message(
+async def send_message(
     room_id: int,
     body: SendMessageRequest,
+    request: Request,
     db: Session = Depends(get_db),
 ):
-    user_id = get_current_user_id()
+    user_id = await user_resolver.resolve_user_id(request)
 
     content = body.content.strip()
 
@@ -207,11 +206,12 @@ def send_message(
         }
 
 @router.delete("/rooms/{room_id}")
-def delete_chat_room(
+async def delete_chat_room(
     room_id: int,
+    request: Request,
     db: Session = Depends(get_db),
 ):
-    user_id = get_current_user_id()
+    user_id = await user_resolver.resolve_user_id(request)
 
     result = db.execute(
         text("""

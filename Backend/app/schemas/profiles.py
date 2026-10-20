@@ -14,14 +14,14 @@ class UserProfileCreate(BaseModel):
     nickname: Optional[str] = None
     height_cm: Optional[float] = Field(default=None, ge=0)
     body_type: Optional[str] = None
-    preferred_style: list[str] = Field(default_factory=list)
+    preferred_styles: list[str] = Field(default_factory=list)
 
 
 class UserProfileUpdate(BaseModel):
     nickname: Optional[str] = None
     height_cm: Optional[float] = Field(default=None, ge=0)
     body_type: Optional[str] = None
-    preferred_style: Optional[list[str]] = None
+    preferred_styles: Optional[list[str]] = None
 
 
 class UserProfileResponse(BaseModel):
@@ -29,7 +29,7 @@ class UserProfileResponse(BaseModel):
     nickname: Optional[str] = None
     height_cm: Optional[float] = None
     body_type: Optional[str] = None
-    preferred_style: list[str] = Field(default_factory=list)
+    preferred_styles: list[str] = Field(default_factory=list)
     created_at: Optional[Union[datetime, str]] = None
     updated_at: Optional[Union[datetime, str]] = None
 

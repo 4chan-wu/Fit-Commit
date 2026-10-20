@@ -3,7 +3,7 @@ package com.fitcommit.app.activities;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.Intent;
-import android.content.pm.ApplicationInfo;
+import android.net.Uri;
 import android.os.Bundle;
 import android.view.View;
 import android.widget.Button;
@@ -12,6 +12,7 @@ import android.widget.TextView;
 
 import com.fitcommit.app.R;
 import com.fitcommit.app.services.AuthService;
+import com.fitcommit.app.services.TokenManager;
 import com.fitcommit.app.services.dto.LoginResponse;
 import com.fitcommit.app.services.dto.SignUpResponse;
 import com.fitcommit.app.utils.UiUtils;
@@ -40,6 +41,14 @@ public class LoginActivity extends Activity {
         bindViews();
         setupActions();
         updateMode();
+        handleAuthCallback(getIntent());
+    }
+
+    @Override
+    protected void onNewIntent(Intent intent) {
+        super.onNewIntent(intent);
+        setIntent(intent);
+        handleAuthCallback(intent);
     }
 
     private void bindViews() {
@@ -64,6 +73,8 @@ public class LoginActivity extends Activity {
         findViewById(R.id.naverButton).setOnClickListener(v -> startSocialLogin("네이버"));
         findViewById(R.id.googleButton).setOnClickListener(v -> startSocialLogin("Google"));
         findViewById(R.id.appleButton).setOnClickListener(v -> startSocialLogin("Apple"));
+        findViewById(R.id.privacyPolicyLink).setOnClickListener(v ->
+                startActivity(new Intent(this, LegalActivity.class)));
     }
 
     private void updateMode() {
@@ -115,7 +126,22 @@ public class LoginActivity extends Activity {
         authService.signUp(name, email, phone, password, confirm, new AuthService.AuthCallback<SignUpResponse>() {
             @Override
             public void onSuccess(SignUpResponse result) {
-                submitLogin(email, password);
+                // Supabase can intentionally return an empty 200 response when an already
+                // registered address signs up again. It does not send another confirmation
+                // email in that case, so do not tell the user to wait for a mail that will
+                // never arrive.
+                if (!result.hasUser()) {
+                    signUpMode = false;
+                    updateMode();
+                    showFeedback("이미 가입된 이메일일 수 있어요. 입력한 이메일과 비밀번호로 로그인해주세요.");
+                    return;
+                }
+                if (result.requiresEmailConfirmation()) {
+                    setLoading(false);
+                    showFeedback("인증 메일을 보냈어요. 받은편지함과 스팸함을 확인한 뒤 로그인해주세요.");
+                } else {
+                    submitLogin(email, password);
+                }
             }
 
             @Override
@@ -150,16 +176,10 @@ public class LoginActivity extends Activity {
     }
 
     private void startSocialLogin(String provider) {
-        boolean isDebugBuild = (getApplicationInfo().flags & ApplicationInfo.FLAG_DEBUGGABLE) != 0;
-        if (isDebugBuild) {
-            UiUtils.toast(this, provider + " 테스트 로그인으로 시작합니다.");
-            openMain();
-            return;
-        }
         new AlertDialog.Builder(this)
-                .setTitle(provider + " 로그인")
-                .setMessage(provider + " 개발자 앱 키와 서버 OAuth 콜백 설정이 필요합니다. "
-                        + "설정 전에는 계정 인증 없이 앱에 진입하지 않도록 차단되어 있습니다.")
+                .setTitle(provider + " 로그인 준비 중")
+                .setMessage(provider + " 개발자 앱과 Supabase OAuth 설정이 완료되면 사용할 수 있습니다. "
+                        + "계정 인증 없이 홈으로 이동하던 테스트 동작은 안전을 위해 제거했습니다.")
                 .setPositiveButton("확인", null)
                 .show();
     }
@@ -167,6 +187,57 @@ public class LoginActivity extends Activity {
     private void showFeedback(String message) {
         feedbackText.setText(message);
         feedbackText.setVisibility(View.VISIBLE);
+    }
+
+    private void handleAuthCallback(Intent intent) {
+        Uri callback = intent == null ? null : intent.getData();
+        if (callback == null
+                || !"fitcommit".equals(callback.getScheme())
+                || !"auth".equals(callback.getHost())
+                || !"/callback".equals(callback.getPath())) {
+            return;
+        }
+
+        Uri parameters = fragmentParameters(callback.getFragment());
+        String errorDescription = parameters.getQueryParameter("error_description");
+        if (errorDescription == null || errorDescription.trim().isEmpty()) {
+            errorDescription = parameters.getQueryParameter("error");
+        }
+        if (errorDescription != null && !errorDescription.trim().isEmpty()) {
+            showFeedback("이메일 인증에 실패했습니다. " + errorDescription);
+            return;
+        }
+
+        String accessToken = parameters.getQueryParameter("access_token");
+        String refreshToken = parameters.getQueryParameter("refresh_token");
+        if (accessToken == null || accessToken.trim().isEmpty()
+                || refreshToken == null || refreshToken.trim().isEmpty()) {
+            showFeedback("인증 정보를 확인할 수 없습니다. 인증 메일을 다시 요청해주세요.");
+            return;
+        }
+
+        long expiresAt = parseLong(parameters.getQueryParameter("expires_at"));
+        if (expiresAt <= 0L) {
+            long expiresIn = parseLong(parameters.getQueryParameter("expires_in"));
+            expiresAt = System.currentTimeMillis() / 1000L + Math.max(expiresIn, 3600L);
+        }
+
+        new TokenManager(this).saveSupabaseSession(accessToken, refreshToken, expiresAt, null);
+        UiUtils.toast(this, "이메일 인증이 완료되었습니다.");
+        openMain();
+    }
+
+    private Uri fragmentParameters(String fragment) {
+        String safeFragment = fragment == null ? "" : fragment;
+        return Uri.parse("https://fitcommit.invalid/?" + safeFragment);
+    }
+
+    private long parseLong(String value) {
+        try {
+            return Long.parseLong(value == null ? "" : value);
+        } catch (NumberFormatException ignored) {
+            return 0L;
+        }
     }
 
     private void openMain() {

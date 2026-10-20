@@ -32,6 +32,8 @@ import java.util.List;
  */
 public class AnalysisResultActivity extends Activity {
     public static final String EXTRA_IMAGE_PATH = "imagePath";
+    public static final String EXTRA_ORIGINAL_IMAGE_PATH = "originalImagePath";
+    public static final String EXTRA_BACKGROUND_REMOVED = "backgroundRemoved";
     public static final String EXTRA_CATEGORY_HINT = "categoryHint";
     public static final String EXTRA_EDIT_MODE = "editMode";
     public static final String EXTRA_LOCAL_ID = "localId";
@@ -43,24 +45,37 @@ public class AnalysisResultActivity extends Activity {
     public static final String EXTRA_WARDROBE_ID = "wardrobeId";
 
     private static final String[] CATEGORIES = {"top", "bottom", "outer", "shoes", "hat", "bag", "dress"};
+    private static final String[] CATEGORY_LABELS = {"상의", "하의", "아우터", "신발", "모자", "가방", "원피스"};
     private static final String[] COLORS = {"black", "white", "gray", "navy", "blue", "brown", "beige", "red", "pink", "green", "yellow", "purple"};
+    private static final String[] COLOR_LABELS = {"블랙", "화이트", "그레이", "네이비", "블루", "브라운", "베이지", "레드", "핑크", "그린", "옐로", "퍼플"};
     private final FashionAiService fashionAiService = new FashionAiService();
-    private final ClothesBackendService clothesBackendService = new ClothesBackendService();
+    private ClothesBackendService clothesBackendService;
 
     private String imagePath;
+    private String originalImagePath;
+    private boolean backgroundRemoved;
     private String categoryHint;
     private String localItemId;
     private String serverClothingId;
     private String selectedWardrobeId = "";
     private final List<Wardrobe> wardrobes = new ArrayList<>();
     private AnalysisResult result;
+    private boolean detailsVisible;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_analysis_result);
+        clothesBackendService = new ClothesBackendService(this);
 
         imagePath = getIntent().getStringExtra(EXTRA_IMAGE_PATH);
+        originalImagePath = valueOrDefault(
+                getIntent().getStringExtra(EXTRA_ORIGINAL_IMAGE_PATH),
+                imagePath
+        );
+        backgroundRemoved = getIntent().hasExtra(EXTRA_BACKGROUND_REMOVED)
+                ? getIntent().getBooleanExtra(EXTRA_BACKGROUND_REMOVED, false)
+                : imagePath != null && originalImagePath != null && !imagePath.equals(originalImagePath);
         categoryHint = valueOrDefault(getIntent().getStringExtra(EXTRA_CATEGORY_HINT), "top");
         localItemId = getIntent().getStringExtra(EXTRA_LOCAL_ID);
         serverClothingId = getIntent().getStringExtra(EXTRA_REMOTE_ID);
@@ -80,20 +95,22 @@ public class AnalysisResultActivity extends Activity {
         if (getIntent().getBooleanExtra(EXTRA_EDIT_MODE, false)) {
             setupEditMode();
         } else {
-            saveLocalPendingItem();
+            if (ApiClient.ENABLE_AI_ANALYSIS) {
+                saveLocalPendingItem();
+            }
             registerClothing();
         }
     }
 
     private void setupStaticForm() {
         Spinner categorySpinner = findViewById(R.id.categorySpinner);
-        ArrayAdapter<String> adapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_dropdown_item, CATEGORIES);
+        ArrayAdapter<String> adapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_dropdown_item, CATEGORY_LABELS);
         categorySpinner.setAdapter(adapter);
         int hintIndex = Arrays.asList(CATEGORIES).indexOf(categoryHint);
         categorySpinner.setSelection(Math.max(hintIndex, 0));
 
         Spinner colorSpinner = findViewById(R.id.colorSpinner);
-        ArrayAdapter<String> colorAdapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_dropdown_item, COLORS);
+        ArrayAdapter<String> colorAdapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_dropdown_item, COLOR_LABELS);
         colorSpinner.setAdapter(colorAdapter);
         colorSpinner.setOnItemSelectedListener(new android.widget.AdapterView.OnItemSelectedListener() {
             @Override
@@ -106,7 +123,7 @@ public class AnalysisResultActivity extends Activity {
             }
         });
 
-        findViewById(R.id.editResultButton).setOnClickListener(v -> resetFields());
+        findViewById(R.id.editResultButton).setOnClickListener(v -> setDetailsVisible(!detailsVisible));
         findViewById(R.id.saveResultButton).setOnClickListener(v -> saveConfirmedResult());
         Spinner wardrobeSpinner = findViewById(R.id.wardrobeSpinner);
         ArrayAdapter<String> wardrobeAdapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_dropdown_item, new String[]{"기본 옷장"});
@@ -169,15 +186,25 @@ public class AnalysisResultActivity extends Activity {
                 ""
         );
         bindResult(result);
-        ((EditText) findViewById(R.id.clothingNameEditText)).setText(valueOrDefault(getIntent().getStringExtra(EXTRA_NAME), defaultNameFor(categoryHint)));
+        ((EditText) findViewById(R.id.clothingNameEditText)).setText(
+                displayNameOrDefault(getIntent().getStringExtra(EXTRA_NAME), categoryHint)
+        );
         String note = getIntent().getStringExtra(EXTRA_NOTE);
         if (note != null && note.contains("subcategory=")) {
             ((EditText) findViewById(R.id.subcategoryEditText)).setText(extractNoteValue(note, "subcategory"));
         }
-        setLoading(false, "수정 후 저장하면 Backend PUT /clothes/{id}로 반영됩니다.");
+        setDetailsVisible(true);
+        setLoading(false, "");
     }
 
     private void registerClothing() {
+        if (!ApiClient.ENABLE_AI_ANALYSIS) {
+            result = AnalysisResult.fallback(categoryHint);
+            bindResult(result);
+            findViewById(R.id.resultConfidenceText).setVisibility(View.GONE);
+            setLoading(false, "");
+            return;
+        }
         setLoading(true, "Backend /clothes 저장을 먼저 진행 중입니다...");
 
         new Thread(() -> {
@@ -186,20 +213,6 @@ public class AnalysisResultActivity extends Activity {
                     throw new IllegalStateException("이미지 파일이 없습니다.");
                 }
                 ensurePendingClothingRow();
-
-                if (!ApiClient.ENABLE_AI_ANALYSIS) {
-                    System.out.println("[AnalysisResultActivity] AI analysis skipped ENABLE_AI_ANALYSIS=false");
-                    runOnUiThread(() -> {
-                        result = AnalysisResult.fallback(categoryHint);
-                        bindResult(result);
-                        setLoading(false, "저장 완료. AI 분석은 나중에 다시 분석하기로 진행할 수 있습니다.");
-                        UiUtils.toast(this, serverClothingId == null || serverClothingId.trim().isEmpty()
-                                ? "기기에 저장되었습니다."
-                                : "Backend에 의류가 저장되었습니다.");
-                        finish();
-                    });
-                    return;
-                }
 
                 System.out.println("[AnalysisResultActivity] AI analysis attempt started");
                 AnalysisResult analyzed = fashionAiService.analyze(new File(imagePath), categoryHint);
@@ -223,23 +236,26 @@ public class AnalysisResultActivity extends Activity {
     }
 
     private void bindResult(AnalysisResult result) {
-        ((TextView) findViewById(R.id.resultCategoryText)).setText(result.mainCategory);
+        int categoryIndex = Arrays.asList(CATEGORIES).indexOf(result.mainCategory);
+        ((TextView) findViewById(R.id.resultCategoryText)).setText(
+                categoryIndex >= 0 ? CATEGORY_LABELS[categoryIndex] : result.mainCategory
+        );
         ((TextView) findViewById(R.id.resultConfidenceText)).setText(Math.round(result.confidence * 100) + "% confidence");
         String color = normalizeColor(result.mainColor);
-        ((TextView) findViewById(R.id.colorSummaryText)).setText("대표 색상  " + color);
+        int colorIndex = Arrays.asList(COLORS).indexOf(color);
+        String colorLabel = colorIndex >= 0 ? COLOR_LABELS[colorIndex] : color;
+        ((TextView) findViewById(R.id.colorSummaryText)).setText("대표 색상 · " + colorLabel);
         ((EditText) findViewById(R.id.clothingNameEditText)).setText(defaultNameFor(result.mainCategory));
         ((EditText) findViewById(R.id.subcategoryEditText)).setText(result.subcategory);
         ((EditText) findViewById(R.id.colorEditText)).setText(color);
         ((EditText) findViewById(R.id.styleTagsEditText)).setText(joinTags(result.styleTags));
         Spinner colorSpinner = findViewById(R.id.colorSpinner);
-        int colorIndex = Arrays.asList(COLORS).indexOf(color);
         if (colorIndex >= 0) {
             colorSpinner.setSelection(colorIndex);
         }
 
         Spinner categorySpinner = findViewById(R.id.categorySpinner);
-        int index = Arrays.asList(CATEGORIES).indexOf(result.mainCategory);
-        categorySpinner.setSelection(Math.max(index, 0));
+        categorySpinner.setSelection(Math.max(categoryIndex, 0));
 
         bindSeason(result.season);
     }
@@ -250,9 +266,21 @@ public class AnalysisResultActivity extends Activity {
         }
     }
 
+    private void setDetailsVisible(boolean visible) {
+        detailsVisible = visible;
+        findViewById(R.id.detailsContainer).setVisibility(visible ? View.VISIBLE : View.GONE);
+        ((android.widget.Button) findViewById(R.id.editResultButton)).setText(
+                visible ? "상세 정보 접기" : "상세 정보 추가"
+        );
+    }
+
     private void saveConfirmedResult() {
-        String name = valueOrDefault(((EditText) findViewById(R.id.clothingNameEditText)).getText().toString(), "새 의류");
-        String category = ((Spinner) findViewById(R.id.categorySpinner)).getSelectedItem().toString();
+        int categoryPosition = ((Spinner) findViewById(R.id.categorySpinner)).getSelectedItemPosition();
+        String category = CATEGORIES[Math.max(0, Math.min(categoryPosition, CATEGORIES.length - 1))];
+        String enteredName = ((EditText) findViewById(R.id.clothingNameEditText)).getText().toString().trim();
+        String name = enteredName.isEmpty() || isGeneratedDefaultName(enteredName)
+                ? defaultNameFor(category)
+                : enteredName;
         String subcategory = ((EditText) findViewById(R.id.subcategoryEditText)).getText().toString().trim();
         String color = valueOrDefault(((EditText) findViewById(R.id.colorEditText)).getText().toString(), "gray");
         String styleTags = ((EditText) findViewById(R.id.styleTagsEditText)).getText().toString().trim();
@@ -261,11 +289,23 @@ public class AnalysisResultActivity extends Activity {
         saveLocally(name, category, subcategory, color, season, styleTags, false);
 
         if (clothesBackendService.isConfigured()) {
-            setLoading(true, "서버에 의류 정보를 저장 중입니다...");
+            setLoading(true, backgroundRemoved
+                    ? "원본과 배경 제거 이미지를 안전하게 저장 중입니다..."
+                    : "원본 이미지를 안전하게 저장 중입니다...");
             new Thread(() -> {
                 try {
                     if (serverClothingId == null || serverClothingId.trim().isEmpty()) {
-                        org.json.JSONObject row = clothesBackendService.createCompleted(category, subcategory, color, season, styleTags, imagePath, result, selectedWardrobeId);
+                        org.json.JSONObject row = clothesBackendService.createCompleted(
+                                category,
+                                subcategory,
+                                color,
+                                season,
+                                styleTags,
+                                originalImagePath,
+                                backgroundRemoved ? imagePath : null,
+                                result,
+                                selectedWardrobeId
+                        );
                         Object id = row.opt("id");
                         serverClothingId = id == null ? null : String.valueOf(id);
                     } else {
@@ -319,6 +359,7 @@ public class AnalysisResultActivity extends Activity {
             syncStatus = "synced";
             syncError = "";
         }
+        boolean manualEntry = !ApiClient.ENABLE_AI_ANALYSIS;
         ClothingStorage.saveOrReplace(this, new ClosetItem(
                 localItemId,
                 serverClothingId,
@@ -329,9 +370,9 @@ public class AnalysisResultActivity extends Activity {
                 season,
                 note,
                 imagePath,
-                result == null ? "pending" : result.confidence > 0 ? "completed" : "failed",
+                manualEntry ? "completed" : result == null ? "pending" : result.confidence > 0 ? "completed" : "failed",
                 result == null ? "" : "",
-                result == null || result.confidence <= 0,
+                !manualEntry && (result == null || result.confidence <= 0),
                 syncStatus,
                 syncError,
                 System.currentTimeMillis()
@@ -376,7 +417,12 @@ public class AnalysisResultActivity extends Activity {
         }
         try {
             System.out.println("[AnalysisResultActivity] Backend /clothes request started");
-            org.json.JSONObject row = clothesBackendService.createPending(categoryHint, imagePath, selectedWardrobeId);
+            org.json.JSONObject row = clothesBackendService.createPending(
+                    categoryHint,
+                    originalImagePath,
+                    backgroundRemoved ? imagePath : null,
+                    selectedWardrobeId
+            );
             Object id = row.opt("id");
             serverClothingId = id == null ? null : String.valueOf(id);
             selectedWardrobeId = row.optString("wardrobe_id", selectedWardrobeId);
@@ -483,11 +529,28 @@ public class AnalysisResultActivity extends Activity {
             if (bitmap == null) {
                 return "gray";
             }
-            Bitmap scaled = Bitmap.createScaledBitmap(bitmap, 1, 1, true);
-            int pixel = scaled.getPixel(0, 0);
-            int red = android.graphics.Color.red(pixel);
-            int green = android.graphics.Color.green(pixel);
-            int blue = android.graphics.Color.blue(pixel);
+            Bitmap scaled = Bitmap.createScaledBitmap(bitmap, 64, 64, true);
+            long redTotal = 0;
+            long greenTotal = 0;
+            long blueTotal = 0;
+            long alphaTotal = 0;
+            for (int y = 0; y < scaled.getHeight(); y++) {
+                for (int x = 0; x < scaled.getWidth(); x++) {
+                    int pixel = scaled.getPixel(x, y);
+                    int alpha = android.graphics.Color.alpha(pixel);
+                    if (alpha < 32) continue;
+                    redTotal += (long) android.graphics.Color.red(pixel) * alpha;
+                    greenTotal += (long) android.graphics.Color.green(pixel) * alpha;
+                    blueTotal += (long) android.graphics.Color.blue(pixel) * alpha;
+                    alphaTotal += alpha;
+                }
+            }
+            if (scaled != bitmap) scaled.recycle();
+            bitmap.recycle();
+            if (alphaTotal == 0) return "gray";
+            int red = (int) (redTotal / alphaTotal);
+            int green = (int) (greenTotal / alphaTotal);
+            int blue = (int) (blueTotal / alphaTotal);
             String bestName = "gray";
             double bestDistance = Double.MAX_VALUE;
             int[][] values = {
@@ -589,6 +652,23 @@ public class AnalysisResultActivity extends Activity {
             default:
                 return "새 의류";
         }
+    }
+
+    private boolean isGeneratedDefaultName(String name) {
+        for (String category : CATEGORIES) {
+            if (defaultNameFor(category).equals(name)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private String displayNameOrDefault(String name, String category) {
+        String trimmed = name == null ? "" : name.trim();
+        if (trimmed.isEmpty() || Arrays.asList(CATEGORIES).contains(trimmed)) {
+            return defaultNameFor(category);
+        }
+        return trimmed;
     }
 
     private String valueOrDefault(String value, String fallback) {

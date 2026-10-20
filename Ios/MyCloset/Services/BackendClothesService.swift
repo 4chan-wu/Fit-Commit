@@ -1,4 +1,5 @@
 import Foundation
+import UIKit
 
 struct BackendClothesPayload: Encodable {
     let userID: String
@@ -128,22 +129,26 @@ struct BackendWardrobeRow: Decodable, Identifiable {
         case createdAt = "created_at"
         case updatedAt = "updated_at"
     }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        if let value = try? container.decode(String.self, forKey: .id) {
+            id = value
+        } else {
+            id = String(try container.decode(Int.self, forKey: .id))
+        }
+        userID = try container.decode(String.self, forKey: .userID)
+        name = try container.decode(String.self, forKey: .name)
+        description = try container.decodeIfPresent(String.self, forKey: .description)
+        isDefault = try container.decode(Bool.self, forKey: .isDefault)
+        createdAt = try container.decodeIfPresent(String.self, forKey: .createdAt)
+        updatedAt = try container.decodeIfPresent(String.self, forKey: .updatedAt)
+    }
 }
 
 enum BackendClothesService {
-    private static let defaultBackendBaseURL = "http://54.180.79.90:8000"
-    private static let defaultSupabaseUserID = "45482f0f-42d0-401e-a18a-77abeb0492cc"
-
     static var configuredBaseURL: URL? {
-        if let value = ProcessInfo.processInfo.environment["FITCOMMIT_BACKEND_BASE_URL"],
-           value.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false {
-            return URL(string: value)
-        }
-        if let value = Bundle.main.object(forInfoDictionaryKey: "FITCOMMIT_BACKEND_BASE_URL") as? String,
-           value.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false {
-            return URL(string: value)
-        }
-        return URL(string: defaultBackendBaseURL)
+        SupabaseConfiguration.restURL
     }
 
     private static var baseURL: URL? {
@@ -151,31 +156,21 @@ enum BackendClothesService {
     }
 
     static var configuredUserID: String? {
-        if let value = ProcessInfo.processInfo.environment["FITCOMMIT_SUPABASE_USER_ID"],
-           value.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false {
-            return value
+        if let authenticatedUserID = AuthenticationManager.shared.currentUserID {
+            return authenticatedUserID
         }
-        if let value = Bundle.main.object(forInfoDictionaryKey: "FITCOMMIT_SUPABASE_USER_ID") as? String,
-           value.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false {
-            return value
-        }
-        return defaultSupabaseUserID
+        return nil
     }
 
     static var configuredAccessToken: String? {
-        if let value = ProcessInfo.processInfo.environment["FITCOMMIT_SUPABASE_ACCESS_TOKEN"],
-           value.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false {
-            return value
-        }
-        if let value = Bundle.main.object(forInfoDictionaryKey: "FITCOMMIT_SUPABASE_ACCESS_TOKEN") as? String,
-           value.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false {
-            return value
+        if let accessToken = AuthenticationManager.shared.accessToken {
+            return accessToken
         }
         return nil
     }
 
     static var isConfigured: Bool {
-        baseURL != nil && configuredUserID != nil
+        SupabaseConfiguration.isConfigured && configuredUserID != nil && configuredAccessToken != nil
     }
 
     static var isAIAnalysisEnabled: Bool {
@@ -200,29 +195,24 @@ enum BackendClothesService {
         fileName: String? = nil,
         mimeType: String = "image/jpeg"
     ) async throws -> BackendClothesUploadResponse {
-        guard let baseURL else {
+        guard let storageURL = SupabaseConfiguration.storageURL,
+              let token = try await AuthenticationManager.shared.validAccessToken(),
+              userID == configuredUserID else {
             throw URLError(.badURL)
         }
-
-        var request = URLRequest(url: baseURL.appending(path: "clothes/upload"))
+        let category = mainCategory.replacingOccurrences(of: "[^A-Za-z0-9_-]", with: "_", options: .regularExpression)
+        let objectPath = "\(userID)/\(category.isEmpty ? "uncategorized" : category)/\(UUID().uuidString).jpg"
+        let bucket = SupabaseConfiguration.clothingBucket
+        var request = URLRequest(url: storageURL.appending(path: "object/\(bucket)/\(objectPath)"))
         request.httpMethod = "POST"
-        applyAuthHeaders(to: &request)
-
-        let boundary = "fitcommit-\(UUID().uuidString)"
-        request.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        request.setValue(SupabaseConfiguration.anonKey, forHTTPHeaderField: "apikey")
+        request.setValue(mimeType, forHTTPHeaderField: "Content-Type")
         request.setValue("application/json", forHTTPHeaderField: "Accept")
-        request.httpBody = multipartBody(
-            boundary: boundary,
-            fields: [
-                "user_id": userID,
-                "main_category": mainCategory,
-                "image_type": imageType
-            ],
-            fileField: "file",
-            fileName: fileName ?? "clothing-\(UUID().uuidString).jpg",
-            mimeType: mimeType,
-            fileData: imageData
-        )
+        request.setValue("false", forHTTPHeaderField: "x-upsert")
+        let uploadData = imageType == "original" ? optimizedJPEG(imageData) : imageData
+        guard uploadData.count <= 2 * 1024 * 1024 else { throw URLError(.dataLengthExceedsMaximum) }
+        request.httpBody = uploadData
 
         print("[BackendClothesService] Backend /clothes/upload request started category=\(mainCategory)")
         let (data, response) = try await URLSession.shared.data(for: request)
@@ -235,7 +225,12 @@ enum BackendClothesService {
             throw URLError(.badServerResponse)
         }
 
-        let upload = try JSONDecoder().decode(BackendClothesUploadResponse.self, from: data)
+        guard let projectURL = SupabaseConfiguration.projectURL else { throw URLError(.badURL) }
+        let upload = BackendClothesUploadResponse(
+            imagePath: objectPath,
+            imageURL: projectURL.appending(path: "storage/v1/object/public/\(bucket)/\(objectPath)").absoluteString,
+            bucket: bucket
+        )
         print("[BackendClothesService] Upload succeeded bucket=\(upload.bucket) path=\(upload.imagePath)")
         return upload
     }
@@ -247,9 +242,10 @@ enum BackendClothesService {
 
         var request = URLRequest(url: baseURL.appending(path: "clothes"))
         request.httpMethod = "POST"
-        applyAuthHeaders(to: &request)
+        try await applyAuthHeaders(to: &request)
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue("application/json", forHTTPHeaderField: "Accept")
+        request.setValue("return=representation", forHTTPHeaderField: "Prefer")
         request.httpBody = try jsonEncoder.encode(payload)
 
         print("[BackendClothesService] Backend /clothes request started method=POST category=\(payload.mainCategory) status=\(payload.analysisStatus ?? "nil")")
@@ -262,7 +258,9 @@ enum BackendClothesService {
             print("[BackendClothesService] Backend save failed status=\(httpResponse.statusCode) body=\(message)")
             throw URLError(.badServerResponse)
         }
-        let row = try JSONDecoder().decode(BackendClothesRow.self, from: data)
+        guard let row = try JSONDecoder().decode([BackendClothesRow].self, from: data).first else {
+            throw URLError(.cannotParseResponse)
+        }
         print("[BackendClothesService] Backend save succeeded id=\(row.id ?? "unknown") status=\(row.analysisStatus ?? "unknown")")
         return row
     }
@@ -275,11 +273,15 @@ enum BackendClothesService {
             throw URLError(.badURL)
         }
 
-        var request = URLRequest(url: baseURL.appending(path: "clothes/\(clothingID)"))
-        request.httpMethod = "PUT"
-        applyAuthHeaders(to: &request)
+        var components = URLComponents(url: baseURL.appending(path: "clothes"), resolvingAgainstBaseURL: false)
+        components?.queryItems = [URLQueryItem(name: "id", value: "eq.\(clothingID)")]
+        guard let updateURL = components?.url else { throw URLError(.badURL) }
+        var request = URLRequest(url: updateURL)
+        request.httpMethod = "PATCH"
+        try await applyAuthHeaders(to: &request)
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue("application/json", forHTTPHeaderField: "Accept")
+        request.setValue("return=representation", forHTTPHeaderField: "Prefer")
         request.httpBody = try jsonEncoder.encode(payload)
 
         print("[BackendClothesService] Backend /clothes request started method=PUT id=\(clothingID) status=\(payload.analysisStatus ?? "nil")")
@@ -292,7 +294,9 @@ enum BackendClothesService {
             print("[BackendClothesService] Update failed id=\(clothingID) status=\(httpResponse.statusCode) body=\(message)")
             throw URLError(.badServerResponse)
         }
-        let row = try JSONDecoder().decode(BackendClothesRow.self, from: data)
+        guard let row = try JSONDecoder().decode([BackendClothesRow].self, from: data).first else {
+            throw URLError(.cannotParseResponse)
+        }
         print("[BackendClothesService] Update succeeded id=\(row.id ?? clothingID) status=\(row.analysisStatus ?? "unknown")")
         return row
     }
@@ -303,15 +307,19 @@ enum BackendClothesService {
             throw URLError(.badURL)
         }
 
-        var components = URLComponents(url: baseURL.appending(path: "wardrobes/default"), resolvingAgainstBaseURL: false)
-        components?.queryItems = [URLQueryItem(name: "user_id", value: userID)]
+        var components = URLComponents(url: baseURL.appending(path: "wardrobes"), resolvingAgainstBaseURL: false)
+        components?.queryItems = [
+            URLQueryItem(name: "select", value: "*"),
+            URLQueryItem(name: "is_default", value: "eq.true"),
+            URLQueryItem(name: "limit", value: "1")
+        ]
 
         guard let url = components?.url else {
             throw URLError(.badURL)
         }
 
         var request = URLRequest(url: url)
-        applyAuthHeaders(to: &request)
+        try await applyAuthHeaders(to: &request)
         request.setValue("application/json", forHTTPHeaderField: "Accept")
 
         let (data, response) = try await URLSession.shared.data(for: request)
@@ -324,7 +332,10 @@ enum BackendClothesService {
             throw URLError(.badServerResponse)
         }
 
-        return try JSONDecoder().decode(BackendWardrobeRow.self, from: data)
+        guard let wardrobe = try JSONDecoder().decode([BackendWardrobeRow].self, from: data).first else {
+            throw URLError(.resourceUnavailable)
+        }
+        return wardrobe
     }
 
     static func fetchClothes(wardrobeID: String? = nil) async throws -> [ClosetItem] {
@@ -334,9 +345,12 @@ enum BackendClothesService {
         }
 
         var components = URLComponents(url: baseURL.appending(path: "clothes"), resolvingAgainstBaseURL: false)
-        var queryItems = [URLQueryItem(name: "user_id", value: userID)]
+        var queryItems = [
+            URLQueryItem(name: "select", value: "*"),
+            URLQueryItem(name: "order", value: "created_at.desc")
+        ]
         if let wardrobeID, wardrobeID.isEmpty == false {
-            queryItems.append(URLQueryItem(name: "wardrobe_id", value: wardrobeID))
+            queryItems.append(URLQueryItem(name: "wardrobe_id", value: "eq.\(wardrobeID)"))
         }
         components?.queryItems = queryItems
 
@@ -345,7 +359,7 @@ enum BackendClothesService {
         }
 
         var request = URLRequest(url: url)
-        applyAuthHeaders(to: &request)
+        try await applyAuthHeaders(to: &request)
         request.setValue("application/json", forHTTPHeaderField: "Accept")
 
         let (data, response) = try await URLSession.shared.data(for: request)
@@ -364,13 +378,12 @@ enum BackendClothesService {
     }
 }
 
-private func applyAuthHeaders(to request: inout URLRequest) {
-    if let token = BackendClothesService.configuredAccessToken {
+private func applyAuthHeaders(to request: inout URLRequest) async throws {
+    if let token = try await AuthenticationManager.shared.validAccessToken()
+        ?? BackendClothesService.configuredAccessToken {
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
     }
-    if let userID = BackendClothesService.configuredUserID {
-        request.setValue(userID, forHTTPHeaderField: "X-Test-User-Id")
-    }
+    request.setValue(SupabaseConfiguration.anonKey, forHTTPHeaderField: "apikey")
 }
 
 private func boolValue(_ value: String) -> Bool {
@@ -477,7 +490,13 @@ struct BackendClothesRow: Decodable {
         } else {
             id = nil
         }
-        wardrobeID = try container.decodeIfPresent(String.self, forKey: .wardrobeID)
+        if let value = try? container.decodeIfPresent(String.self, forKey: .wardrobeID) {
+            wardrobeID = value
+        } else if let value = try? container.decodeIfPresent(Int.self, forKey: .wardrobeID) {
+            wardrobeID = value.map(String.init)
+        } else {
+            wardrobeID = nil
+        }
         mainCategory = try container.decode(String.self, forKey: .mainCategory)
         subcategory = try container.decodeIfPresent(String.self, forKey: .subcategory)
         mainColor = try container.decodeIfPresent(String.self, forKey: .mainColor)
@@ -567,3 +586,18 @@ private let jsonEncoder: JSONEncoder = {
     encoder.dateEncodingStrategy = .iso8601
     return encoder
 }()
+
+private func optimizedJPEG(_ data: Data) -> Data {
+    guard let image = UIImage(data: data) else { return data }
+    let longest = max(image.size.width, image.size.height)
+    let target: UIImage
+    if longest > 1600 {
+        let ratio = 1600 / longest
+        let size = CGSize(width: image.size.width * ratio, height: image.size.height * ratio)
+        let renderer = UIGraphicsImageRenderer(size: size)
+        target = renderer.image { _ in image.draw(in: CGRect(origin: .zero, size: size)) }
+    } else {
+        target = image
+    }
+    return target.jpegData(compressionQuality: 0.82) ?? data
+}
