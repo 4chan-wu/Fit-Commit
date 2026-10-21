@@ -80,10 +80,21 @@
             android:textStyle="bold" />
 
         <Button
-            android:id="@+id/privacyPolicyButton"
+            android:id="@+id/languageSettingsButton"
             android:layout_width="match_parent"
             android:layout_height="54dp"
             android:layout_marginTop="12dp"
+            android:background="@drawable/bg_card"
+            android:gravity="center_vertical"
+            android:paddingHorizontal="18dp"
+            android:textAllCaps="false"
+            android:textColor="@color/fit_text" />
+
+        <Button
+            android:id="@+id/privacyPolicyButton"
+            android:layout_width="match_parent"
+            android:layout_height="54dp"
+            android:layout_marginTop="7dp"
             android:background="@drawable/bg_card"
             android:text="@string/ui_122"
             android:textAllCaps="false"

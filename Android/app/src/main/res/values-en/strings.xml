@@ -287,4 +287,10 @@
     <string name="space_scan_guide">Move the camera slowly until the whole room is visible.\nThis version provides a camera preview; 3D analysis will be added with ARCore.</string>
     <string name="space_scan_status">MVP stage 1</string>
     <string name="space_scan_ready">If the camera preview opens normally, the space-scan MVP is running.</string>
+    <string name="language_button">Language  ·  %1$s</string>
+    <string name="language_title">App language</string>
+    <string name="language_system">System default</string>
+    <string name="language_korean">한국어</string>
+    <string name="language_english">English</string>
+    <string name="language_apply">Apply</string>
 </resources>

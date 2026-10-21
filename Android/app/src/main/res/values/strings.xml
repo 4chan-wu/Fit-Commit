@@ -288,4 +288,10 @@
     <string name="space_scan_guide">방 전체가 보이도록 천천히 카메라를 움직여 주세요.\n현재 단계에서는 카메라 미리보기만 제공하며, 3D 공간 분석은 ARCore 단계에서 연결합니다.</string>
     <string name="space_scan_status">1단계 MVP</string>
     <string name="space_scan_ready">카메라 화면이 정상적으로 열리면 공간 스캔 MVP가 동작 중입니다.</string>
+    <string name="language_button">언어  ·  %1$s</string>
+    <string name="language_title">앱 언어</string>
+    <string name="language_system">시스템 기본값</string>
+    <string name="language_korean">한국어</string>
+    <string name="language_english">English</string>
+    <string name="language_apply">적용</string>
 </resources>

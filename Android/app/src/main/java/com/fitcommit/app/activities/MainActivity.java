@@ -34,6 +34,7 @@ import com.fitcommit.app.services.BodyMeasurementStorage;
 import com.fitcommit.app.services.ClothesBackendService;
 import com.fitcommit.app.services.ClothingStorage;
 import com.fitcommit.app.services.TokenManager;
+import com.fitcommit.app.utils.LanguageManager;
 import com.fitcommit.app.utils.UiUtils;
 
 import java.io.File;
@@ -896,6 +897,12 @@ public class MainActivity extends Activity {
         }
         view.findViewById(R.id.startBodyMeasurementButton).setOnClickListener(v ->
                 startActivity(new Intent(this, BodyMeasureActivity.class)));
+        TextView languageButton = view.findViewById(R.id.languageSettingsButton);
+        languageButton.setText(getString(
+                R.string.language_button,
+                languageLabel(LanguageManager.currentLanguage(this))
+        ));
+        languageButton.setOnClickListener(v -> showLanguageDialog());
         view.findViewById(R.id.privacyPolicyButton).setOnClickListener(v ->
                 startActivity(new Intent(this, LegalActivity.class)));
         view.findViewById(R.id.logoutButton).setOnClickListener(v -> {
@@ -904,6 +911,41 @@ public class MainActivity extends Activity {
             finish();
         });
         view.findViewById(R.id.deleteAccountButton).setOnClickListener(v -> confirmAccountDeletion());
+    }
+
+    private String languageLabel(String languageTag) {
+        if (LanguageManager.KOREAN.equals(languageTag)) return getString(R.string.language_korean);
+        if (LanguageManager.ENGLISH.equals(languageTag)) return getString(R.string.language_english);
+        return getString(R.string.language_system);
+    }
+
+    private void showLanguageDialog() {
+        String[] languageTags = {
+                LanguageManager.SYSTEM,
+                LanguageManager.KOREAN,
+                LanguageManager.ENGLISH
+        };
+        String[] labels = {
+                getString(R.string.language_system),
+                getString(R.string.language_korean),
+                getString(R.string.language_english)
+        };
+        String currentLanguage = LanguageManager.currentLanguage(this);
+        int[] selectedIndex = {0};
+        for (int index = 0; index < languageTags.length; index++) {
+            if (languageTags[index].equals(currentLanguage)) {
+                selectedIndex[0] = index;
+                break;
+            }
+        }
+
+        new AlertDialog.Builder(this)
+                .setTitle(R.string.language_title)
+                .setSingleChoiceItems(labels, selectedIndex[0], (dialog, which) -> selectedIndex[0] = which)
+                .setNegativeButton(R.string.action_cancel, null)
+                .setPositiveButton(R.string.language_apply, (dialog, which) ->
+                        LanguageManager.setLanguage(this, languageTags[selectedIndex[0]]))
+                .show();
     }
 
     private void confirmAccountDeletion() {
