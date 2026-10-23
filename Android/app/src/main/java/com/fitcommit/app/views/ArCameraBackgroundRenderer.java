@@ -33,6 +33,7 @@ public final class ArCameraBackgroundRenderer {
     private int positionAttribute;
     private int textureAttribute;
     private int textureUniform;
+    private boolean textureGeometryInitialized;
 
     public void create() {
         int[] textures = new int[1];
@@ -64,9 +65,9 @@ public final class ArCameraBackgroundRenderer {
         return textureId;
     }
 
-    public void draw(Frame frame) {
-        if (frame.getTimestamp() == 0L) return;
-        if (frame.hasDisplayGeometryChanged()) {
+    public boolean draw(Frame frame) {
+        if (frame.getTimestamp() == 0L || program == 0 || textureId < 0) return false;
+        if (!textureGeometryInitialized || frame.hasDisplayGeometryChanged()) {
             vertices.position(0);
             textureCoordinates.position(0);
             frame.transformCoordinates2d(
@@ -75,6 +76,7 @@ public final class ArCameraBackgroundRenderer {
                     Coordinates2d.TEXTURE_NORMALIZED,
                     textureCoordinates
             );
+            textureGeometryInitialized = true;
         }
 
         GLES20.glDisable(GLES20.GL_DEPTH_TEST);
@@ -94,6 +96,7 @@ public final class ArCameraBackgroundRenderer {
         GLES20.glDisableVertexAttribArray(textureAttribute);
         GLES20.glDepthMask(true);
         GLES20.glEnable(GLES20.GL_DEPTH_TEST);
+        return true;
     }
 
     private static int compile(int type, String source) {

@@ -3,9 +3,12 @@ package com.fitcommit.app.activities;
 import android.Manifest;
 import android.content.pm.PackageManager;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.text.Editable;
 import android.text.TextWatcher;
 import android.view.View;
+import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.TextView;
@@ -20,6 +23,11 @@ import androidx.camera.core.Preview;
 import androidx.camera.lifecycle.ProcessCameraProvider;
 import androidx.camera.view.PreviewView;
 import androidx.core.content.ContextCompat;
+import androidx.core.graphics.Insets;
+import androidx.core.view.ViewCompat;
+import androidx.core.view.WindowCompat;
+import androidx.core.view.WindowInsetsCompat;
+import androidx.core.view.WindowInsetsControllerCompat;
 
 import com.fitcommit.app.R;
 import com.fitcommit.app.models.BodyMeasurement;
@@ -40,6 +48,7 @@ public class BodyMeasureActivity extends ComponentActivity implements
         PoseLandmarkerService.Listener,
         ArDepthMeasurementController.Listener {
     private static final int STABLE_FRAME_TARGET = 8;
+    private static final long AR_PREVIEW_TIMEOUT_MS = 5_000L;
 
     private PreviewView previewView;
     private PoseOverlayView overlayView;
@@ -64,6 +73,13 @@ public class BodyMeasureActivity extends ComponentActivity implements
     private float latestDepthHeightMeters;
     private long latestDepthHeightAt;
     private ActivityResultLauncher<String> cameraPermissionLauncher;
+    private final Handler mainHandler = new Handler(Looper.getMainLooper());
+    private boolean arFrameReady;
+    private final Runnable arPreviewTimeout = () -> {
+        if (arDepthMode && !arFrameReady && !resultShown) {
+            fallbackToManualCamera(getString(R.string.body_ar_preview_timeout));
+        }
+    };
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -80,6 +96,7 @@ public class BodyMeasureActivity extends ComponentActivity implements
                 }
         );
         setContentView(R.layout.activity_body_measure);
+        applyCameraInsets();
 
         previewView = findViewById(R.id.bodyCameraPreview);
         previewView.setScaleType(PreviewView.ScaleType.FILL_CENTER);
@@ -124,6 +141,43 @@ public class BodyMeasureActivity extends ComponentActivity implements
         }
     }
 
+    private void applyCameraInsets() {
+        WindowCompat.setDecorFitsSystemWindows(getWindow(), false);
+        WindowInsetsControllerCompat controller = WindowCompat.getInsetsController(
+                getWindow(),
+                getWindow().getDecorView()
+        );
+        controller.setAppearanceLightStatusBars(false);
+        controller.setAppearanceLightNavigationBars(false);
+
+        View root = findViewById(R.id.bodyMeasureRoot);
+        View topPanel = findViewById(R.id.bodyTopPanel);
+        View bottomPanel = findViewById(R.id.bodyBottomPanel);
+        int topPaddingStart = topPanel.getPaddingStart();
+        int topPaddingTop = topPanel.getPaddingTop();
+        int topPaddingEnd = topPanel.getPaddingEnd();
+        int topPaddingBottom = topPanel.getPaddingBottom();
+        ViewGroup.MarginLayoutParams initialBottomParams =
+                (ViewGroup.MarginLayoutParams) bottomPanel.getLayoutParams();
+        int baseBottomMargin = initialBottomParams.bottomMargin;
+
+        ViewCompat.setOnApplyWindowInsetsListener(root, (view, windowInsets) -> {
+            Insets systemBars = windowInsets.getInsets(WindowInsetsCompat.Type.systemBars());
+            topPanel.setPaddingRelative(
+                    topPaddingStart,
+                    topPaddingTop + systemBars.top,
+                    topPaddingEnd,
+                    topPaddingBottom
+            );
+            ViewGroup.MarginLayoutParams bottomParams =
+                    (ViewGroup.MarginLayoutParams) bottomPanel.getLayoutParams();
+            bottomParams.bottomMargin = baseBottomMargin + systemBars.bottom;
+            bottomPanel.setLayoutParams(bottomParams);
+            return windowInsets;
+        });
+        ViewCompat.requestApplyInsets(root);
+    }
+
     @Override
     protected void onResume() {
         super.onResume();
@@ -143,13 +197,17 @@ public class BodyMeasureActivity extends ComponentActivity implements
         }
         if (result == ArDepthMeasurementController.StartResult.ACTIVE) {
             arDepthMode = true;
+            arFrameReady = false;
             findViewById(R.id.bodyCameraPreview).setVisibility(View.GONE);
             findViewById(R.id.bodyArCameraPreview).setVisibility(View.VISIBLE);
             manualHeightInput.setVisibility(View.GONE);
             findViewById(R.id.useManualHeightButton).setVisibility(View.VISIBLE);
             measurementModeText.setText(R.string.body_ar_mode);
             liveGuideText.setText(R.string.body_ar_guide);
-            statusText.setVisibility(View.GONE);
+            statusText.setText(R.string.body_ar_preparing);
+            statusText.setVisibility(View.VISIBLE);
+            mainHandler.removeCallbacks(arPreviewTimeout);
+            mainHandler.postDelayed(arPreviewTimeout, AR_PREVIEW_TIMEOUT_MS);
             return;
         }
         enableManualHeightMode();
@@ -168,6 +226,7 @@ public class BodyMeasureActivity extends ComponentActivity implements
     }
 
     private void switchToManualHeightMode() {
+        mainHandler.removeCallbacks(arPreviewTimeout);
         arDepthController.pause();
         arDepthController.close();
         latestDepthHeightMeters = 0f;
@@ -176,6 +235,19 @@ public class BodyMeasureActivity extends ComponentActivity implements
         smoothedMeasurement = null;
         lastRawMeasurement = null;
         enableManualHeightMode();
+        startCamera();
+    }
+
+    private void fallbackToManualCamera(String reason) {
+        if (!arDepthMode) return;
+        mainHandler.removeCallbacks(arPreviewTimeout);
+        arDepthController.pause();
+        arDepthController.close();
+        latestDepthHeightMeters = 0f;
+        latestDepthHeightAt = 0L;
+        arFrameReady = false;
+        enableManualHeightMode();
+        liveGuideText.setText(reason);
         startCamera();
     }
 
@@ -367,12 +439,14 @@ public class BodyMeasureActivity extends ComponentActivity implements
 
     @Override
     protected void onPause() {
+        mainHandler.removeCallbacks(arPreviewTimeout);
         if (arDepthController != null) arDepthController.pause();
         super.onPause();
     }
 
     @Override
     protected void onDestroy() {
+        mainHandler.removeCallbacksAndMessages(null);
         if (imageAnalysis != null) imageAnalysis.clearAnalyzer();
         if (arDepthController != null) arDepthController.close();
         if (poseService != null) poseService.close();
@@ -395,6 +469,20 @@ public class BodyMeasureActivity extends ComponentActivity implements
                 updateStability(resolveMeasurement(latestPoseMeasurement));
             }
         });
+    }
+
+    @Override
+    public void onArFrameReady() {
+        if (!arDepthMode || resultShown) return;
+        arFrameReady = true;
+        mainHandler.removeCallbacks(arPreviewTimeout);
+        statusText.setVisibility(View.GONE);
+    }
+
+    @Override
+    public void onArFailure(String message) {
+        if (isFinishing() || isDestroyed()) return;
+        fallbackToManualCamera(message);
     }
 
     @Override

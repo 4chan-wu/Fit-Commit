@@ -128,6 +128,12 @@
     <string name="analysis_color_summary">Main color · %1$s</string>
     <string name="analysis_hide_details">Hide details</string>
     <string name="body_ar_preparing">Preparing AR measurement…</string>
+    <string name="body_ar_tracking_guide">Move your phone slowly so it can detect the floor and your body.</string>
+    <string name="body_ar_start_failed">AR depth couldn’t start. Switching to the standard camera.</string>
+    <string name="body_ar_camera_unavailable">The AR camera is unavailable. Switching to the standard camera.</string>
+    <string name="body_ar_render_failed">The AR preview couldn’t be displayed. Switching to the standard camera.</string>
+    <string name="body_ar_preview_timeout">AR setup took too long, so the standard camera is now active. Enter your actual height.</string>
+    <string name="body_pose_frame_skipped">Hold your phone steady.</string>
     <string name="body_ar_mode">Live height with AR depth</string>
     <string name="body_ar_guide">Move your phone slowly to detect the floor, then fit your full body in frame.</string>
     <string name="body_manual_mode">Body proportions calibrated to your height</string>

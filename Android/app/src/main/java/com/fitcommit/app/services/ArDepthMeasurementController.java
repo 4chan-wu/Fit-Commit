@@ -31,6 +31,9 @@ import java.nio.FloatBuffer;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import javax.microedition.khronos.egl.EGLConfig;
 import javax.microedition.khronos.opengles.GL10;
@@ -39,6 +42,8 @@ public final class ArDepthMeasurementController implements GLSurfaceView.Rendere
     public enum StartResult { ACTIVE, INSTALL_PENDING, UNAVAILABLE }
 
     public interface Listener {
+        void onArFrameReady();
+        void onArFailure(String message);
         void onDepthHeight(float heightMeters);
         void onDepthStatus(String message);
     }
@@ -51,6 +56,8 @@ public final class ArDepthMeasurementController implements GLSurfaceView.Rendere
     private final ArCameraBackgroundRenderer backgroundRenderer = new ArCameraBackgroundRenderer();
     private final Object poseLock = new Object();
     private final List<Float> recentHeights = new ArrayList<>();
+    private final ExecutorService imageExecutor = Executors.newSingleThreadExecutor();
+    private final AtomicBoolean imageConversionRunning = new AtomicBoolean(false);
     private Session session;
     private PoseSample poseSample;
     private boolean installRequested;
@@ -64,6 +71,10 @@ public final class ArDepthMeasurementController implements GLSurfaceView.Rendere
     private long lastPoseFrameTimestamp;
     private long processedPoseVersion;
     private long poseVersion;
+    private boolean frameReady;
+    private boolean fatalErrorReported;
+    private volatile boolean closed;
+    private int consecutiveRenderFailures;
 
     public ArDepthMeasurementController(
             Activity activity,
@@ -83,6 +94,7 @@ public final class ArDepthMeasurementController implements GLSurfaceView.Rendere
     }
 
     public StartResult start() {
+        if (closed) return StartResult.UNAVAILABLE;
         try {
             if (session == null) {
                 ArCoreApk.Availability availability = ArCoreApk.getInstance().checkAvailability(activity);
@@ -106,11 +118,14 @@ public final class ArDepthMeasurementController implements GLSurfaceView.Rendere
             }
             session.resume();
             resumed = true;
+            frameReady = false;
+            fatalErrorReported = false;
+            consecutiveRenderFailures = 0;
             surfaceView.onResume();
-            listener.onDepthStatus("휴대폰을 천천히 움직여 바닥과 사람을 인식해주세요.");
+            listener.onDepthStatus(activity.getString(com.fitcommit.app.R.string.body_ar_tracking_guide));
             return StartResult.ACTIVE;
         } catch (Exception error) {
-            listener.onDepthStatus("AR 깊이 측정을 시작할 수 없어 키 입력 모드로 전환합니다.");
+            listener.onDepthStatus(activity.getString(com.fitcommit.app.R.string.body_ar_start_failed));
             close();
             return StartResult.UNAVAILABLE;
         }
@@ -150,7 +165,11 @@ public final class ArDepthMeasurementController implements GLSurfaceView.Rendere
     @Override
     public void onSurfaceCreated(GL10 gl, EGLConfig config) {
         GLES20.glClearColor(0.06f, 0.07f, 0.09f, 1f);
-        backgroundRenderer.create();
+        try {
+            backgroundRenderer.create();
+        } catch (RuntimeException error) {
+            reportFatalError(activity.getString(com.fitcommit.app.R.string.body_ar_render_failed));
+        }
     }
 
     @Override
@@ -173,30 +192,57 @@ public final class ArDepthMeasurementController implements GLSurfaceView.Rendere
             }
             currentSession.setCameraTextureName(backgroundRenderer.getTextureId());
             Frame frame = currentSession.update();
-            backgroundRenderer.draw(frame);
+            boolean backgroundDrawn = backgroundRenderer.draw(frame);
+            consecutiveRenderFailures = 0;
+            if (!frameReady && backgroundDrawn) {
+                frameReady = true;
+                activity.runOnUiThread(listener::onArFrameReady);
+            }
             if (frame.getCamera().getTrackingState() != TrackingState.TRACKING) return;
             analyzeCameraFrame(frame);
             calculateDepthHeight(frame);
         } catch (CameraNotAvailableException error) {
-            listener.onDepthStatus("카메라를 사용할 수 없습니다. 앱을 다시 실행해주세요.");
-        } catch (RuntimeException ignored) {
-            // A transient depth/camera frame failure is expected while ARCore initializes.
+            reportFatalError(activity.getString(com.fitcommit.app.R.string.body_ar_camera_unavailable));
+        } catch (RuntimeException error) {
+            // ARCore can briefly fail while depth data is warming up. Fall back only
+            // after repeated failures so the user is never left on a dark preview.
+            consecutiveRenderFailures++;
+            if (consecutiveRenderFailures >= 12) {
+                reportFatalError(activity.getString(com.fitcommit.app.R.string.body_ar_render_failed));
+            }
         }
     }
 
     private void analyzeCameraFrame(Frame frame) {
-        if (frame.getTimestamp() - lastPoseFrameTimestamp < POSE_INTERVAL_NS) return;
-        try (Image image = frame.acquireCameraImage()) {
-            sourceWidth = image.getCropRect().width();
-            sourceHeight = image.getCropRect().height();
-            Bitmap bitmap = yuvToBitmap(image);
-            if (poseService.analyzeBitmap(bitmap, cameraRotationDegrees)) {
-                lastPoseFrameTimestamp = frame.getTimestamp();
-            } else {
-                bitmap.recycle();
-            }
+        long timestamp = frame.getTimestamp();
+        if (timestamp - lastPoseFrameTimestamp < POSE_INTERVAL_NS
+                || !imageConversionRunning.compareAndSet(false, true)) return;
+        final Image image;
+        try {
+            image = frame.acquireCameraImage();
         } catch (NotYetAvailableException ignored) {
+            imageConversionRunning.set(false);
+            return;
         }
+        lastPoseFrameTimestamp = timestamp;
+        imageExecutor.execute(() -> {
+            try (Image cameraImage = image) {
+                sourceWidth = cameraImage.getCropRect().width();
+                sourceHeight = cameraImage.getCropRect().height();
+                Bitmap bitmap = yuvToBitmap(cameraImage);
+                if (closed || !poseService.analyzeBitmap(bitmap, cameraRotationDegrees)) bitmap.recycle();
+            } catch (RuntimeException error) {
+                listener.onDepthStatus(activity.getString(com.fitcommit.app.R.string.body_pose_frame_skipped));
+            } finally {
+                imageConversionRunning.set(false);
+            }
+        });
+    }
+
+    private void reportFatalError(String message) {
+        if (closed || fatalErrorReported) return;
+        fatalErrorReported = true;
+        activity.runOnUiThread(() -> listener.onArFailure(message));
     }
 
     private void calculateDepthHeight(Frame frame) {
@@ -322,11 +368,13 @@ public final class ArDepthMeasurementController implements GLSurfaceView.Rendere
 
     @Override
     public void close() {
+        closed = true;
         resumed = false;
         if (session != null) {
             session.close();
             session = null;
         }
+        imageExecutor.shutdownNow();
     }
 
     private static final class PoseSample {

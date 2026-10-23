@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/bodyMeasureRoot"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="#101217"
@@ -28,20 +29,21 @@
             android:layout_height="match_parent" />
 
         <LinearLayout
+            android:id="@+id/bodyTopPanel"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_gravity="top"
-            android:background="#A6000000"
+            android:background="@drawable/bg_camera_top_scrim"
             android:orientation="vertical"
             android:paddingStart="20dp"
-            android:paddingTop="32dp"
+            android:paddingTop="20dp"
             android:paddingEnd="20dp"
-            android:paddingBottom="18dp">
+            android:paddingBottom="12dp">
 
             <TextView
                 android:id="@+id/bodyCameraBackText"
                 android:layout_width="wrap_content"
-                android:layout_height="40dp"
+                android:layout_height="36dp"
                 android:gravity="center_vertical"
                 android:text="@string/ui_028"
                 android:textColor="#FFFFFF"
@@ -51,16 +53,16 @@
             <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="6dp"
+                android:layout_marginTop="2dp"
                 android:text="@string/ui_029"
                 android:textColor="#FFFFFF"
-                android:textSize="25sp"
+                android:textSize="22sp"
                 android:textStyle="bold" />
 
             <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="7dp"
+                android:layout_marginTop="4dp"
                 android:text="@string/ui_030"
                 android:textColor="#D7DCEC"
                 android:textSize="14sp" />
@@ -78,15 +80,16 @@
             android:textStyle="bold" />
 
         <LinearLayout
+            android:id="@+id/bodyBottomPanel"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_gravity="bottom"
-            android:layout_marginStart="18dp"
-            android:layout_marginEnd="18dp"
-            android:layout_marginBottom="28dp"
-            android:background="@drawable/bg_card"
+            android:layout_marginStart="14dp"
+            android:layout_marginEnd="14dp"
+            android:layout_marginBottom="16dp"
+            android:background="@drawable/bg_measure_panel"
             android:orientation="vertical"
-            android:padding="18dp">
+            android:padding="14dp">
 
             <TextView
                 android:id="@+id/measurementModeText"
@@ -104,7 +107,7 @@
                 android:layout_marginTop="2dp"
                 android:text="@string/ui_032"
                 android:textColor="@color/fit_text"
-                android:textSize="30sp"
+                android:textSize="26sp"
                 android:textStyle="bold" />
 
             <TextView
@@ -120,8 +123,8 @@
             <EditText
                 android:id="@+id/manualHeightInput"
                 android:layout_width="match_parent"
-                android:layout_height="50dp"
-                android:layout_marginTop="12dp"
+                android:layout_height="46dp"
+                android:layout_marginTop="9dp"
                 android:background="@drawable/bg_input"
                 android:hint="@string/ui_034"
                 android:importantForAutofill="no"
@@ -136,8 +139,8 @@
             <Button
                 android:id="@+id/useManualHeightButton"
                 android:layout_width="match_parent"
-                android:layout_height="44dp"
-                android:layout_marginTop="10dp"
+                android:layout_height="40dp"
+                android:layout_marginTop="8dp"
                 android:background="@drawable/bg_soft_button"
                 android:text="@string/ui_035"
                 android:textAllCaps="false"
@@ -149,8 +152,8 @@
             <Button
                 android:id="@+id/measureBodyButton"
                 android:layout_width="match_parent"
-                android:layout_height="54dp"
-                android:layout_marginTop="15dp"
+                android:layout_height="50dp"
+                android:layout_marginTop="11dp"
                 android:background="@drawable/bg_primary_button"
                 android:enabled="false"
                 android:text="@string/ui_036"

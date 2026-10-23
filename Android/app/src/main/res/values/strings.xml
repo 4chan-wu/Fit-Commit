@@ -129,6 +129,12 @@
     <string name="analysis_color_summary">대표 색상 · %1$s</string>
     <string name="analysis_hide_details">상세 정보 접기</string>
     <string name="body_ar_preparing">AR 측정 기능을 준비하고 있습니다…</string>
+    <string name="body_ar_tracking_guide">휴대전화를 천천히 움직여 바닥과 사람을 인식해주세요.</string>
+    <string name="body_ar_start_failed">AR 깊이 측정을 시작할 수 없어 일반 카메라 모드로 전환합니다.</string>
+    <string name="body_ar_camera_unavailable">AR 카메라를 사용할 수 없어 일반 카메라 모드로 전환합니다.</string>
+    <string name="body_ar_render_failed">AR 화면을 표시하지 못해 일반 카메라 모드로 전환합니다.</string>
+    <string name="body_ar_preview_timeout">AR 화면 준비가 지연되어 일반 카메라 모드로 전환했습니다. 실제 키를 입력해주세요.</string>
+    <string name="body_pose_frame_skipped">화면을 안정적으로 유지해주세요.</string>
     <string name="body_ar_mode">AR 깊이 기반 실시간 키</string>
     <string name="body_ar_guide">휴대폰을 천천히 움직여 바닥을 인식한 뒤 전신을 화면에 맞춰주세요.</string>
     <string name="body_manual_mode">입력한 키로 신체 비율 보정</string>
