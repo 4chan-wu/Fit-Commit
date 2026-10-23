@@ -88,12 +88,14 @@
 
         <Button
             android:id="@+id/captureClothingButton"
+            style="@style/FitButton.Base"
             android:layout_width="82dp"
             android:layout_height="82dp"
             android:layout_marginTop="14dp"
             android:background="@drawable/bg_camera_capture_button"
             android:contentDescription="@string/ui_048"
             android:enabled="false"
+            android:padding="0dp"
             android:text="@string/ui_049"
             android:textAllCaps="false" />
     </LinearLayout>

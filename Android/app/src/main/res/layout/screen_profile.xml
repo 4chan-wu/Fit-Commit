@@ -61,10 +61,10 @@
 
             <Button
                 android:id="@+id/startBodyMeasurementButton"
+                style="@style/FitButton.Primary"
                 android:layout_width="match_parent"
                 android:layout_height="52dp"
                 android:layout_marginTop="16dp"
-                android:background="@drawable/bg_primary_button"
                 android:text="@string/ui_120"
                 android:textAllCaps="false"
                 android:textColor="#FFFFFF"
@@ -72,10 +72,10 @@
 
             <Button
                 android:id="@+id/bodyMeasurementHistoryButton"
+                style="@style/FitButton.Secondary"
                 android:layout_width="match_parent"
                 android:layout_height="50dp"
                 android:layout_marginTop="8dp"
-                android:background="@drawable/bg_soft_button"
                 android:text="@string/body_history_open"
                 android:textAllCaps="false"
                 android:textColor="@color/fit_primary"
@@ -92,10 +92,10 @@
 
         <Button
             android:id="@+id/languageSettingsButton"
+            style="@style/FitButton.Tertiary"
             android:layout_width="match_parent"
             android:layout_height="54dp"
             android:layout_marginTop="12dp"
-            android:background="@drawable/bg_card"
             android:gravity="center_vertical"
             android:paddingHorizontal="18dp"
             android:textAllCaps="false"
@@ -103,10 +103,10 @@
 
         <Button
             android:id="@+id/privacyPolicyButton"
+            style="@style/FitButton.Tertiary"
             android:layout_width="match_parent"
             android:layout_height="54dp"
             android:layout_marginTop="7dp"
-            android:background="@drawable/bg_card"
             android:text="@string/ui_122"
             android:textAllCaps="false"
             android:textColor="@color/fit_text" />
@@ -123,10 +123,10 @@
 
         <Button
             android:id="@+id/logoutButton"
+            style="@style/FitButton.Tertiary"
             android:layout_width="match_parent"
             android:layout_height="54dp"
             android:layout_marginTop="30dp"
-            android:background="@drawable/bg_card"
             android:text="@string/ui_124"
             android:textAllCaps="false"
             android:textColor="@color/fit_text"
@@ -134,10 +134,10 @@
 
         <Button
             android:id="@+id/deleteAccountButton"
+            style="@style/FitButton.Danger"
             android:layout_width="match_parent"
             android:layout_height="54dp"
             android:layout_marginTop="8dp"
-            android:background="@drawable/bg_card"
             android:text="@string/ui_125"
             android:textAllCaps="false"
             android:textColor="@color/fit_danger"

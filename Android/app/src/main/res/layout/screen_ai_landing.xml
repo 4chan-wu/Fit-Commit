@@ -42,20 +42,20 @@
 
         <Button
             android:id="@+id/startChatButton"
+            style="@style/FitButton.Tertiary"
             android:layout_width="match_parent"
             android:layout_height="72dp"
             android:layout_marginTop="32dp"
-            android:background="@drawable/bg_card"
             android:text="@string/ui_094"
             android:textAllCaps="false"
             android:textColor="@color/fit_text" />
 
         <Button
             android:id="@+id/chatHistoryButton"
+            style="@style/FitButton.Tertiary"
             android:layout_width="match_parent"
             android:layout_height="72dp"
             android:layout_marginTop="14dp"
-            android:background="@drawable/bg_card"
             android:text="@string/ui_095"
             android:textAllCaps="false"
             android:textColor="@color/fit_text" />

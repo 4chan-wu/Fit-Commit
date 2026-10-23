@@ -209,10 +209,10 @@
 
         <Button
             android:id="@+id/submitButton"
+            style="@style/FitButton.Primary"
             android:layout_width="match_parent"
             android:layout_height="56dp"
             android:layout_marginTop="16dp"
-            android:background="@drawable/bg_primary_button"
             android:text="@string/ui_072"
             android:textAllCaps="false"
             android:textColor="#FFFFFF"
