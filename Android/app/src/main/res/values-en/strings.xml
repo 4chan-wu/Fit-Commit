@@ -202,6 +202,27 @@
     <string name="privacy_policy_title">Privacy Policy</string>
     <string name="body_model_failed">Couldn’t load the body analysis model.</string>
     <string name="body_saved">Body analysis saved.</string>
+    <string name="action_back">← Back</string>
+    <string name="body_history_open">View progress</string>
+    <string name="body_history_title">Body progress</string>
+    <string name="body_history_subtitle">Measure from the same distance and pose for a more reliable comparison over time.</string>
+    <string name="body_history_latest">LATEST</string>
+    <string name="body_history_records">Measurement history</string>
+    <string name="body_history_loading">Loading your Supabase history…</string>
+    <string name="body_history_local_only">Showing measurements saved on this device.</string>
+    <plurals name="body_history_synced_count"><item quantity="one">Synced with Supabase · %1$d record</item><item quantity="other">Synced with Supabase · %1$d records</item></plurals>
+    <string name="body_history_sync_failed">The connection is unstable. Showing measurements saved on this device.</string>
+    <string name="body_history_empty">No saved measurements yet.\nNew measurements will appear here over time.</string>
+    <string name="body_history_latest_metrics">Height %1$.1f cm · Shoulders %2$.1f cm · Hips %3$.1f cm</string>
+    <string name="body_history_item_metrics">Height %1$.1f cm · Shoulders %2$.1f cm · Hips %3$.1f cm\nArms %4$.1f cm · Legs %5$.1f cm</string>
+    <string name="body_history_change">Since last time: shoulders %1$s · hips %2$s</string>
+    <string name="body_history_first_record">This is your first body record.</string>
+    <string name="body_history_method_ar">AR measurement</string>
+    <string name="body_history_method_manual">Height calibrated</string>
+    <string name="body_shape_inverted_triangle">Inverted triangle</string>
+    <string name="body_shape_triangle">Triangle</string>
+    <string name="body_shape_rectangle">Rectangle / balanced</string>
+    <string name="body_shape_unknown">Analyzing</string>
     <string name="body_permission_required">Camera access is required for body measurement.</string>
     <string name="item_manage_title">Manage item</string>
     <string name="item_edit">Edit details</string>

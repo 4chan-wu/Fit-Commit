@@ -31,6 +31,7 @@ import com.fitcommit.app.models.BodyMeasurement;
 import com.fitcommit.app.models.ClosetItem;
 import com.fitcommit.app.models.Wardrobe;
 import com.fitcommit.app.services.BodyMeasurementStorage;
+import com.fitcommit.app.services.BodyMeasurementService;
 import com.fitcommit.app.services.ClothesBackendService;
 import com.fitcommit.app.services.ClothingStorage;
 import com.fitcommit.app.services.TokenManager;
@@ -73,12 +74,14 @@ public class MainActivity extends Activity {
     private String selectedWardrobeId = "";
     private final List<Wardrobe> availableWardrobes = new ArrayList<>();
     private ClothesBackendService clothesBackendService;
+    private BodyMeasurementService bodyMeasurementService;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
         clothesBackendService = new ClothesBackendService(this);
+        bodyMeasurementService = new BodyMeasurementService(this);
 
         contentFrame = findViewById(R.id.contentFrame);
         applySystemBarInsets();
@@ -884,19 +887,28 @@ public class MainActivity extends Activity {
         View view = inflate(R.layout.screen_profile);
         BodyMeasurement latestMeasurement = BodyMeasurementStorage.latest(this);
         TextView measurementSummary = view.findViewById(R.id.bodyMeasurementSummaryText);
-        if (latestMeasurement == null) {
-            measurementSummary.setText(R.string.body_no_result);
-        } else {
-            measurementSummary.setText(getString(
-                    R.string.body_summary,
-                    latestMeasurement.bodyShape,
-                    latestMeasurement.heightMeters * 100f,
-                    latestMeasurement.shoulderWidthMeters * 100f,
-                    latestMeasurement.hipWidthMeters * 100f
-            ));
-        }
+        renderBodyMeasurementSummary(measurementSummary, latestMeasurement);
         view.findViewById(R.id.startBodyMeasurementButton).setOnClickListener(v ->
                 startActivity(new Intent(this, BodyMeasureActivity.class)));
+        view.findViewById(R.id.bodyMeasurementHistoryButton).setOnClickListener(v ->
+                startActivity(new Intent(this, BodyMeasurementHistoryActivity.class)));
+        if (bodyMeasurementService.isConfigured()) {
+            List<BodyMeasurement> localMeasurements = BodyMeasurementStorage.all(this);
+            new Thread(() -> {
+                try {
+                    List<BodyMeasurement> merged = bodyMeasurementService.fetchAndSyncLocal(localMeasurements);
+                    BodyMeasurementStorage.replaceAll(this, merged);
+                    BodyMeasurement latest = merged.isEmpty() ? null : merged.get(0);
+                    runOnUiThread(() -> {
+                        if ("profile".equals(currentScreen) && measurementSummary.isAttachedToWindow()) {
+                            renderBodyMeasurementSummary(measurementSummary, latest);
+                        }
+                    });
+                } catch (Exception error) {
+                    System.out.println("[MainActivity] Body history refresh failed: " + error.getMessage());
+                }
+            }).start();
+        }
         TextView languageButton = view.findViewById(R.id.languageSettingsButton);
         languageButton.setText(getString(
                 R.string.language_button,
@@ -911,6 +923,33 @@ public class MainActivity extends Activity {
             finish();
         });
         view.findViewById(R.id.deleteAccountButton).setOnClickListener(v -> confirmAccountDeletion());
+    }
+
+    private void renderBodyMeasurementSummary(TextView view, BodyMeasurement measurement) {
+        if (measurement == null) {
+            view.setText(R.string.body_no_result);
+            return;
+        }
+        view.setText(getString(
+                R.string.body_summary,
+                localizedBodyShape(measurement.bodyShape),
+                measurement.heightMeters * 100f,
+                measurement.shoulderWidthMeters * 100f,
+                measurement.hipWidthMeters * 100f
+        ));
+    }
+
+    private String localizedBodyShape(String value) {
+        if ("inverted_triangle".equals(value) || "역삼각형".equals(value)) {
+            return getString(R.string.body_shape_inverted_triangle);
+        }
+        if ("triangle".equals(value) || "삼각형".equals(value)) {
+            return getString(R.string.body_shape_triangle);
+        }
+        if ("rectangle".equals(value) || "직사각형/스탠다드".equals(value)) {
+            return getString(R.string.body_shape_rectangle);
+        }
+        return getString(R.string.body_shape_unknown);
     }
 
     private String languageLabel(String languageTag) {

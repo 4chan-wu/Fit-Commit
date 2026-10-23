@@ -33,6 +33,7 @@ import com.fitcommit.app.R;
 import com.fitcommit.app.models.BodyMeasurement;
 import com.fitcommit.app.services.BodyMeasurementCalculator;
 import com.fitcommit.app.services.BodyMeasurementStorage;
+import com.fitcommit.app.services.BodyMeasurementService;
 import com.fitcommit.app.services.ArDepthMeasurementController;
 import com.fitcommit.app.services.PoseLandmarkerService;
 import com.fitcommit.app.utils.UiUtils;
@@ -415,7 +416,22 @@ public class BodyMeasureActivity extends ComponentActivity implements
 
     private void saveAndFinish() {
         if (smoothedMeasurement == null) return;
-        BodyMeasurementStorage.save(this, smoothedMeasurement);
+        BodyMeasurement savedMeasurement = smoothedMeasurement.withSyncMetadata(
+                arDepthMode ? "ar_raw_depth" : "manual_height",
+                arDepthMode ? 0.90f : 0.75f
+        );
+        BodyMeasurementStorage.save(this, savedMeasurement);
+        BodyMeasurementService measurementService = new BodyMeasurementService(this);
+        if (measurementService.isConfigured()) {
+            new Thread(() -> {
+                try {
+                    BodyMeasurement synced = measurementService.save(savedMeasurement);
+                    BodyMeasurementStorage.save(getApplicationContext(), synced);
+                } catch (Exception error) {
+                    System.out.println("[BodyMeasureActivity] Measurement sync deferred: " + error.getMessage());
+                }
+            }).start();
+        }
         UiUtils.toast(this, getString(R.string.body_saved));
         finish();
     }
