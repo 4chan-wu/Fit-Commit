@@ -79,11 +79,11 @@
             android:textSize="16sp"
             android:textStyle="bold" />
 
-        <LinearLayout
+        <com.fitcommit.app.views.ResponsiveContentLayout
             android:id="@+id/bodyBottomPanel"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_gravity="bottom"
+            android:layout_gravity="bottom|center_horizontal"
             android:layout_marginStart="14dp"
             android:layout_marginEnd="14dp"
             android:layout_marginBottom="16dp"
@@ -160,7 +160,7 @@
                 android:textAllCaps="false"
                 android:textColor="#FFFFFF"
                 android:textStyle="bold" />
-        </LinearLayout>
+        </com.fitcommit.app.views.ResponsiveContentLayout>
     </FrameLayout>
 
     <ScrollView
@@ -171,9 +171,10 @@
         android:fillViewport="true"
         android:visibility="gone">
 
-        <LinearLayout
+        <com.fitcommit.app.views.ResponsiveContentLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:layout_gravity="center_horizontal"
             android:orientation="vertical"
             android:paddingStart="20dp"
             android:paddingTop="42dp"
@@ -289,6 +290,6 @@
                 android:textAllCaps="false"
                 android:textColor="@color/fit_primary"
                 android:textStyle="bold" />
-        </LinearLayout>
+        </com.fitcommit.app.views.ResponsiveContentLayout>
     </ScrollView>
 </FrameLayout>

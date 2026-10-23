@@ -5,9 +5,10 @@
     android:background="@drawable/bg_app_gradient"
     android:fillViewport="true">
 
-    <LinearLayout
+    <com.fitcommit.app.views.ResponsiveContentLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:layout_gravity="center_horizontal"
         android:orientation="vertical"
         android:padding="20dp">
 
@@ -286,5 +287,5 @@
                 android:textStyle="bold"
                 android:visibility="gone" />
         </LinearLayout>
-    </LinearLayout>
+    </com.fitcommit.app.views.ResponsiveContentLayout>
 </ScrollView>

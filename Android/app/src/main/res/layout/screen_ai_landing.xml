@@ -3,9 +3,10 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent">
 
-    <LinearLayout
+    <com.fitcommit.app.views.ResponsiveContentLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:layout_gravity="center_horizontal"
         android:gravity="center_horizontal"
         android:orientation="vertical"
         android:paddingStart="20dp"
@@ -59,5 +60,5 @@
             android:text="@string/ui_095"
             android:textAllCaps="false"
             android:textColor="@color/fit_text" />
-    </LinearLayout>
+    </com.fitcommit.app.views.ResponsiveContentLayout>
 </ScrollView>

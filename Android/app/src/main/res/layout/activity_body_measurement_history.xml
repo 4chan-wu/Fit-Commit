@@ -7,9 +7,10 @@
     android:clipToPadding="false"
     android:fillViewport="true">
 
-    <LinearLayout
+    <com.fitcommit.app.views.ResponsiveContentLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:layout_gravity="center_horizontal"
         android:orientation="vertical"
         android:paddingStart="20dp"
         android:paddingTop="8dp"
@@ -127,5 +128,5 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="12dp"
             android:orientation="vertical" />
-    </LinearLayout>
+    </com.fitcommit.app.views.ResponsiveContentLayout>
 </ScrollView>

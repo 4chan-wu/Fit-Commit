@@ -62,11 +62,11 @@
         android:textSize="16sp"
         android:textStyle="bold" />
 
-    <LinearLayout
+    <com.fitcommit.app.views.ResponsiveContentLayout
         android:id="@+id/analysisCard"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_gravity="bottom"
+        android:layout_gravity="bottom|center_horizontal"
         android:layout_marginStart="20dp"
         android:layout_marginEnd="20dp"
         android:layout_marginBottom="32dp"
@@ -90,5 +90,5 @@
             android:lineSpacingExtra="4dp"
             android:textColor="@color/fit_text_secondary"
             android:textSize="14sp" />
-    </LinearLayout>
+    </com.fitcommit.app.views.ResponsiveContentLayout>
 </FrameLayout>

@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <dimen name="fit_content_max_width">720dp</dimen>
+    <dimen name="fit_navigation_max_width">560dp</dimen>
+    <dimen name="clothing_capture_guide_width">280dp</dimen>
+    <dimen name="clothing_capture_guide_height">390dp</dimen>
+</resources>

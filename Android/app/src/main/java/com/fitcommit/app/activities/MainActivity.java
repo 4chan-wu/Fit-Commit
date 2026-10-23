@@ -110,8 +110,16 @@ public class MainActivity extends Activity {
             int bottomPadding = Math.max(minimumBottomPadding, systemBars.bottom);
             view.setPadding(0, systemBars.top, 0, 0);
             bottomWrapper.setPadding(horizontalPadding, 0, horizontalPadding, bottomPadding);
-            ViewGroup.LayoutParams params = bottomWrapper.getLayoutParams();
+            FrameLayout.LayoutParams params = (FrameLayout.LayoutParams) bottomWrapper.getLayoutParams();
+            int availableWidth = view.getWidth() > 0
+                    ? view.getWidth()
+                    : getResources().getDisplayMetrics().widthPixels;
+            params.width = Math.min(
+                    availableWidth,
+                    getResources().getDimensionPixelSize(R.dimen.fit_navigation_max_width)
+            );
             params.height = tabBarHeight + bottomPadding;
+            params.gravity = Gravity.BOTTOM | Gravity.CENTER_HORIZONTAL;
             bottomWrapper.setLayoutParams(params);
             contentFrame.setPadding(0, 0, 0, tabBarHeight + bottomPadding);
             return windowInsets;
@@ -186,7 +194,10 @@ public class MainActivity extends Activity {
         View view = inflate(R.layout.screen_closet);
 
         RecyclerView grid = view.findViewById(R.id.closetGrid);
-        grid.setLayoutManager(new GridLayoutManager(this, 2));
+        grid.setLayoutManager(new GridLayoutManager(
+                this,
+                getResources().getInteger(R.integer.closet_grid_span_count)
+        ));
         grid.setHasFixedSize(false);
         ClosetCardAdapter adapter = new ClosetCardAdapter(this, new ClosetCardAdapter.OnItemActionListener() {
             @Override
