@@ -79,6 +79,12 @@ public class MainActivity extends Activity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        if (!new TokenManager(this).hasRestorableSession()) {
+            startActivity(new Intent(this, LoginActivity.class)
+                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK));
+            finish();
+            return;
+        }
         setContentView(R.layout.activity_main);
         clothesBackendService = new ClothesBackendService(this);
         bodyMeasurementService = new BodyMeasurementService(this);

@@ -158,7 +158,7 @@
     <string name="item_meta">%1$s · %2$s</string>
     <string name="signup_email">Create account</string><string name="login_switch_login">Already have an account?  Sign in</string>
     <string name="login_subtitle">Connect your body profile and wardrobe for better outfit ideas every day.</string><string name="signup_subtitle">Enter a few details to start your smart wardrobe.</string>
-    <string name="loading">Please wait…</string><string name="validation_email">Enter a valid email address.</string><string name="validation_password">Use at least 8 characters and three character types.</string><string name="validation_signup">Check your name, phone number, and password confirmation.</string>
+    <string name="loading">Please wait…</string><string name="session_restoring">Checking your sign-in…</string><string name="validation_email">Enter a valid email address.</string><string name="validation_password">Use at least 8 characters and three character types.</string><string name="validation_signup">Check your name, phone number, and password confirmation.</string>
     <string name="sort_name_short">Name ︾</string>
     <plurals name="closet_count_total"><item quantity="one">%1$d item</item><item quantity="other">%1$d items</item></plurals>
     <plurals name="closet_count_filtered"><item quantity="one">Showing %1$d of %2$d item</item><item quantity="other">Showing %1$d of %2$d items</item></plurals>

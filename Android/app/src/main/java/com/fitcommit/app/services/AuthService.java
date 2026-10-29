@@ -119,7 +119,9 @@ public class AuthService {
                     callback.onSuccess(body);
                     return;
                 }
-                tokenManager.clear();
+                if (isSessionRejected(response.code())) {
+                    tokenManager.clear();
+                }
                 callback.onError(parseError(response));
             }
 
@@ -205,5 +207,9 @@ public class AuthService {
             return "Supabase에 연결할 수 없습니다. 인터넷 연결과 프로젝트 설정을 확인해주세요.";
         }
         return throwable.getMessage() == null ? "Unexpected error occurred." : throwable.getMessage();
+    }
+
+    private boolean isSessionRejected(int statusCode) {
+        return statusCode == 400 || statusCode == 401 || statusCode == 403;
     }
 }

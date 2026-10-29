@@ -159,7 +159,7 @@
     <string name="item_meta">%1$s · %2$s</string>
     <string name="signup_email">이메일로 회원가입</string><string name="login_switch_login">이미 계정이 있나요?  로그인</string>
     <string name="login_subtitle">내 체형과 옷장을 연결해 매일 더 나은 코디를 만나보세요.</string><string name="signup_subtitle">기본 정보를 입력하고 나만의 스마트 옷장을 시작하세요.</string>
-    <string name="loading">처리 중…</string><string name="validation_email">올바른 이메일 주소를 입력해주세요.</string><string name="validation_password">비밀번호는 8자 이상이며 문자 유형 3가지를 포함해야 합니다.</string><string name="validation_signup">이름, 휴대전화 번호와 비밀번호 확인을 다시 확인해주세요.</string>
+    <string name="loading">처리 중…</string><string name="session_restoring">로그인 정보를 확인하고 있어요…</string><string name="validation_email">올바른 이메일 주소를 입력해주세요.</string><string name="validation_password">비밀번호는 8자 이상이며 문자 유형 3가지를 포함해야 합니다.</string><string name="validation_signup">이름, 휴대전화 번호와 비밀번호 확인을 다시 확인해주세요.</string>
     <string name="sort_name_short">이름순 ︾</string>
     <plurals name="closet_count_total"><item quantity="other">총 %1$d벌</item></plurals>
     <plurals name="closet_count_filtered"><item quantity="other">%1$d벌 표시 · 전체 %2$d벌</item></plurals>

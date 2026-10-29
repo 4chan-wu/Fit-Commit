@@ -76,6 +76,25 @@ public class TokenManager {
                 && !accessToken.trim().isEmpty();
     }
 
+    /**
+     * Returns whether this device has enough session data to sign the user in again.
+     * An expired access token is still restorable as long as a refresh token exists.
+     */
+    public boolean hasRestorableSession() {
+        String refreshToken = getRefreshToken();
+        return AUTH_SOURCE_SUPABASE.equals(preferences.getString(KEY_AUTH_SOURCE, ""))
+                && refreshToken != null
+                && !refreshToken.trim().isEmpty();
+    }
+
+    /** Returns true when the current access token remains valid beyond the safety window. */
+    public boolean isAccessTokenUsable(long minimumValiditySeconds) {
+        if (!hasSupabaseSession()) return false;
+        long nowEpochSeconds = System.currentTimeMillis() / 1000L;
+        long safetyWindow = Math.max(0L, minimumValiditySeconds);
+        return getExpiresAtEpochSeconds() > nowEpochSeconds + safetyWindow;
+    }
+
     public void clear() {
         preferences.edit().clear().apply();
     }

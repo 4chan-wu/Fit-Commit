@@ -19,6 +19,8 @@ import com.fitcommit.app.utils.UiUtils;
 import com.fitcommit.app.utils.ValidationUtils;
 
 public class LoginActivity extends Activity {
+    private static final long SESSION_SAFETY_WINDOW_SECONDS = 60L;
+
     private AuthService authService;
 
     private boolean signUpMode = false;
@@ -31,6 +33,7 @@ public class LoginActivity extends Activity {
     private TextView feedbackText;
     private TextView modeSwitchText;
     private Button submitButton;
+    private boolean restoringSession;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -41,7 +44,9 @@ public class LoginActivity extends Activity {
         bindViews();
         setupActions();
         updateMode();
-        handleAuthCallback(getIntent());
+        if (!handleAuthCallback(getIntent())) {
+            restoreSavedSession();
+        }
     }
 
     @Override
@@ -89,6 +94,7 @@ public class LoginActivity extends Activity {
     }
 
     private void submit() {
+        if (restoringSession) return;
         String email = emailEditText.getText().toString().trim();
         String password = passwordEditText.getText().toString();
 
@@ -154,7 +160,7 @@ public class LoginActivity extends Activity {
             @Override
             public void onSuccess(LoginResponse result) {
                 setLoading(false);
-                openMain();
+                openMain(true);
             }
 
             @Override
@@ -186,13 +192,13 @@ public class LoginActivity extends Activity {
         feedbackText.setVisibility(View.VISIBLE);
     }
 
-    private void handleAuthCallback(Intent intent) {
+    private boolean handleAuthCallback(Intent intent) {
         Uri callback = intent == null ? null : intent.getData();
         if (callback == null
                 || !"fitcommit".equals(callback.getScheme())
                 || !"auth".equals(callback.getHost())
                 || !"/callback".equals(callback.getPath())) {
-            return;
+            return false;
         }
 
         Uri parameters = fragmentParameters(callback.getFragment());
@@ -202,7 +208,7 @@ public class LoginActivity extends Activity {
         }
         if (errorDescription != null && !errorDescription.trim().isEmpty()) {
             showFeedback(getString(R.string.email_verification_failed, errorDescription));
-            return;
+            return true;
         }
 
         String accessToken = parameters.getQueryParameter("access_token");
@@ -210,7 +216,7 @@ public class LoginActivity extends Activity {
         if (accessToken == null || accessToken.trim().isEmpty()
                 || refreshToken == null || refreshToken.trim().isEmpty()) {
             showFeedback(getString(R.string.auth_details_missing));
-            return;
+            return true;
         }
 
         long expiresAt = parseLong(parameters.getQueryParameter("expires_at"));
@@ -221,7 +227,49 @@ public class LoginActivity extends Activity {
 
         new TokenManager(this).saveSupabaseSession(accessToken, refreshToken, expiresAt, null);
         UiUtils.toast(this, getString(R.string.email_verified));
-        openMain();
+        openMain(true);
+        return true;
+    }
+
+    private void restoreSavedSession() {
+        TokenManager tokenManager = new TokenManager(this);
+        if (!tokenManager.hasRestorableSession()) return;
+
+        setSessionRestoreLoading(true);
+        if (tokenManager.isAccessTokenUsable(SESSION_SAFETY_WINDOW_SECONDS)) {
+            openMain(false);
+            return;
+        }
+
+        authService.refreshSession(new AuthService.AuthCallback<LoginResponse>() {
+            @Override
+            public void onSuccess(LoginResponse result) {
+                if (!isFinishing()) openMain(false);
+            }
+
+            @Override
+            public void onError(String message) {
+                if (isFinishing()) return;
+                setSessionRestoreLoading(false);
+                showFeedback(message);
+            }
+        });
+    }
+
+    private void setSessionRestoreLoading(boolean loading) {
+        restoringSession = loading;
+        nameEditText.setEnabled(!loading);
+        emailEditText.setEnabled(!loading);
+        phoneEditText.setEnabled(!loading);
+        passwordEditText.setEnabled(!loading);
+        passwordConfirmEditText.setEnabled(!loading);
+        if (loading) {
+            feedbackText.setVisibility(View.GONE);
+            subtitleText.setText(R.string.session_restoring);
+            setLoading(true);
+        } else {
+            updateMode();
+        }
     }
 
     private Uri fragmentParameters(String fragment) {
@@ -237,9 +285,11 @@ public class LoginActivity extends Activity {
         }
     }
 
-    private void openMain() {
-        UiUtils.toast(this, getString(R.string.welcome));
-        startActivity(new Intent(this, MainActivity.class));
+    private void openMain(boolean showWelcome) {
+        if (showWelcome) UiUtils.toast(this, getString(R.string.welcome));
+        Intent intent = new Intent(this, MainActivity.class)
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+        startActivity(intent);
         finish();
     }
 }
