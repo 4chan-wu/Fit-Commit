@@ -53,10 +53,17 @@ CREATE TABLE IF NOT EXISTS public.body_measurements (
     CONSTRAINT body_measurements_shape_code
         CHECK (body_shape_code IN ('inverted_triangle', 'triangle', 'rectangle', 'unknown')),
     CONSTRAINT body_measurements_method
-        CHECK (measurement_method IN ('ar_raw_depth', 'manual_height')),
+        CHECK (measurement_method IN ('ar_raw_depth', 'camera_pose', 'manual_height')),
     CONSTRAINT body_measurements_confidence_range
         CHECK (confidence IS NULL OR confidence BETWEEN 0 AND 1)
 );
+
+-- 이미 이 마이그레이션을 실행한 프로젝트에도 카메라 전용 측정 방식을 추가합니다.
+ALTER TABLE public.body_measurements
+    DROP CONSTRAINT IF EXISTS body_measurements_method;
+ALTER TABLE public.body_measurements
+    ADD CONSTRAINT body_measurements_method
+    CHECK (measurement_method IN ('ar_raw_depth', 'camera_pose', 'manual_height'));
 
 CREATE INDEX IF NOT EXISTS idx_body_measurements_user_measured_at
     ON public.body_measurements (user_id, measured_at DESC);

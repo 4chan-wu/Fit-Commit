@@ -197,8 +197,10 @@ public final class BodyMeasurementService {
         return (float) (centimeters / 100d);
     }
 
-    private static String normalizedMethod(String method) {
-        return "manual_height".equals(method) ? "manual_height" : "ar_raw_depth";
+    static String normalizedMethod(String method) {
+        if ("manual_height".equals(method)) return "manual_height";
+        if ("camera_pose".equals(method)) return "camera_pose";
+        return "ar_raw_depth";
     }
 
     private static String shapeCode(String value) {

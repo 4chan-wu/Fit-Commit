@@ -127,7 +127,6 @@
     <string name="analysis_confidence">%1$d%% confidence</string>
     <string name="analysis_color_summary">Main color · %1$s</string>
     <string name="analysis_hide_details">Hide details</string>
-    <string name="body_ar_preparing">Preparing AR measurement…</string>
     <string name="body_ar_tracking_guide">Move your phone slowly so it can detect the floor and your body.</string>
     <string name="body_ar_start_failed">AR depth couldn’t start. Switching to the standard camera.</string>
     <string name="body_ar_camera_unavailable">The AR camera is unavailable. Switching to the standard camera.</string>
@@ -136,6 +135,8 @@
     <string name="body_pose_frame_skipped">Hold your phone steady.</string>
     <string name="body_ar_mode">Live height with AR depth</string>
     <string name="body_ar_guide">Move your phone slowly to detect the floor, then fit your full body in frame.</string>
+    <string name="body_camera_estimate_mode">AI height estimate from camera</string>
+    <string name="body_camera_estimate_guide">Keep the phone upright and fit your full body from head to toe in frame.</string>
     <string name="body_manual_mode">Body proportions calibrated to your height</string>
     <string name="body_manual_guide">Enter your actual height and keep your full body visible.</string>
     <string name="body_camera_preparing">Preparing camera and body analysis…</string>
@@ -218,6 +219,7 @@
     <string name="body_history_change">Since last time: shoulders %1$s · hips %2$s</string>
     <string name="body_history_first_record">This is your first body record.</string>
     <string name="body_history_method_ar">AR measurement</string>
+    <string name="body_history_method_camera">Camera AI estimate</string>
     <string name="body_history_method_manual">Height calibrated</string>
     <string name="body_shape_inverted_triangle">Inverted triangle</string>
     <string name="body_shape_triangle">Triangle</string>

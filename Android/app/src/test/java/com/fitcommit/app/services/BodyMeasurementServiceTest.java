@@ -41,6 +41,13 @@ public class BodyMeasurementServiceTest {
         assertEquals(5_000L, merged.get(0).measuredAt);
     }
 
+    @Test
+    public void normalizedMethod_preservesCameraPoseMeasurements() {
+        assertEquals("camera_pose", BodyMeasurementService.normalizedMethod("camera_pose"));
+        assertEquals("manual_height", BodyMeasurementService.normalizedMethod("manual_height"));
+        assertEquals("ar_raw_depth", BodyMeasurementService.normalizedMethod("unknown"));
+    }
+
     private BodyMeasurement measurement(String id, long measuredAt) {
         return new BodyMeasurement(
                 id,

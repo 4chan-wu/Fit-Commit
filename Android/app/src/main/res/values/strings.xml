@@ -128,7 +128,6 @@
     <string name="analysis_confidence">신뢰도 %1$d%%</string>
     <string name="analysis_color_summary">대표 색상 · %1$s</string>
     <string name="analysis_hide_details">상세 정보 접기</string>
-    <string name="body_ar_preparing">AR 측정 기능을 준비하고 있습니다…</string>
     <string name="body_ar_tracking_guide">휴대전화를 천천히 움직여 바닥과 사람을 인식해주세요.</string>
     <string name="body_ar_start_failed">AR 깊이 측정을 시작할 수 없어 일반 카메라 모드로 전환합니다.</string>
     <string name="body_ar_camera_unavailable">AR 카메라를 사용할 수 없어 일반 카메라 모드로 전환합니다.</string>
@@ -137,6 +136,8 @@
     <string name="body_pose_frame_skipped">화면을 안정적으로 유지해주세요.</string>
     <string name="body_ar_mode">AR 깊이 기반 실시간 키</string>
     <string name="body_ar_guide">휴대폰을 천천히 움직여 바닥을 인식한 뒤 전신을 화면에 맞춰주세요.</string>
+    <string name="body_camera_estimate_mode">일반 카메라 AI 키 추정</string>
+    <string name="body_camera_estimate_guide">휴대전화를 세로로 고정하고 머리부터 발끝까지 전신이 화면에 들어오게 서 주세요.</string>
     <string name="body_manual_mode">입력한 키로 신체 비율 보정</string>
     <string name="body_manual_guide">정확한 비율 분석을 위해 실제 키를 입력하고 전신이 보이게 서 주세요.</string>
     <string name="body_camera_preparing">카메라와 신체 분석 모델을 준비하고 있습니다…</string>
@@ -219,6 +220,7 @@
     <string name="body_history_change">이전 기록보다 어깨 %1$s · 골반 %2$s</string>
     <string name="body_history_first_record">첫 번째 신체 기록입니다.</string>
     <string name="body_history_method_ar">AR 측정</string>
+    <string name="body_history_method_camera">카메라 AI 추정</string>
     <string name="body_history_method_manual">키 입력 보정</string>
     <string name="body_shape_inverted_triangle">역삼각형</string>
     <string name="body_shape_triangle">삼각형</string>

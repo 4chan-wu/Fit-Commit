@@ -160,9 +160,13 @@ public final class BodyMeasurementHistoryActivity extends Activity {
     }
 
     private String methodLabel(String method) {
-        return getString("manual_height".equals(method)
-                ? R.string.body_history_method_manual
-                : R.string.body_history_method_ar);
+        if ("manual_height".equals(method)) {
+            return getString(R.string.body_history_method_manual);
+        }
+        if ("camera_pose".equals(method)) {
+            return getString(R.string.body_history_method_camera);
+        }
+        return getString(R.string.body_history_method_ar);
     }
 
     private String shapeLabel(String value) {

@@ -70,6 +70,7 @@ public class BodyMeasureActivity extends ComponentActivity implements
     private int stableFrames;
     private boolean resultShown;
     private boolean arDepthMode;
+    private boolean manualHeightMode;
     private boolean cameraXStarted;
     private float latestDepthHeightMeters;
     private long latestDepthHeightAt;
@@ -127,7 +128,7 @@ public class BodyMeasureActivity extends ComponentActivity implements
         manualHeightInput.addTextChangedListener(new TextWatcher() {
             @Override public void beforeTextChanged(CharSequence text, int start, int count, int after) { }
             @Override public void onTextChanged(CharSequence text, int start, int before, int count) {
-                if (!arDepthMode && latestPoseMeasurement != null && !resultShown) {
+                if (manualHeightMode && latestPoseMeasurement != null && !resultShown) {
                     updateStability(resolveMeasurement(latestPoseMeasurement));
                 }
             }
@@ -190,33 +191,25 @@ public class BodyMeasureActivity extends ComponentActivity implements
 
     private void startPreferredCamera() {
         if (cameraXStarted) return;
-        ArDepthMeasurementController.StartResult result = arDepthController.start();
-        if (result == ArDepthMeasurementController.StartResult.INSTALL_PENDING) {
-            statusText.setVisibility(View.VISIBLE);
-            statusText.setText(R.string.body_ar_preparing);
-            return;
-        }
-        if (result == ArDepthMeasurementController.StartResult.ACTIVE) {
-            arDepthMode = true;
-            arFrameReady = false;
-            findViewById(R.id.bodyCameraPreview).setVisibility(View.GONE);
-            findViewById(R.id.bodyArCameraPreview).setVisibility(View.VISIBLE);
-            manualHeightInput.setVisibility(View.GONE);
-            findViewById(R.id.useManualHeightButton).setVisibility(View.VISIBLE);
-            measurementModeText.setText(R.string.body_ar_mode);
-            liveGuideText.setText(R.string.body_ar_guide);
-            statusText.setText(R.string.body_ar_preparing);
-            statusText.setVisibility(View.VISIBLE);
-            mainHandler.removeCallbacks(arPreviewTimeout);
-            mainHandler.postDelayed(arPreviewTimeout, AR_PREVIEW_TIMEOUT_MS);
-            return;
-        }
-        enableManualHeightMode();
+        enableCameraEstimateMode();
         startCamera();
+    }
+
+    private void enableCameraEstimateMode() {
+        arDepthMode = false;
+        manualHeightMode = false;
+        findViewById(R.id.bodyArCameraPreview).setVisibility(View.GONE);
+        findViewById(R.id.bodyCameraPreview).setVisibility(View.VISIBLE);
+        manualHeightInput.setVisibility(View.GONE);
+        findViewById(R.id.useManualHeightButton).setVisibility(View.VISIBLE);
+        measurementModeText.setText(R.string.body_camera_estimate_mode);
+        liveHeightText.setText(R.string.ui_032);
+        liveGuideText.setText(R.string.body_camera_estimate_guide);
     }
 
     private void enableManualHeightMode() {
         arDepthMode = false;
+        manualHeightMode = true;
         findViewById(R.id.bodyArCameraPreview).setVisibility(View.GONE);
         findViewById(R.id.bodyCameraPreview).setVisibility(View.VISIBLE);
         manualHeightInput.setVisibility(View.VISIBLE);
@@ -247,7 +240,7 @@ public class BodyMeasureActivity extends ComponentActivity implements
         latestDepthHeightMeters = 0f;
         latestDepthHeightAt = 0L;
         arFrameReady = false;
-        enableManualHeightMode();
+        enableCameraEstimateMode();
         liveGuideText.setText(reason);
         startCamera();
     }
@@ -301,6 +294,7 @@ public class BodyMeasureActivity extends ComponentActivity implements
                     ? BodyMeasurementCalculator.calibratedToHeight(poseMeasurement, latestDepthHeightMeters)
                     : null;
         }
+        if (!manualHeightMode) return poseMeasurement;
         Float manualHeight = manualHeightMeters();
         return manualHeight == null
                 ? null
@@ -326,7 +320,7 @@ public class BodyMeasureActivity extends ComponentActivity implements
             liveHeightText.setText(R.string.ui_032);
             if (latestPoseMeasurement != null && arDepthMode) {
                 liveGuideText.setText(R.string.body_depth_reading);
-            } else if (latestPoseMeasurement != null) {
+            } else if (latestPoseMeasurement != null && manualHeightMode) {
                 liveGuideText.setText(R.string.body_height_invalid);
             } else {
                 liveGuideText.setText(R.string.body_pose_guide);
@@ -410,15 +404,21 @@ public class BodyMeasureActivity extends ComponentActivity implements
         liveHeightText.setText(R.string.ui_032);
         liveGuideText.setText(arDepthMode
                 ? getString(R.string.body_ar_guide)
-                : getString(R.string.body_manual_reset_guide));
+                : manualHeightMode
+                        ? getString(R.string.body_manual_reset_guide)
+                        : getString(R.string.body_camera_estimate_guide));
         if (!arDepthMode && imageAnalysis != null) imageAnalysis.setAnalyzer(cameraExecutor, poseService);
     }
 
     private void saveAndFinish() {
         if (smoothedMeasurement == null) return;
+        String measurementMethod = arDepthMode
+                ? "ar_raw_depth"
+                : manualHeightMode ? "manual_height" : "camera_pose";
+        float confidence = arDepthMode ? 0.90f : manualHeightMode ? 0.75f : 0.55f;
         BodyMeasurement savedMeasurement = smoothedMeasurement.withSyncMetadata(
-                arDepthMode ? "ar_raw_depth" : "manual_height",
-                arDepthMode ? 0.90f : 0.75f
+                measurementMethod,
+                confidence
         );
         BodyMeasurementStorage.save(this, savedMeasurement);
         BodyMeasurementService measurementService = new BodyMeasurementService(this);
