@@ -79,7 +79,7 @@ android {
     }
 
     defaultConfig {
-        applicationId "com.fitcommit.app"
+        applicationId "intellispace.Fitcommit"
         minSdk 24
         targetSdk 36
         versionCode 1
