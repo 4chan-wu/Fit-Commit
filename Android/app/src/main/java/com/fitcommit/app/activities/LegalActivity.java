@@ -4,6 +4,7 @@ import android.app.Activity;
 import android.graphics.Typeface;
 import android.os.Bundle;
 import android.text.method.LinkMovementMethod;
+import android.view.View;
 import android.view.ViewGroup;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
@@ -25,6 +26,7 @@ public class LegalActivity extends Activity {
         back.setText(R.string.legal_back);
         back.setTextColor(getColor(R.color.fit_primary));
         back.setTextSize(16);
+        back.setTextAlignment(View.TEXT_ALIGNMENT_VIEW_START);
         back.setPadding(0, 0, 0, padding);
         back.setOnClickListener(v -> finish());
         content.addView(back);
@@ -40,6 +42,8 @@ public class LegalActivity extends Activity {
         body.setText(getString(R.string.privacy_policy_body));
         body.setTextColor(getColor(R.color.fit_text));
         body.setTextSize(14);
+        // 개인정보처리방침 본문은 긴 문단이라 읽기 편하도록 왼쪽 정렬을 유지합니다.
+        body.setTextAlignment(View.TEXT_ALIGNMENT_VIEW_START);
         body.setLineSpacing(0, 1.45f);
         body.setPadding(0, padding, 0, padding);
         body.setAutoLinkMask(android.text.util.Linkify.WEB_URLS);

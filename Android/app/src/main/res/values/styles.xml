@@ -7,6 +7,12 @@
         <item name="android:statusBarColor">@color/fit_bg</item>
         <item name="android:navigationBarColor">@android:color/transparent</item>
         <item name="android:colorAccent">@color/fit_primary</item>
+        <!-- 앱 전체 TextView 기본 정렬을 가운데로 통일합니다. (Button/EditText는 영향 없음) -->
+        <item name="android:textViewStyle">@style/FitTextView</item>
+    </style>
+
+    <style name="FitTextView" parent="@android:style/Widget.Material.TextView">
+        <item name="android:textAlignment">center</item>
     </style>
 
     <style name="FitTabText">
@@ -21,6 +27,7 @@
     </style>
 
     <style name="FitSectionTitle">
+        <item name="android:textAlignment">center</item>
         <item name="android:textColor">@color/fit_text</item>
         <item name="android:textSize">20sp</item>
         <item name="android:textStyle">bold</item>
@@ -28,12 +35,14 @@
     </style>
 
     <style name="FitCaption">
+        <item name="android:textAlignment">center</item>
         <item name="android:textColor">@color/fit_text_secondary</item>
         <item name="android:textSize">13sp</item>
         <item name="android:includeFontPadding">false</item>
     </style>
 
     <style name="BodyMetricValue">
+        <item name="android:textAlignment">center</item>
         <item name="android:layout_width">match_parent</item>
         <item name="android:layout_height">wrap_content</item>
         <item name="android:layout_marginTop">13dp</item>

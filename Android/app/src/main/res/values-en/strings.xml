@@ -79,7 +79,7 @@
     <string name="ui_075">Home</string>
     <string name="ui_076">Wardrobe</string>
     <string name="ui_077">AI Stylist</string>
-    <string name="ui_078">Profile</string>
+    <string name="ui_078">My Page</string>
     <string name="ui_079">Add clothing photo</string>
     <string name="ui_080">Place one item in the center.\nA plain background and bright lighting work best.</string>
     <string name="ui_081">Take a photo</string>
@@ -110,13 +110,12 @@
     <string name="ui_109">One photo is all it takes\nto start organizing your wardrobe.</string>
     <string name="ui_110">Add your first item</string>
     <string name="ui_111">No matching items.\nTry changing your search or filters.</string>
-    <string name="ui_112">Add item</string>
+    <string name="ui_112">Add new item</string>
     <string name="ui_113">FITCOMMIT</string>
     <string name="ui_114">Your wardrobe,\nall in one place</string>
     <string name="ui_115">Add clothes with a photo and quickly find them by category or season.</string>
     <string name="ui_116">From today’s outfit to your latest find,\nkeep everything in your digital wardrobe.</string>
-    <string name="ui_117">Open wardrobe</string>
-    <string name="ui_118">Manage your account and privacy settings.</string>
+    <string name="ui_117">Add new item</string>
     <string name="ui_119">My body profile</string>
     <string name="ui_120">Measure body proportions</string>
     <string name="ui_121">Information &amp; legal</string>
@@ -160,7 +159,7 @@
     <string name="signup_email">Create account</string><string name="login_switch_login">Already have an account?  Sign in</string>
     <string name="login_subtitle">Connect your body profile and wardrobe for better outfit ideas every day.</string><string name="signup_subtitle">Enter a few details to start your smart wardrobe.</string>
     <string name="loading">Please wait…</string><string name="session_restoring">Checking your sign-in…</string><string name="validation_email">Enter a valid email address.</string><string name="validation_password">Use at least 8 characters and three character types.</string><string name="validation_signup">Check your name, phone number, and password confirmation.</string>
-    <string name="sort_name_short">Name ︾</string>
+    <string name="sort_name_short">Name A–Z ︾</string>
     <plurals name="closet_count_total"><item quantity="one">%1$d item</item><item quantity="other">%1$d items</item></plurals>
     <plurals name="closet_count_filtered"><item quantity="one">Showing %1$d of %2$d item</item><item quantity="other">Showing %1$d of %2$d items</item></plurals>
     <string name="wardrobe_fetch_failed">Couldn’t load wardrobes</string><string name="local_fallback_unstable">Connection is unstable. Showing items saved on this device.</string><string name="local_fallback">Showing items saved on this device.</string>
@@ -322,4 +321,41 @@
     <string name="language_korean">한국어</string>
     <string name="language_english">English</string>
     <string name="language_apply">Apply</string>
+
+    <!-- UX 개선: 스플래시/튜토리얼, 로그인, 정렬, 신체 측정 -->
+    <string name="splash_tagline">A smarter wardrobe, made easy</string>
+    <string name="onboarding_skip">Skip</string>
+    <string name="onboarding_next">Next</string>
+    <string name="onboarding_start">Get started</string>
+    <string name="onboarding_1_title">Add clothes with one photo</string>
+    <string name="onboarding_1_body">Take a photo and we remove the background\nand save it neatly to your wardrobe.</string>
+    <string name="onboarding_2_title">AI analyzes your clothes</string>
+    <string name="onboarding_2_body">Type, color and season are detected automatically\nso you can find any item quickly.</string>
+    <string name="onboarding_3_title">Outfits that fit your body</string>
+    <string name="onboarding_3_body">Measure your proportions and get AI outfit\nrecommendations from your own wardrobe.</string>
+    <string name="password_show">Show password</string>
+    <string name="password_hide">Hide password</string>
+    <string name="validation_password_required">Enter your password.</string>
+    <string name="signup_password_rule">Use at least 8 characters with 3 of: uppercase, lowercase, numbers, symbols.</string>
+    <string name="auth_error_invalid_credentials">The email or password is incorrect.</string>
+    <string name="auth_error_email_not_confirmed">Your email isn\'t verified yet. Check your inbox for the verification email.</string>
+    <string name="auth_error_user_exists">This email is already registered. Try signing in.</string>
+    <string name="auth_error_weak_password">That password is too weak. Use at least 8 characters and 3 character types.</string>
+    <string name="auth_error_rate_limit">Too many requests. Please try again in a moment.</string>
+    <string name="auth_error_signup_disabled">Sign-up is currently unavailable.</string>
+    <string name="auth_error_user_banned">This account has been restricted. Please contact support.</string>
+    <string name="auth_error_link_expired">The verification link is invalid or has expired. Request a new email.</string>
+    <string name="auth_error_session_expired">Your session has expired. Please sign in again.</string>
+    <string name="auth_error_server">Something went wrong on our side. Please try again later.</string>
+    <string name="auth_error_generic">We couldn\'t complete that request. Please try again later.</string>
+    <string name="auth_error_network">Can\'t reach the server. Check your internet connection.</string>
+    <string name="auth_error_not_configured">Sign-in isn\'t set up correctly. Please update the app to the latest version.</string>
+    <string name="auth_error_login_required">Please sign in first.</string>
+    <string name="sort_oldest_short">Oldest ︾</string>
+    <string name="sort_name_desc_short">Name Z–A ︾</string>
+    <string name="body_edit_height">Edit estimated height</string>
+    <string name="body_edit_height_title">Edit estimated height</string>
+    <string name="body_edit_height_message">Enter your real height and the shoulder, hip, arm and leg lengths are recalculated in proportion.</string>
+    <string name="body_edit_height_hint">Height (cm)</string>
+    <string name="body_height_adjusted">Lengths were recalculated for the height you entered.</string>
 </resources>

@@ -60,6 +60,7 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
+                android:layout_gravity="center_horizontal"
                 android:text="@string/body_history_latest"
                 android:textColor="@color/fit_primary"
                 android:textSize="12sp"

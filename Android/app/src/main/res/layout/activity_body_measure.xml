@@ -95,6 +95,7 @@
                 android:id="@+id/measurementModeText"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
+                android:layout_gravity="center_horizontal"
                 android:text="@string/ui_031"
                 android:textColor="@color/fit_text_secondary"
                 android:textSize="12sp"
@@ -184,6 +185,7 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
+                android:layout_gravity="center_horizontal"
                 android:background="@drawable/bg_chip_selected"
                 android:paddingHorizontal="12dp"
                 android:paddingVertical="7dp"
@@ -231,6 +233,17 @@
                 <TextView android:id="@+id/resultHipText" style="@style/BodyMetricValue" />
                 <TextView android:id="@+id/resultArmText" style="@style/BodyMetricValue" />
                 <TextView android:id="@+id/resultLegText" style="@style/BodyMetricValue" />
+
+                <Button
+                    android:id="@+id/editHeightButton"
+                    style="@style/FitButton.Secondary"
+                    android:layout_width="match_parent"
+                    android:layout_height="48dp"
+                    android:layout_marginTop="16dp"
+                    android:text="@string/body_edit_height"
+                    android:textAllCaps="false"
+                    android:textColor="@color/fit_primary"
+                    android:textStyle="bold" />
             </LinearLayout>
 
             <LinearLayout

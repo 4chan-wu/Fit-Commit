@@ -2,6 +2,7 @@ package com.fitcommit.app.services;
 
 import android.content.Context;
 
+import com.fitcommit.app.R;
 import com.fitcommit.app.services.dto.LoginRequest;
 import com.fitcommit.app.services.dto.LoginResponse;
 import com.fitcommit.app.services.dto.RefreshTokenRequest;
@@ -25,17 +26,19 @@ public class AuthService {
         void onError(String message);
     }
 
+    private final Context context;
     private final AuthApi authApi;
     private final TokenManager tokenManager;
 
     public AuthService(Context context) {
+        this.context = context.getApplicationContext();
         authApi = ApiClient.getRetrofit().create(AuthApi.class);
         tokenManager = new TokenManager(context);
     }
 
     public void login(String email, String password, AuthCallback<LoginResponse> callback) {
         if (!ApiClient.isConfigured()) {
-            callback.onError("Supabase URL 또는 공개 키가 설정되지 않았습니다.");
+            callback.onError(context.getString(R.string.auth_error_not_configured));
             return;
         }
         authApi.login("password", new LoginRequest(email, password)).enqueue(new Callback<LoginResponse>() {
@@ -101,7 +104,7 @@ public class AuthService {
     public void refreshSession(AuthCallback<LoginResponse> callback) {
         String refreshToken = tokenManager.getRefreshToken();
         if (refreshToken == null || refreshToken.trim().isEmpty()) {
-            callback.onError("로그인 세션이 만료되었습니다. 다시 로그인해주세요.");
+            callback.onError(context.getString(R.string.auth_error_session_expired));
             return;
         }
 
@@ -139,7 +142,7 @@ public class AuthService {
     public void deleteAccount(AuthCallback<Void> callback) {
         String accessToken = tokenManager.getAccessToken();
         if (accessToken == null || accessToken.trim().isEmpty()) {
-            callback.onError("로그인이 필요합니다.");
+            callback.onError(context.getString(R.string.auth_error_login_required));
             return;
         }
         authApi.deleteAccount(
@@ -174,39 +177,60 @@ public class AuthService {
     }
 
     private String parseError(Response<?> response) {
-        if (response.errorBody() == null) {
-            return "Request failed. HTTP " + response.code();
-        }
-
+        String errorCode = "";
+        String message = "";
         try {
-            String errorJson = response.errorBody().string();
-            JSONObject jsonObject = new JSONObject(errorJson);
-            Object detail = jsonObject.opt("detail");
-
-            if (detail instanceof String) {
-                return (String) detail;
-            }
-            if (detail instanceof JSONArray) {
-                JSONArray details = (JSONArray) detail;
-                if (details.length() > 0) {
-                    JSONObject firstError = details.optJSONObject(0);
-                    if (firstError != null) {
-                        return firstError.optString("msg", firstError.toString());
-                    }
+            if (response.errorBody() != null) {
+                JSONObject jsonObject = new JSONObject(response.errorBody().string());
+                errorCode = firstNonEmpty(
+                        jsonObject.optString("error_code", ""),
+                        jsonObject.optString("error", "")
+                );
+                message = detailMessage(jsonObject.opt("detail"));
+                if (message.isEmpty()) {
+                    message = firstNonEmpty(
+                            jsonObject.optString("msg", ""),
+                            jsonObject.optString("message", ""),
+                            jsonObject.optString("error_description", "")
+                    );
                 }
             }
-            String message = jsonObject.optString("msg", jsonObject.optString("message", jsonObject.optString("error_description", errorJson)));
-            return message;
         } catch (Exception ignored) {
-            return "Request failed. HTTP " + response.code();
+            // 본문을 읽을 수 없으면 HTTP 상태 코드만으로 안내 문구를 고릅니다.
         }
+        return AuthErrorMessages.from(context, response.code(), errorCode, message);
+    }
+
+    private String detailMessage(Object detail) {
+        if (detail instanceof String) {
+            return (String) detail;
+        }
+        if (detail instanceof JSONArray) {
+            JSONArray details = (JSONArray) detail;
+            if (details.length() > 0) {
+                JSONObject firstError = details.optJSONObject(0);
+                if (firstError != null) {
+                    return firstError.optString("msg", "");
+                }
+            }
+        }
+        return "";
+    }
+
+    private String firstNonEmpty(String... values) {
+        for (String value : values) {
+            if (value != null && !value.trim().isEmpty() && !"null".equals(value)) {
+                return value;
+            }
+        }
+        return "";
     }
 
     private String networkErrorMessage(Throwable throwable) {
         if (throwable instanceof IOException) {
-            return "Supabase에 연결할 수 없습니다. 인터넷 연결과 프로젝트 설정을 확인해주세요.";
+            return context.getString(R.string.auth_error_network);
         }
-        return throwable.getMessage() == null ? "Unexpected error occurred." : throwable.getMessage();
+        return context.getString(R.string.auth_error_generic);
     }
 
     private boolean isSessionRejected(int statusCode) {

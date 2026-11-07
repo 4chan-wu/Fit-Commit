@@ -174,36 +174,81 @@
             android:singleLine="true"
             android:visibility="gone" />
 
-        <EditText
-            android:id="@+id/passwordEditText"
+        <FrameLayout
             android:layout_width="match_parent"
             android:layout_height="54dp"
-            android:layout_marginTop="10dp"
-            android:autofillHints="password"
-            android:background="@drawable/bg_input"
-            android:hint="@string/ui_070"
-            android:inputType="textPassword"
-            android:paddingHorizontal="16dp"
-            android:singleLine="true" />
+            android:layout_marginTop="10dp">
 
-        <EditText
-            android:id="@+id/passwordConfirmEditText"
+            <EditText
+                android:id="@+id/passwordEditText"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:autofillHints="password"
+                android:background="@drawable/bg_input"
+                android:hint="@string/ui_070"
+                android:inputType="textPassword"
+                android:paddingStart="16dp"
+                android:paddingEnd="52dp"
+                android:singleLine="true" />
+
+            <ImageView
+                android:id="@+id/passwordToggle"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:layout_gravity="end|center_vertical"
+                android:background="?android:attr/selectableItemBackgroundBorderless"
+                android:contentDescription="@string/password_show"
+                android:padding="12dp"
+                android:src="@drawable/ic_visibility_off" />
+        </FrameLayout>
+
+        <TextView
+            android:id="@+id/passwordRuleText"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:gravity="center"
+            android:text="@string/signup_password_rule"
+            android:textColor="@color/fit_text_secondary"
+            android:textSize="12sp"
+            android:visibility="gone" />
+
+        <FrameLayout
+            android:id="@+id/passwordConfirmContainer"
             android:layout_width="match_parent"
             android:layout_height="54dp"
             android:layout_marginTop="10dp"
-            android:background="@drawable/bg_input"
-            android:autofillHints="password"
-            android:hint="@string/ui_071"
-            android:inputType="textPassword"
-            android:paddingHorizontal="16dp"
-            android:singleLine="true"
-            android:visibility="gone" />
+            android:visibility="gone">
+
+            <EditText
+                android:id="@+id/passwordConfirmEditText"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:autofillHints="password"
+                android:background="@drawable/bg_input"
+                android:hint="@string/ui_071"
+                android:inputType="textPassword"
+                android:paddingStart="16dp"
+                android:paddingEnd="52dp"
+                android:singleLine="true" />
+
+            <ImageView
+                android:id="@+id/passwordConfirmToggle"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:layout_gravity="end|center_vertical"
+                android:background="?android:attr/selectableItemBackgroundBorderless"
+                android:contentDescription="@string/password_show"
+                android:padding="12dp"
+                android:src="@drawable/ic_visibility_off" />
+        </FrameLayout>
 
         <TextView
             android:id="@+id/feedbackText"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="12dp"
+            android:gravity="center"
             android:textColor="@color/fit_danger"
             android:textSize="13sp"
             android:visibility="gone" />

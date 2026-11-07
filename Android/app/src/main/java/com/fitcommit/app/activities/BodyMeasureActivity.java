@@ -1,16 +1,19 @@
 package com.fitcommit.app.activities;
 
 import android.Manifest;
+import android.app.AlertDialog;
 import android.content.pm.PackageManager;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 import android.text.Editable;
+import android.text.InputType;
 import android.text.TextWatcher;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.FrameLayout;
 import android.widget.TextView;
 import android.opengl.GLSurfaceView;
 
@@ -71,6 +74,8 @@ public class BodyMeasureActivity extends ComponentActivity implements
     private boolean resultShown;
     private boolean arDepthMode;
     private boolean manualHeightMode;
+    /** 결과 화면에서 사용자가 예상 키를 직접 수정했는지 여부입니다. */
+    private boolean heightEditedAfterResult;
     private boolean cameraXStarted;
     private float latestDepthHeightMeters;
     private long latestDepthHeightAt;
@@ -115,6 +120,7 @@ public class BodyMeasureActivity extends ComponentActivity implements
         findViewById(R.id.bodyCameraBackText).setOnClickListener(v -> finish());
         measureButton.setOnClickListener(v -> showMeasurementResult());
         findViewById(R.id.retakeMeasurementButton).setOnClickListener(v -> resetMeasurement());
+        findViewById(R.id.editHeightButton).setOnClickListener(v -> showEditHeightDialog());
         findViewById(R.id.saveMeasurementButton).setOnClickListener(v -> saveAndFinish());
         findViewById(R.id.useManualHeightButton).setOnClickListener(v -> switchToManualHeightMode());
 
@@ -380,7 +386,11 @@ public class BodyMeasureActivity extends ComponentActivity implements
         if (imageAnalysis != null) imageAnalysis.clearAnalyzer();
         findViewById(R.id.bodyCaptureContent).setVisibility(View.GONE);
         resultContainer.setVisibility(View.VISIBLE);
+        renderMeasurementResult();
+    }
 
+    private void renderMeasurementResult() {
+        if (smoothedMeasurement == null) return;
         setText(R.id.resultBodyShapeText, smoothedMeasurement.bodyShape);
         setText(R.id.resultHeightText, getString(R.string.body_height_result, formatCentimeters(smoothedMeasurement.heightMeters)));
         setText(R.id.resultShoulderText, getString(R.string.body_shoulders_result, formatCentimeters(smoothedMeasurement.shoulderWidthMeters)));
@@ -390,8 +400,68 @@ public class BodyMeasureActivity extends ComponentActivity implements
         setText(R.id.resultRecommendationText, smoothedMeasurement.recommendation);
     }
 
+    /**
+     * 결과 화면에서 예상 키를 직접 고치면, 키 변화 비율만큼 어깨·골반·팔·다리 길이를 모두 다시 계산합니다.
+     */
+    private void showEditHeightDialog() {
+        if (smoothedMeasurement == null) return;
+        EditText input = new EditText(this);
+        input.setInputType(InputType.TYPE_CLASS_NUMBER | InputType.TYPE_NUMBER_FLAG_DECIMAL);
+        input.setHint(R.string.body_edit_height_hint);
+        input.setSingleLine(true);
+        input.setText(String.format(Locale.US, "%.1f", smoothedMeasurement.heightMeters * 100f));
+        input.setSelectAllOnFocus(true);
+
+        FrameLayout container = new FrameLayout(this);
+        int padding = UiUtils.dp(this, 20);
+        container.setPadding(padding, 0, padding, 0);
+        container.addView(input, new FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT
+        ));
+
+        AlertDialog dialog = new AlertDialog.Builder(this)
+                .setTitle(R.string.body_edit_height_title)
+                .setMessage(R.string.body_edit_height_message)
+                .setView(container)
+                .setPositiveButton(R.string.action_confirm, null)
+                .setNegativeButton(R.string.action_cancel, null)
+                .create();
+        // 잘못된 값이면 대화상자를 닫지 않고 오류만 보여주도록 클릭 동작을 직접 지정합니다.
+        dialog.setOnShowListener(ignored -> dialog.getButton(AlertDialog.BUTTON_POSITIVE)
+                .setOnClickListener(v -> {
+                    Float heightMeters = parseHeightMeters(input.getText().toString());
+                    if (heightMeters == null) {
+                        input.setError(getString(R.string.body_height_invalid));
+                        return;
+                    }
+                    applyEditedHeight(heightMeters);
+                    dialog.dismiss();
+                }));
+        dialog.show();
+    }
+
+    private Float parseHeightMeters(String text) {
+        try {
+            float centimeters = Float.parseFloat(text.trim().replace(',', '.'));
+            if (centimeters < 100f || centimeters > 230f) return null;
+            return centimeters / 100f;
+        } catch (NumberFormatException ignored) {
+            return null;
+        }
+    }
+
+    private void applyEditedHeight(float heightMeters) {
+        if (smoothedMeasurement == null) return;
+        smoothedMeasurement = BodyMeasurementCalculator.calibratedToHeight(smoothedMeasurement, heightMeters);
+        heightEditedAfterResult = true;
+        renderMeasurementResult();
+        UiUtils.toast(this, getString(R.string.body_height_adjusted));
+    }
+
     private void resetMeasurement() {
         resultShown = false;
+        heightEditedAfterResult = false;
         stableFrames = 0;
         smoothedMeasurement = null;
         lastRawMeasurement = null;
@@ -412,10 +482,14 @@ public class BodyMeasureActivity extends ComponentActivity implements
 
     private void saveAndFinish() {
         if (smoothedMeasurement == null) return;
-        String measurementMethod = arDepthMode
-                ? "ar_raw_depth"
-                : manualHeightMode ? "manual_height" : "camera_pose";
-        float confidence = arDepthMode ? 0.90f : manualHeightMode ? 0.75f : 0.55f;
+        String measurementMethod = heightEditedAfterResult
+                ? "manual_height"
+                : arDepthMode
+                        ? "ar_raw_depth"
+                        : manualHeightMode ? "manual_height" : "camera_pose";
+        float confidence = heightEditedAfterResult
+                ? 0.75f
+                : arDepthMode ? 0.90f : manualHeightMode ? 0.75f : 0.55f;
         BodyMeasurement savedMeasurement = smoothedMeasurement.withSyncMetadata(
                 measurementMethod,
                 confidence

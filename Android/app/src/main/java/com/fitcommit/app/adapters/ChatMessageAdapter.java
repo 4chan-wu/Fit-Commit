@@ -2,6 +2,7 @@ package com.fitcommit.app.adapters;
 
 import android.content.Context;
 import android.view.Gravity;
+import android.view.View;
 import android.view.ViewGroup;
 import android.widget.LinearLayout;
 import android.widget.TextView;
@@ -33,6 +34,8 @@ public class ChatMessageAdapter {
         TextView bubble = new TextView(context);
         bubble.setText(message.content);
         bubble.setTextSize(15);
+        // 채팅 말풍선은 여러 줄 대화라 읽기 편하도록 왼쪽 정렬을 유지합니다.
+        bubble.setTextAlignment(View.TEXT_ALIGNMENT_VIEW_START);
         bubble.setLineSpacing(UiUtils.dp(context, 3), 1.0f);
         bubble.setPadding(UiUtils.dp(context, 16), UiUtils.dp(context, 12), UiUtils.dp(context, 16), UiUtils.dp(context, 12));
         bubble.setBackgroundResource(message.fromUser ? R.drawable.bg_chat_user : R.drawable.bg_chat_ai);
