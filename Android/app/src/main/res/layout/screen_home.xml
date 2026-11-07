@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:fillViewport="true"
@@ -72,15 +73,19 @@
         </LinearLayout>
 
         <TextView
-            android:id="@+id/viewDailyOutfitButton"
+            android:id="@+id/newClothingButton"
             android:layout_width="match_parent"
             android:layout_height="56dp"
             android:layout_marginTop="24dp"
             android:background="@drawable/bg_primary_button"
+            android:drawableStart="@drawable/ic_add_garment_white"
+            android:drawablePadding="9dp"
             android:gravity="center"
+            android:paddingHorizontal="24dp"
             android:text="@string/ui_117"
             android:textColor="@color/fit_on_dark"
             android:textSize="15sp"
-            android:textStyle="bold" />
+            android:textStyle="bold"
+            tools:ignore="UseCompatTextViewDrawableXml" />
     </com.fitcommit.app.views.ResponsiveContentLayout>
 </ScrollView>

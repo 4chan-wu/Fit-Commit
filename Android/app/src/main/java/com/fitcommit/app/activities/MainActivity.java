@@ -35,10 +35,12 @@ import com.fitcommit.app.services.BodyMeasurementService;
 import com.fitcommit.app.services.ClothesBackendService;
 import com.fitcommit.app.services.ClothingStorage;
 import com.fitcommit.app.services.TokenManager;
+import com.fitcommit.app.utils.ColorSearchUtils;
 import com.fitcommit.app.utils.LanguageManager;
 import com.fitcommit.app.utils.UiUtils;
 
 import java.io.File;
+import java.text.Collator;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -188,7 +190,10 @@ public class MainActivity extends Activity {
         currentScreen = "home";
         setSelectedTab(tabHome);
         View view = inflate(R.layout.screen_home);
-        view.findViewById(R.id.viewDailyOutfitButton).setOnClickListener(v -> showCloset());
+        view.findViewById(R.id.newClothingButton).setOnClickListener(v -> {
+            v.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP);
+            openAddClothingWithCamera();
+        });
     }
 
     /**
@@ -292,7 +297,7 @@ public class MainActivity extends Activity {
         ));
         sortButton.setOnClickListener(v -> showClosetSortDialog(sortMode[0], mode -> {
             sortMode[0] = mode;
-            sortButton.setText("name".equals(mode) ? R.string.sort_name_short : R.string.ui_107);
+            sortButton.setText(sortButtonLabel(mode));
             refresh.run();
         }));
 
@@ -362,6 +367,14 @@ public class MainActivity extends Activity {
     private void openAddClothing() {
         Intent intent = new Intent(this, AddClothingActivity.class);
         intent.putExtra(AddClothingActivity.EXTRA_WARDROBE_ID, selectedWardrobeId);
+        startActivity(intent);
+    }
+
+    /** 홈의 '새 옷 등록': 옷 종류·촬영 방식 선택 없이 바로 카메라를 열고, 촬영 후 종류를 고릅니다. */
+    private void openAddClothingWithCamera() {
+        Intent intent = new Intent(this, AddClothingActivity.class);
+        intent.putExtra(AddClothingActivity.EXTRA_WARDROBE_ID, selectedWardrobeId);
+        intent.putExtra(AddClothingActivity.EXTRA_START_WITH_CAMERA, true);
         startActivity(intent);
     }
 
@@ -517,22 +530,18 @@ public class MainActivity extends Activity {
     ) {
         List<ClosetItem> visibleItems = new ArrayList<>();
         String normalizedQuery = query == null ? "" : query.trim().toLowerCase(Locale.ROOT);
+        // 공백으로 나눈 검색어를 모두 포함해야 결과에 나타납니다. (예: "검정 상의")
+        String[] queryTokens = normalizedQuery.isEmpty() ? new String[0] : normalizedQuery.split("\\s+");
         for (ClosetItem item : sourceItems) {
             if (!matchesClosetCategory(item, category) || !matchesClosetSeason(item, season)) {
                 continue;
             }
-            String searchable = (safe(item.name) + " " + safe(item.category) + " "
-                    + safe(item.color) + " " + safe(item.season)).toLowerCase(Locale.ROOT);
-            if (normalizedQuery.isEmpty() || searchable.contains(normalizedQuery)) {
+            if (queryTokens.length == 0 || matchesAllTokens(searchableText(item), queryTokens)) {
                 visibleItems.add(item);
             }
         }
 
-        if ("name".equals(sortMode)) {
-            visibleItems.sort(Comparator.comparing(item -> safe(item.name), String.CASE_INSENSITIVE_ORDER));
-        } else {
-            visibleItems.sort((left, right) -> Long.compare(right.createdAt, left.createdAt));
-        }
+        sortClosetItems(visibleItems, sortMode);
 
         adapter.submitList(visibleItems);
         countText.setText(visibleItems.size() == sourceItems.size()
@@ -596,6 +605,76 @@ public class MainActivity extends Activity {
                     || category.contains("가방") || category.contains("모자") || category.contains("소품");
         }
         return category.contains("dress") || category.contains("원피스");
+    }
+
+    /**
+     * 검색 대상 문자열을 만듭니다. 저장된 값(영어 "black", "top" 등) 뒤에 한국어 표기를 함께 붙여서
+     * "검정", "상의", "봄"처럼 한국어로 검색해도 찾을 수 있게 합니다.
+     */
+    private String searchableText(ClosetItem item) {
+        StringBuilder text = new StringBuilder();
+        text.append(safe(item.name)).append(' ')
+                .append(safe(item.category)).append(' ')
+                .append(safe(item.color)).append(' ')
+                .append(safe(item.season)).append(' ')
+                .append(ColorSearchUtils.keywordsFor(item.color));
+
+        String[] categoryKeys = {"top", "bottom", "outer", "shoes", "accessory", "dress"};
+        String[] categoryKeywords = {
+                " 상의 top", " 하의 bottom", " 아우터 outer", " 신발 shoes",
+                " 가방 모자 소품 bag hat accessory", " 원피스 dress"
+        };
+        for (int i = 0; i < categoryKeys.length; i++) {
+            if (matchesClosetCategory(item, categoryKeys[i])) text.append(categoryKeywords[i]);
+        }
+
+        String[] seasonKeys = {"spring", "summer", "fall", "winter"};
+        String[] seasonKeywords = {" 봄 spring", " 여름 summer", " 가을 fall autumn", " 겨울 winter"};
+        for (int i = 0; i < seasonKeys.length; i++) {
+            if (matchesClosetSeason(item, seasonKeys[i])) text.append(seasonKeywords[i]);
+        }
+        if (safe(item.season).toLowerCase(Locale.ROOT).contains("all")) text.append(" 사계절 all");
+        return text.toString().toLowerCase(Locale.ROOT);
+    }
+
+    private boolean matchesAllTokens(String searchable, String[] tokens) {
+        for (String token : tokens) {
+            if (!searchable.contains(token)) return false;
+        }
+        return true;
+    }
+
+    /** 정렬 모드: recent(최신순), oldest(오래된순), name_asc(이름 오름차순), name_desc(이름 내림차순). */
+    private void sortClosetItems(List<ClosetItem> items, String sortMode) {
+        Comparator<ClosetItem> newestFirst = (left, right) -> Long.compare(right.createdAt, left.createdAt);
+        Collator collator = Collator.getInstance(Locale.getDefault());
+        boolean descending = "name_desc".equals(sortMode);
+        Comparator<ClosetItem> byName = (left, right) -> {
+            String leftName = safe(left.name).trim();
+            String rightName = safe(right.name).trim();
+            // 이름이 없는 옷은 정렬 방향과 관계없이 항상 맨 뒤로 보냅니다.
+            if (leftName.isEmpty() || rightName.isEmpty()) {
+                if (leftName.isEmpty() && rightName.isEmpty()) return 0;
+                return leftName.isEmpty() ? 1 : -1;
+            }
+            int result = collator.compare(leftName, rightName);
+            return descending ? -result : result;
+        };
+
+        if ("oldest".equals(sortMode)) {
+            items.sort((left, right) -> Long.compare(left.createdAt, right.createdAt));
+        } else if ("name_asc".equals(sortMode) || "name_desc".equals(sortMode)) {
+            items.sort(byName.thenComparing(newestFirst));
+        } else {
+            items.sort(newestFirst);
+        }
+    }
+
+    private int sortButtonLabel(String mode) {
+        if ("oldest".equals(mode)) return R.string.sort_oldest_short;
+        if ("name_asc".equals(mode)) return R.string.sort_name_short;
+        if ("name_desc".equals(mode)) return R.string.sort_name_desc_short;
+        return R.string.ui_107;
     }
 
     private boolean matchesClosetSeason(ClosetItem item, String selected) {
@@ -682,11 +761,12 @@ public class MainActivity extends Activity {
 
     private void showClosetSortDialog(String currentMode, Consumer<String> onApply) {
         String[] labels = getResources().getStringArray(R.array.closet_sort_labels);
-        int checked = "name".equals(currentMode) ? 1 : 0;
+        String[] modes = {"recent", "oldest", "name_asc", "name_desc"};
+        int checked = Math.max(0, Arrays.asList(modes).indexOf(currentMode));
         new AlertDialog.Builder(this)
                 .setTitle(R.string.sort_title)
                 .setSingleChoiceItems(labels, checked, (dialog, which) -> {
-                    onApply.accept(which == 1 ? "name" : "recent");
+                    onApply.accept(modes[which]);
                     dialog.dismiss();
                 })
                 .setNegativeButton(R.string.action_cancel, null)

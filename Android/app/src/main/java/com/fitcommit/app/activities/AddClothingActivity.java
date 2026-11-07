@@ -19,11 +19,14 @@ import com.fitcommit.app.services.BackgroundRemover;
 
 public class AddClothingActivity extends ComponentActivity {
     public static final String EXTRA_WARDROBE_ID = "wardrobeId";
+    /** 홈의 '새 옷 등록'에서 들어올 때 true: 종류 선택·촬영 방식 선택 없이 바로 카메라를 엽니다. */
+    public static final String EXTRA_START_WITH_CAMERA = "startWithCamera";
     private static final int REQUEST_TAKE_PHOTO = 5102;
     private static final int REQUEST_PICK_IMAGE = 5103;
     private static final String[] CATEGORY_VALUES = {"top", "bottom", "outer", "shoes", "hat", "bag", "dress"};
     private String selectedCategoryHint = CATEGORY_VALUES[0];
     private String selectedWardrobeId = "";
+    private boolean startWithCamera;
     private AlertDialog progressDialog;
     private ActivityResultLauncher<Intent> activityResultLauncher;
     private int pendingRequestCode;
@@ -37,14 +40,23 @@ public class AddClothingActivity extends ComponentActivity {
         );
         selectedWardrobeId = getIntent().getStringExtra(EXTRA_WARDROBE_ID);
         if (selectedWardrobeId == null) selectedWardrobeId = "";
-        showCategoryDialog();
+        startWithCamera = getIntent().getBooleanExtra(EXTRA_START_WITH_CAMERA, false);
+        if (startWithCamera) {
+            // 화면이 다시 만들어질 때(회전 등) 카메라가 또 열리지 않도록 최초 생성에서만 엽니다.
+            if (savedInstanceState == null) {
+                openCamera();
+            }
+        } else {
+            showCategoryDialog(this::showSourceDialog);
+        }
     }
 
-    private void showCategoryDialog() {
+    private void showCategoryDialog(Runnable onNext) {
+        selectedCategoryHint = CATEGORY_VALUES[0];
         new AlertDialog.Builder(this)
                 .setTitle(R.string.add_item_type_title)
                 .setSingleChoiceItems(R.array.clothing_category_labels, 0, (dialog, which) -> selectedCategoryHint = CATEGORY_VALUES[which])
-                .setPositiveButton(R.string.action_next, (dialog, which) -> showSourceDialog())
+                .setPositiveButton(R.string.action_next, (dialog, which) -> onNext.run())
                 .setNegativeButton(R.string.action_cancel, (dialog, which) -> finish())
                 .setOnCancelListener(dialog -> finish())
                 .show();
@@ -93,7 +105,27 @@ public class AddClothingActivity extends ComponentActivity {
 
     private void handleActivityResult(int requestCode, int resultCode, Intent data) {
         if (resultCode != Activity.RESULT_OK || data == null) {
-            showSourceDialog();
+            if (startWithCamera) {
+                // 바로 촬영 모드에서 촬영을 취소하면 원래 화면(홈)으로 돌아갑니다.
+                finish();
+            } else {
+                showSourceDialog();
+            }
+            return;
+        }
+
+        if (requestCode == REQUEST_TAKE_PHOTO && startWithCamera) {
+            // 바로 촬영 모드: 사진을 찍은 뒤에 옷 종류를 물어봅니다.
+            startWithCamera = false;
+            String capturedPath = data.getStringExtra(ClothingCameraActivity.EXTRA_CAPTURED_IMAGE_PATH);
+            if (capturedPath == null || capturedPath.trim().isEmpty()) {
+                showProcessingError(getString(R.string.capture_load_failed));
+                return;
+            }
+            showCategoryDialog(() -> {
+                showProcessingDialog(getString(R.string.source_preparing));
+                prepareCapturedPhoto(capturedPath);
+            });
             return;
         }
 
@@ -121,20 +153,24 @@ public class AddClothingActivity extends ComponentActivity {
                 showProcessingError(getString(R.string.capture_load_failed));
                 return;
             }
-            new Thread(() -> {
-                try {
-                    String normalizedPath = BackgroundRemover.normalizeCapturedFile(this, originalPath);
-                    runOnUiThread(() -> removeBackground(normalizedPath));
-                } catch (Exception error) {
-                    runOnUiThread(() -> showProcessingError(
-                            getString(R.string.capture_prepare_failed, safeMessage(error))
-                    ));
-                }
-            }).start();
+            prepareCapturedPhoto(originalPath);
             return;
         }
         dismissProgressDialog();
         finish();
+    }
+
+    private void prepareCapturedPhoto(String originalPath) {
+        new Thread(() -> {
+            try {
+                String normalizedPath = BackgroundRemover.normalizeCapturedFile(this, originalPath);
+                runOnUiThread(() -> removeBackground(normalizedPath));
+            } catch (Exception error) {
+                runOnUiThread(() -> showProcessingError(
+                        getString(R.string.capture_prepare_failed, safeMessage(error))
+                ));
+            }
+        }).start();
     }
 
     private void removeBackground(String originalPath) {

@@ -80,7 +80,7 @@
     <string name="ui_075">홈</string>
     <string name="ui_076">내 옷장</string>
     <string name="ui_077">AI 코디</string>
-    <string name="ui_078">마이</string>
+    <string name="ui_078">마이페이지</string>
     <string name="ui_079">의류 이미지 추가</string>
     <string name="ui_080">옷 한 벌만 화면 중앙에 놓아주세요.\n단순한 배경과 밝은 조명에서 더 정확해요.</string>
     <string name="ui_081">카메라로 촬영</string>
@@ -116,8 +116,7 @@
     <string name="ui_114">내 옷을 한곳에\n차곡차곡 모아보세요</string>
     <string name="ui_115">사진으로 옷을 등록하고 카테고리와 계절별로 빠르게 찾아볼 수 있어요.</string>
     <string name="ui_116">오늘 입을 옷부터 새로 산 옷까지\n나만의 디지털 옷장에 기록하세요.</string>
-    <string name="ui_117">내 옷장 열기</string>
-    <string name="ui_118">계정과 개인정보 설정을 관리합니다.</string>
+    <string name="ui_117">새 옷 등록</string>
     <string name="ui_119">나의 신체 분석</string>
     <string name="ui_120">신체 비율 측정하기</string>
     <string name="ui_121">정보 및 약관</string>
@@ -161,7 +160,7 @@
     <string name="signup_email">이메일로 회원가입</string><string name="login_switch_login">이미 계정이 있나요?  로그인</string>
     <string name="login_subtitle">내 체형과 옷장을 연결해 매일 더 나은 코디를 만나보세요.</string><string name="signup_subtitle">기본 정보를 입력하고 나만의 스마트 옷장을 시작하세요.</string>
     <string name="loading">처리 중…</string><string name="session_restoring">로그인 정보를 확인하고 있어요…</string><string name="validation_email">올바른 이메일 주소를 입력해주세요.</string><string name="validation_password">비밀번호는 8자 이상이며 문자 유형 3가지를 포함해야 합니다.</string><string name="validation_signup">이름, 휴대전화 번호와 비밀번호 확인을 다시 확인해주세요.</string>
-    <string name="sort_name_short">이름순 ︾</string>
+    <string name="sort_name_short">이름 오름차순 ︾</string>
     <plurals name="closet_count_total"><item quantity="other">총 %1$d벌</item></plurals>
     <plurals name="closet_count_filtered"><item quantity="other">%1$d벌 표시 · 전체 %2$d벌</item></plurals>
     <string name="wardrobe_fetch_failed">옷장 목록을 불러오지 못했어요</string><string name="local_fallback_unstable">연결이 불안정해 기기에 저장된 옷을 보여드려요</string><string name="local_fallback">기기에 저장된 옷을 보여드려요</string>
@@ -323,4 +322,41 @@
     <string name="language_korean">한국어</string>
     <string name="language_english">English</string>
     <string name="language_apply">적용</string>
+
+    <!-- UX 개선: 스플래시/튜토리얼, 로그인, 정렬, 신체 측정 -->
+    <string name="splash_tagline">내 옷장을 더 똑똑하게</string>
+    <string name="onboarding_skip">건너뛰기</string>
+    <string name="onboarding_next">다음</string>
+    <string name="onboarding_start">시작하기</string>
+    <string name="onboarding_1_title">사진 한 장으로 옷 등록</string>
+    <string name="onboarding_1_body">옷을 촬영하면 배경을 지우고\n깔끔하게 내 옷장에 저장해요.</string>
+    <string name="onboarding_2_title">AI가 옷을 분석해요</string>
+    <string name="onboarding_2_body">종류·색상·계절을 자동으로 분석해서\n원하는 옷을 쉽게 찾을 수 있어요.</string>
+    <string name="onboarding_3_title">내 체형에 맞는 코디</string>
+    <string name="onboarding_3_body">신체 비율을 측정하고 옷장 속 옷으로\nAI 코디를 추천받아보세요.</string>
+    <string name="password_show">비밀번호 보기</string>
+    <string name="password_hide">비밀번호 숨기기</string>
+    <string name="validation_password_required">비밀번호를 입력해주세요.</string>
+    <string name="signup_password_rule">8자 이상, 영문 대문자·소문자·숫자·특수문자 중 3가지 이상을 포함해주세요.</string>
+    <string name="auth_error_invalid_credentials">이메일 또는 비밀번호가 올바르지 않아요.</string>
+    <string name="auth_error_email_not_confirmed">이메일 인증이 아직 완료되지 않았어요. 받은편지함의 인증 메일을 확인해주세요.</string>
+    <string name="auth_error_user_exists">이미 가입된 이메일이에요. 로그인해주세요.</string>
+    <string name="auth_error_weak_password">비밀번호가 너무 쉬워요. 8자 이상, 문자 유형 3가지 이상으로 만들어주세요.</string>
+    <string name="auth_error_rate_limit">요청이 너무 많아요. 잠시 후 다시 시도해주세요.</string>
+    <string name="auth_error_signup_disabled">현재는 회원가입을 사용할 수 없어요.</string>
+    <string name="auth_error_user_banned">이용이 제한된 계정이에요. 고객 문의를 이용해주세요.</string>
+    <string name="auth_error_link_expired">인증 링크가 만료되었거나 올바르지 않아요. 인증 메일을 다시 요청해주세요.</string>
+    <string name="auth_error_session_expired">로그인 정보가 만료되었어요. 다시 로그인해주세요.</string>
+    <string name="auth_error_server">서버에 문제가 생겼어요. 잠시 후 다시 시도해주세요.</string>
+    <string name="auth_error_generic">요청을 처리하지 못했어요. 잠시 후 다시 시도해주세요.</string>
+    <string name="auth_error_network">서버에 연결할 수 없어요. 인터넷 연결을 확인해주세요.</string>
+    <string name="auth_error_not_configured">서비스 설정이 올바르지 않아 로그인할 수 없어요. 앱을 최신 버전으로 업데이트해주세요.</string>
+    <string name="auth_error_login_required">로그인이 필요해요.</string>
+    <string name="sort_oldest_short">오래된순 ︾</string>
+    <string name="sort_name_desc_short">이름 내림차순 ︾</string>
+    <string name="body_edit_height">예상 키 수정</string>
+    <string name="body_edit_height_title">예상 키 수정</string>
+    <string name="body_edit_height_message">실제 키를 입력하면 어깨·골반·팔·다리 길이가 같은 비율로 다시 계산돼요.</string>
+    <string name="body_edit_height_hint">키 (cm)</string>
+    <string name="body_height_adjusted">입력한 키에 맞춰 전체 길이를 다시 계산했어요.</string>
 </resources>

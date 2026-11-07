@@ -5,12 +5,16 @@ import android.app.AlertDialog;
 import android.content.Intent;
 import android.net.Uri;
 import android.os.Bundle;
+import android.text.method.HideReturnsTransformationMethod;
+import android.text.method.PasswordTransformationMethod;
 import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.ImageView;
 import android.widget.TextView;
 
 import com.fitcommit.app.R;
+import com.fitcommit.app.services.AuthErrorMessages;
 import com.fitcommit.app.services.AuthService;
 import com.fitcommit.app.services.TokenManager;
 import com.fitcommit.app.services.dto.LoginResponse;
@@ -29,6 +33,8 @@ public class LoginActivity extends Activity {
     private EditText phoneEditText;
     private EditText passwordEditText;
     private EditText passwordConfirmEditText;
+    private View passwordConfirmContainer;
+    private TextView passwordRuleText;
     private TextView subtitleText;
     private TextView feedbackText;
     private TextView modeSwitchText;
@@ -62,6 +68,8 @@ public class LoginActivity extends Activity {
         phoneEditText = findViewById(R.id.phoneEditText);
         passwordEditText = findViewById(R.id.passwordEditText);
         passwordConfirmEditText = findViewById(R.id.passwordConfirmEditText);
+        passwordConfirmContainer = findViewById(R.id.passwordConfirmContainer);
+        passwordRuleText = findViewById(R.id.passwordRuleText);
         subtitleText = findViewById(R.id.loginSubtitleText);
         feedbackText = findViewById(R.id.feedbackText);
         modeSwitchText = findViewById(R.id.modeSwitchText);
@@ -69,6 +77,8 @@ public class LoginActivity extends Activity {
     }
 
     private void setupActions() {
+        setupPasswordToggle(passwordEditText, findViewById(R.id.passwordToggle));
+        setupPasswordToggle(passwordConfirmEditText, findViewById(R.id.passwordConfirmToggle));
         submitButton.setOnClickListener(v -> submit());
         modeSwitchText.setOnClickListener(v -> {
             signUpMode = !signUpMode;
@@ -82,10 +92,28 @@ public class LoginActivity extends Activity {
                 startActivity(new Intent(this, LegalActivity.class)));
     }
 
+    /** 눈 모양 아이콘을 누를 때마다 비밀번호를 보이거나 숨깁니다. */
+    private void setupPasswordToggle(EditText field, ImageView toggle) {
+        toggle.setOnClickListener(v -> {
+            boolean showPassword = field.getTransformationMethod() instanceof PasswordTransformationMethod;
+            int selectionStart = field.getSelectionStart();
+            int selectionEnd = field.getSelectionEnd();
+            field.setTransformationMethod(showPassword
+                    ? HideReturnsTransformationMethod.getInstance()
+                    : PasswordTransformationMethod.getInstance());
+            if (selectionStart >= 0 && selectionEnd >= 0) {
+                field.setSelection(selectionStart, selectionEnd);
+            }
+            toggle.setImageResource(showPassword ? R.drawable.ic_visibility : R.drawable.ic_visibility_off);
+            toggle.setContentDescription(getString(showPassword ? R.string.password_hide : R.string.password_show));
+        });
+    }
+
     private void updateMode() {
         nameEditText.setVisibility(signUpMode ? View.VISIBLE : View.GONE);
         phoneEditText.setVisibility(signUpMode ? View.VISIBLE : View.GONE);
-        passwordConfirmEditText.setVisibility(signUpMode ? View.VISIBLE : View.GONE);
+        passwordConfirmContainer.setVisibility(signUpMode ? View.VISIBLE : View.GONE);
+        passwordRuleText.setVisibility(signUpMode ? View.VISIBLE : View.GONE);
         subtitleText.setText(signUpMode ? R.string.signup_subtitle : R.string.login_subtitle);
         submitButton.setText(signUpMode ? R.string.signup_email : R.string.ui_072);
         modeSwitchText.setText(signUpMode ? R.string.login_switch_login : R.string.ui_073);
@@ -102,8 +130,15 @@ public class LoginActivity extends Activity {
             showFeedback(getString(R.string.validation_email));
             return;
         }
-        if (!ValidationUtils.isPasswordValid(password)) {
-            showFeedback(getString(R.string.validation_password));
+        if (signUpMode) {
+            // 비밀번호 규칙은 새 비밀번호를 만드는 회원가입에서만 검사합니다.
+            // 로그인에서는 규칙 문구 대신 로그인 실패 안내만 보여줍니다.
+            if (!ValidationUtils.isPasswordValid(password)) {
+                showFeedback(getString(R.string.validation_password));
+                return;
+            }
+        } else if (password.isEmpty()) {
+            showFeedback(getString(R.string.validation_password_required));
             return;
         }
 
@@ -207,7 +242,9 @@ public class LoginActivity extends Activity {
             errorDescription = parameters.getQueryParameter("error");
         }
         if (errorDescription != null && !errorDescription.trim().isEmpty()) {
-            showFeedback(getString(R.string.email_verification_failed, errorDescription));
+            String localizedError = AuthErrorMessages.from(
+                    this, 0, parameters.getQueryParameter("error_code"), errorDescription);
+            showFeedback(getString(R.string.email_verification_failed, localizedError));
             return true;
         }
 

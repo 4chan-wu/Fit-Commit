@@ -63,7 +63,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="6dp"
-        android:gravity="center_vertical"
+        android:gravity="center"
         android:orientation="horizontal">
         <View
             android:id="@+id/closetItemColor"
@@ -72,10 +72,9 @@
             android:background="@color/fit_text_secondary" />
         <TextView
             android:id="@+id/closetItemMeta"
-            android:layout_width="0dp"
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginStart="7dp"
-            android:layout_weight="1"
             android:ellipsize="end"
             android:maxLines="1"
             android:textColor="@color/fit_text_secondary"
